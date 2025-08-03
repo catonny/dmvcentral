@@ -45,7 +45,7 @@ export default function SeedPage() {
     setLoading(true);
     try {
       const batch = writeBatch(db);
-      const clientRefs: { [key: string]: string } = {};
+      const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
       const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
 
       // Seed Employees
@@ -58,7 +58,7 @@ export default function SeedPage() {
       clients.forEach((client, index) => {
         const docRef = doc(collection(db, 'clients'));
         batch.set(docRef, { ...client, id: docRef.id, lastUpdated: new Date().toISOString() });
-        clientRefs[`client${index + 1}_id_placeholder`] = docRef.id;
+        clientRefs[`client${index + 1}_id_placeholder`] = {id: docRef.id, partnerId: client.partnerId};
       });
 
       // Seed Engagement Types (which are now templates)
@@ -87,10 +87,24 @@ export default function SeedPage() {
       
       // Seed Engagements and their related Tasks
       engagements.forEach((engagement, index) => {
-          const newClientId = clientRefs[engagement.clientId];
-          if (newClientId) {
+          const clientRefData = clientRefs[engagement.clientId];
+          if (clientRefData) {
             const engagementDocRef = doc(collection(db, 'engagements'));
-            batch.set(engagementDocRef, { ...engagement, id: engagementDocRef.id, clientId: newClientId });
+            const newEngagementData = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
+            batch.set(engagementDocRef, newEngagementData);
+            
+            // If the sample engagement is set to "To Bill", create a pending invoice for it
+            if (engagement.billStatus === "To Bill") {
+                const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
+                batch.set(pendingInvoiceRef, {
+                    id: pendingInvoiceRef.id,
+                    engagementId: engagementDocRef.id,
+                    clientId: clientRefData.id,
+                    assignedTo: engagement.assignedTo,
+                    reportedTo: engagement.reportedTo,
+                    partnerId: clientRefData.partnerId,
+                });
+            }
             
             // Now, create the sub-tasks for this engagement from the template
             const template = engagementTypeMap.get(engagement.type);
