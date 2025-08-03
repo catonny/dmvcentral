@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import type { Client, Employee, Engagement } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { GripVertical, Grip } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Widget {
   id: string;
@@ -24,18 +25,13 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-interface DashboardClientProps {
-    initialAllClients: Client[];
-    initialAllEmployees: Employee[];
-    initialEngagements: Engagement[];
-    initialCurrentUserEmployeeProfile: Employee | null;
-}
-
-export function DashboardClient({ initialAllClients, initialAllEmployees, initialEngagements, initialCurrentUserEmployeeProfile }: DashboardClientProps) {
-  const [allClients, setAllClients] = React.useState<Client[]>(initialAllClients);
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialAllEmployees);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialEngagements);
-  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(initialCurrentUserEmployeeProfile);
+export function DashboardClient() {
+  const { user } = useAuth();
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
+  const [loadingData, setLoadingData] = React.useState(true);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
@@ -43,29 +39,51 @@ export function DashboardClient({ initialAllClients, initialAllEmployees, initia
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
-        setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-    }, (error) => handleError(error, "clients"));
+    if (!user) return;
 
-    const unsubEngagements = onSnapshot(query(collection(db, "engagements")), (snapshot) => {
-        setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
-    }, (error) => handleError(error, "engagements"));
+    setLoadingData(true);
+    const fetchProfileAndData = async () => {
+        try {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const employeeSnapshot = await getDocs(employeeQuery);
 
-    const unsubEmployees = onSnapshot(query(collection(db, "employees")), (snapshot) => {
-        setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
-    }, (error) => handleError(error, "employees"));
+            if (!employeeSnapshot.empty) {
+                const profile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+                setCurrentUserEmployeeProfile(profile);
+            }
+
+        } catch (error) {
+            handleError(error as Error, 'employee profile');
+        }
+
+        const unsubClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
+            setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+        }, (error) => handleError(error, "clients"));
+
+        const unsubEngagements = onSnapshot(query(collection(db, "engagements")), (snapshot) => {
+            setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+        }, (error) => handleError(error, "engagements"));
+
+        const unsubEmployees = onSnapshot(query(collection(db, "employees")), (snapshot) => {
+            setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+        }, (error) => handleError(error, "employees"));
+        
+        setLoadingData(false);
+
+        return () => {
+            unsubClients();
+            unsubEngagements();
+            unsubEmployees();
+        };
+    };
 
     const handleError = (error: Error, type: string) => {
         console.error(`Error fetching real-time ${type}:`, error);
         toast({ title: "Real-time Update Error", description: `Could not sync ${type}.`, variant: "destructive" });
     }
 
-    return () => {
-      unsubClients();
-      unsubEngagements();
-      unsubEmployees();
-    };
-  }, [toast]);
+    fetchProfileAndData();
+  }, [user, toast]);
   
   const { isPartner, visibleClients, dashboardEngagements } = React.useMemo(() => {
     if (!currentUserEmployeeProfile) {
@@ -113,7 +131,17 @@ export function DashboardClient({ initialAllClients, initialAllEmployees, initia
 
     const storedLayout = localStorage.getItem('dashboardLayout');
     if (storedLayout) {
-        setLayout(JSON.parse(storedLayout));
+        try {
+          const parsedLayout = JSON.parse(storedLayout);
+          // Basic validation to ensure layout is not malformed
+          if (Array.isArray(parsedLayout)) {
+            setLayout(parsedLayout);
+          } else {
+            setLayout(visibleWidgets.map(w => ({...w.defaultLayout, i: w.id})));
+          }
+        } catch(e) {
+            setLayout(visibleWidgets.map(w => ({...w.defaultLayout, i: w.id})));
+        }
     } else {
         setLayout(visibleWidgets.map(w => ({...w.defaultLayout, i: w.id})));
     }
@@ -124,7 +152,7 @@ export function DashboardClient({ initialAllClients, initialAllEmployees, initia
     localStorage.setItem('dashboardLayout', JSON.stringify(newLayout));
   };
 
-  if (!initialCurrentUserEmployeeProfile) {
+  if (loadingData) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
@@ -166,21 +194,24 @@ export function DashboardClient({ initialAllClients, initialAllEmployees, initia
             onLayoutChange={handleLayoutChange}
             draggableHandle=".widget-drag-handle"
         >
-          {widgets.map(widget => (
-              <div key={widget.id} data-grid={layout.find(l => l.i === widget.id) || widget.defaultLayout}>
-                  <Card className="h-full w-full overflow-hidden flex flex-col">
-                       <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity widget-drag-handle">
-                          <GripVertical className="h-5 w-5" />
-                      </div>
-                      <div className="p-4 flex-grow">
-                          <widget.component {...getWidgetProps(widget.id)} />
-                      </div>
-                      <div className="react-resizable-handle absolute bottom-0 right-0 cursor-se-resize w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Grip className="w-full h-full text-muted-foreground" />
-                      </div>
-                  </Card>
-              </div>
-          ))}
+          {widgets.map(widget => {
+              const currentLayout = layout.find(l => l.i === widget.id) || widget.defaultLayout;
+              return (
+                <div key={widget.id} data-grid={currentLayout}>
+                    <Card className="h-full w-full overflow-hidden flex flex-col">
+                         <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity widget-drag-handle">
+                            <GripVertical className="h-5 w-5" />
+                        </div>
+                        <div className="p-4 flex-grow">
+                            <widget.component {...getWidgetProps(widget.id)} />
+                        </div>
+                        <div className="react-resizable-handle absolute bottom-0 right-0 cursor-se-resize w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <Grip className="w-full h-full text-muted-foreground" />
+                        </div>
+                    </Card>
+                </div>
+              )
+          })}
       </GridLayout>
     </>
   );
