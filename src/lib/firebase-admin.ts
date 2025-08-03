@@ -1,5 +1,6 @@
 
 import * as admin from 'firebase-admin';
+import 'dotenv/config';
 
 // This will be automatically populated by the Firebase environment
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
