@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, onSnapshot, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Engagement, Employee, Client, BillStatus, PendingInvoice } from "@/lib/data";
+import type { Engagement, Employee, Client, BillStatus, PendingInvoice, EngagementType } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GripVertical, Loader2, Grip } from "lucide-react";
@@ -38,6 +38,7 @@ export default function AccountsPage() {
     const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
+    const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
@@ -71,12 +72,15 @@ export default function AccountsPage() {
 
         const fetchAndSetStaticData = async () => {
             try {
-                const [clientSnapshot, employeeSnapshot] = await Promise.all([
+                const [clientSnapshot, employeeSnapshot, engagementTypeSnapshot] = await Promise.all([
                     getDocs(collection(db, "clients")),
-                    getDocs(collection(db, "employees"))
+                    getDocs(collection(db, "employees")),
+                    getDocs(collection(db, "engagementTypes"))
                 ]);
                 setClients(new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
                 setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
+                setEngagementTypes(new Map(engagementTypeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as EngagementType])));
+
             } catch (error) {
                  console.error("Error fetching static data:", error);
                  toast({ title: "Error", description: "Could not fetch supporting data.", variant: "destructive" });
@@ -155,6 +159,8 @@ export default function AccountsPage() {
                                 <TableHead>Date</TableHead>
                                 <TableHead>Client</TableHead>
                                 <TableHead>Assignment</TableHead>
+                                <TableHead>Engagement Type</TableHead>
+                                <TableHead>Assigned To</TableHead>
                                 <TableHead>Partner</TableHead>
                                 <TableHead>Fees</TableHead>
                                 <TableHead>Firm</TableHead>
@@ -167,11 +173,16 @@ export default function AccountsPage() {
                                     const { engagement, pendingInvoiceId } = entry;
                                     const client = clients.get(engagement.clientId);
                                     const partner = client ? employees.get(client.partnerId) : undefined;
+                                    const assignedTo = employees.get(engagement.assignedTo);
+                                    const engagementType = engagementTypes.get(engagement.type);
+
                                     return (
                                         <TableRow key={engagement.id}>
                                             <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
                                             <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
                                             <TableCell>{engagement.remarks}</TableCell>
+                                            <TableCell>{engagementType?.name || 'N/A'}</TableCell>
+                                            <TableCell>{assignedTo?.name || 'N/A'}</TableCell>
                                             <TableCell>{partner?.name || 'N/A'}</TableCell>
                                             <TableCell>{engagement.fees ? `₹${engagement.fees.toLocaleString()}` : 'N/A'}</TableCell>
                                             <TableCell>{engagement.firm || 'N/A'}</TableCell>
@@ -192,7 +203,7 @@ export default function AccountsPage() {
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center h-24">No engagements pending for billing.</TableCell>
+                                    <TableCell colSpan={9} className="text-center h-24">No engagements pending for billing.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -302,3 +313,5 @@ export default function AccountsPage() {
         </GridLayout>
     )
 }
+
+    
