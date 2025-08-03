@@ -106,7 +106,7 @@ export default function AccountsPage() {
                     }
                     return null;
                 })
-                .filter((entry): entry is BillingDashboardEntry => entry !== null && entry.engagement.billStatus === 'To Bill');
+                .filter((entry): entry is BillingDashboardEntry => entry !== null);
             
             setBillingEntries(fetchedEntries);
         }, (error) => {
@@ -122,7 +122,6 @@ export default function AccountsPage() {
         try {
             await updateDoc(engagementRef, { billStatus: newStatus });
             
-            // If status is no longer "To Bill", remove from pendingInvoices
             if (newStatus !== "To Bill") {
                 await deleteDoc(doc(db, "pendingInvoices", pendingInvoiceId));
             }
@@ -304,3 +303,5 @@ export default function AccountsPage() {
         </GridLayout>
     )
 }
+
+    
