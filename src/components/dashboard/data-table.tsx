@@ -15,8 +15,9 @@ import {
   useReactTable,
   ColumnSizingState,
   ColumnOrderState,
+  RowSelectionState,
 } from "@tanstack/react-table"
-import { PlusCircle, Search, ChevronDown, GripVertical } from "lucide-react"
+import { PlusCircle, Search, ChevronDown, GripVertical, Mail } from "lucide-react"
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Button } from "@/components/ui/button"
@@ -117,17 +118,20 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   openEditSheet: (client: Client | null) => void
+  onBulkEmail: (selectedClients: Client[]) => void;
 }
 
 export function DataTable<TData extends Client, TValue>({
   columns,
   data,
   openEditSheet,
+  onBulkEmail,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(
     columns.map(c => c.id || (c as any).accessorKey)
   );
@@ -176,6 +180,7 @@ export function DataTable<TData extends Client, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
     onColumnOrderChange: setColumnOrder,
+    onRowSelectionChange: setRowSelection,
     initialState: {
         pagination: {
             pageSize: 10,
@@ -187,8 +192,11 @@ export function DataTable<TData extends Client, TValue>({
       columnVisibility,
       columnSizing,
       columnOrder,
+      rowSelection,
     },
   })
+
+  const selectedRowCount = Object.keys(rowSelection).length;
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -232,6 +240,18 @@ export function DataTable<TData extends Client, TValue>({
                     })}
                 </DropdownMenuContent>
             </DropdownMenu>
+            {selectedRowCount > 0 && (
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        const selectedClients = table.getFilteredSelectedRowModel().rows.map(row => row.original);
+                        onBulkEmail(selectedClients);
+                    }}
+                >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Bulk Email ({selectedRowCount})
+                </Button>
+            )}
         </div>
         <Button onClick={() => openEditSheet(null)}>
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -279,7 +299,11 @@ export function DataTable<TData extends Client, TValue>({
       </CardContent>
       <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} row(s).
+           {selectedRowCount > 0 ? (
+               `${selectedRowCount} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
+           ) : (
+                `${table.getFilteredRowModel().rows.length} total row(s).`
+           )}
         </div>
         <div className="flex items-center space-x-2">
             <p className="text-sm font-medium">Rows per page</p>

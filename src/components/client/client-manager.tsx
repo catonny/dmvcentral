@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/use-auth";
+import { BulkEmailDialog } from "./bulk-email-dialog";
 
 interface ClientManagerProps {
     clients: Client[];
@@ -33,11 +35,27 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
   const [isConfirmPartnerChangeOpen, setIsConfirmPartnerChangeOpen] = React.useState(false);
+  const [isBulkEmailDialogOpen, setIsBulkEmailDialogOpen] = React.useState(false);
+  const [selectedRowsForEmail, setSelectedRowsForEmail] = React.useState<Client[]>([]);
+
   const [partnerChangeData, setPartnerChangeData] = React.useState<{ oldPartnerId: string, newPartnerId: string, clientId: string } | null>(null);
 
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
+
+  React.useEffect(() => {
+    if (user) {
+        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+        getDocs(employeeQuery).then(snapshot => {
+            if (!snapshot.empty) {
+                setCurrentUserEmployee({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee);
+            }
+        });
+    }
+  }, [user]);
 
   React.useEffect(() => {
     // These are master data, so we can fetch them once.
@@ -206,6 +224,11 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
     setIsConfirmPartnerChangeOpen(false);
   }
 
+  const handleBulkEmail = (selectedClients: Client[]) => {
+      setSelectedRowsForEmail(selectedClients);
+      setIsBulkEmailDialogOpen(true);
+  }
+
   const partners = React.useMemo(() => {
     const partnerDept = departments.find(d => d.name.toLowerCase() === 'partner');
     if (!partnerDept) return [];
@@ -220,12 +243,19 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
           columns={columns} 
           data={clients}
           openEditSheet={handleOpenEditSheet}
+          onBulkEmail={handleBulkEmail}
       />
       <EditClientSheet
         client={selectedClient}
         isOpen={isSheetOpen}
         onClose={handleCloseEditSheet}
         onSave={handleSaveClient}
+      />
+       <BulkEmailDialog
+        isOpen={isBulkEmailDialogOpen}
+        onClose={() => setIsBulkEmailDialogOpen(false)}
+        selectedClients={selectedRowsForEmail}
+        currentUser={currentUserEmployee}
       />
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
         <AlertDialogContent>

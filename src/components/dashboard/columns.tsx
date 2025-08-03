@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Client, Employee } from "@/lib/data"
 import { format, parseISO } from "date-fns"
+import { Checkbox } from "../ui/checkbox"
 
 
 export const getColumns = (
@@ -29,6 +31,28 @@ export const getColumns = (
   const employeeNameMap = new Map(allEmployees.map(e => [e.id, e.name]));
 
   return [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       id: "actions",
       header: "Actions",
