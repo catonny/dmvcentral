@@ -26,7 +26,8 @@ const statusColors: { [key: string]: string } = {
   "Cancelled": "bg-red-200 text-red-800",
 };
 
-export default function ClientWorkspacePage({ params: { clientId } }: { params: { clientId: string } }) {
+export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
