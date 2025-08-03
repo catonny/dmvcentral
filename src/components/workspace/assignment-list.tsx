@@ -104,7 +104,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
        updateEngagementField(engagementId, 'dueDate', newDueDate.toISOString(), `Engagement due date has been changed to ${newDueDate.toLocaleDateString()}`);
     };
 
-    const handleStatusChange = async (engagementId: string, newStatus: any, submitToBilling?: boolean) => {
+    const handleStatusChange = async (engagementId: string, newStatus: EngagementStatus, submitToBilling?: boolean) => {
         const engagementRef = doc(db, "engagements", engagementId);
         try {
             const updatePayload: Partial<Engagement> = { status: newStatus };

@@ -64,7 +64,7 @@ export function EditableStatus({ engagement, client, engagementType, onStatusCha
       setNextStatus(newStatus);
       setIsConfirmOpen(true);
     } else {
-      onStatusChange(engagement.id, newStatus);
+      onStatusChange(engagement.id, newStatus, false);
     }
   };
 
