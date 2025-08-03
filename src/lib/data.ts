@@ -23,7 +23,7 @@ export interface Client {
   'Mail ID': string | "unassigned";
   'Mobile Number': string | "1111111111";
   Category?: string | "unassigned"; // Links to ClientCategory.name
-  Partner: string; // Partner's Name
+  partnerId: string; // Partner's ID
   // Optional
   'Phone Number'?: string;
   'Date of Birth'?: string; // Stored as ISO string
@@ -128,7 +128,7 @@ export interface Country {
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
 export const employees: Employee[] = [
-  { id: "S008", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] }
+  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] }
 ];
 
 export const departments: Omit<Department, "id">[] = [
@@ -396,7 +396,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
         PAN: "AABCI1234F",
         'Mobile Number': "9876543210",
         'Mail ID': "contact@innovate.com",
-        Partner: "Anjali Sharma",
+        partnerId: "S001",
         Category: "Corporate",
         Country: "India",
         GSTN: "22AABCI1234F1Z5",
@@ -408,7 +408,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
         PAN: "AALCS5678F",
         'Mobile Number': "9123456789",
         'Mail ID': "accounts@solutions.com",
-        Partner: "Karan Gupta",
+        partnerId: "S001",
         Category: "LLP",
         Country: "United States",
     }
@@ -478,9 +478,9 @@ export const engagementTypes: EngagementType[] = [
 
 // Engagements are now high-level projects
 export const engagements: Omit<Engagement, 'id'>[] = [
-    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: "S002", reportedTo: "S004", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
-    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: "S003", reportedTo: "S004", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
-    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: "S002", reportedTo: "S004", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
+    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
+    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
+    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
 ];
 
 // Tasks are the sub-items for engagements

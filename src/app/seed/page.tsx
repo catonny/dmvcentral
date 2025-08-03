@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { writeBatch, doc, collection } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDocs, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   employees,
@@ -26,25 +26,39 @@ export default function SeedPage() {
   const [loading, setLoading] = React.useState(false);
   const [isSeeded, setIsSeeded] = React.useState(false);
 
+  React.useEffect(() => {
+    const checkSeeded = async () => {
+        try {
+            const q = query(collection(db, "employees"));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                setIsSeeded(true);
+            }
+        } catch (e) {
+            console.error("Could not check if db is seeded", e)
+        }
+    }
+    checkSeeded();
+  }, [])
+
   const handleSeedDatabase = async () => {
     setLoading(true);
     try {
       const batch = writeBatch(db);
       const clientRefs: { [key: string]: string } = {};
-      const engagementRefs: { [key: string]: string } = {};
       const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
-
-      // Seed Clients and store their new IDs
-      clients.forEach((client, index) => {
-        const docRef = doc(collection(db, 'clients'));
-        batch.set(docRef, { ...client, lastUpdated: new Date().toISOString() });
-        clientRefs[`client${index + 1}_id_placeholder`] = docRef.id;
-      });
 
       // Seed Employees
       employees.forEach((employee) => {
         const docRef = doc(db, 'employees', employee.id);
         batch.set(docRef, employee);
+      });
+
+      // Seed Clients and store their new IDs
+      clients.forEach((client, index) => {
+        const docRef = doc(collection(db, 'clients'));
+        batch.set(docRef, { ...client, id: docRef.id, lastUpdated: new Date().toISOString() });
+        clientRefs[`client${index + 1}_id_placeholder`] = docRef.id;
       });
 
       // Seed Engagement Types (which are now templates)
@@ -123,7 +137,7 @@ export default function SeedPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Seed Database</CardTitle>
           <CardDescription>
-            This action will populate your Firestore database with the initial sample data for clients, employees, and engagements.
+            This action will populate your Firestore database with the initial sample data.
             This should only be done once.
           </CardDescription>
         </CardHeader>
@@ -131,9 +145,9 @@ export default function SeedPage() {
             {isSeeded ? (
                 <div className="text-center p-4 bg-green-100 dark:bg-green-900/50 rounded-md">
                     <p className="font-semibold text-green-800 dark:text-green-200">Database has been successfully seeded!</p>
-                    <p className="text-sm text-green-700 dark:text-green-300 mt-2">You can now navigate back to the dashboard.</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-2">You can now navigate back to the login page.</p>
                      <Button asChild className="mt-4">
-                        <Link href="/dashboard">Go to Dashboard</Link>
+                        <Link href="/login">Go to Login</Link>
                     </Button>
                 </div>
             ) : (

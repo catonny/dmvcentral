@@ -119,11 +119,8 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     const client = clients.find(c => c.id === data.clientId);
     let reporterId = data.reportedTo;
     
-    if (!reporterId && client && client.Partner) {
-        const partner = allEmployees.find(s => s.name === client.Partner);
-        if (partner) {
-            reporterId = partner.id;
-        }
+    if (!reporterId && client && client.partnerId) {
+        reporterId = client.partnerId;
     }
 
     await onSave(data, client, reporterId);
@@ -141,17 +138,12 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const selectedClient = clients.find(c => c.id === selectedClientId);
   
   React.useEffect(() => {
-    if (selectedClient && selectedClient.Partner) {
-        const partner = allEmployees.find(s => s.name === selectedClient.Partner);
-        if (partner) {
-            setValue("reportedTo", partner.id, { shouldValidate: true });
-        } else {
-            setValue("reportedTo", "", { shouldValidate: true });
-        }
+    if (selectedClient && selectedClient.partnerId) {
+        setValue("reportedTo", selectedClient.partnerId, { shouldValidate: true });
     } else {
         setValue("reportedTo", "", { shouldValidate: true });
     }
-  }, [selectedClient, allEmployees, setValue]);
+  }, [selectedClient, setValue]);
 
 
   const filteredClients = React.useMemo(() => {
@@ -500,5 +492,3 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     </>
   );
 }
-
-    

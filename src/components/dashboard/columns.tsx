@@ -21,10 +21,12 @@ export const getColumns = (
   confirmDeleteClient: (client: Client) => void,
   updateData: (clientId: string, columnId: keyof Client, value: any) => void,
   partners: Employee[],
-  allClients: Client[]
+  allClients: Client[],
+  allEmployees: Employee[]
 ): ColumnDef<Client>[] => {
   
   const clientNameMap = new Map(allClients.map(c => [c.id, c.Name]));
+  const employeeNameMap = new Map(allEmployees.map(e => [e.id, e.name]));
 
   return [
     {
@@ -133,11 +135,13 @@ export const getColumns = (
         }
     },
     {
-      accessorKey: "Partner",
+      accessorKey: "partnerId",
       header: "Assigned Partner",
-       cell: ({ row }) => <div className="px-3 py-2">{row.original.Partner}</div>,
+       cell: ({ row }) => <div className="px-3 py-2">{employeeNameMap.get(row.original.partnerId) || "N/A"}</div>,
       filterFn: (row, id, value) => {
-          return value.includes(row.getValue(id));
+          const partnerName = employeeNameMap.get(row.getValue(id));
+          if (!partnerName) return false;
+          return value.includes(partnerName);
       },
     },
     {

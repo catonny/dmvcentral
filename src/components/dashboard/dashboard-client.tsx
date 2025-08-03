@@ -93,7 +93,7 @@ export function DashboardClient() {
     const userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
 
     if (userIsPartner) {
-      const partnerClients = allClients.filter(c => c.Partner === currentUserEmployeeProfile.name);
+      const partnerClients = allClients.filter(c => c.partnerId === currentUserEmployeeProfile.id);
       const partnerClientIds = partnerClients.map(c => c.id);
       
       const relevantEngagements = engagements.filter(e => 

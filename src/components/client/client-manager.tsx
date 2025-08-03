@@ -33,7 +33,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
   const [isConfirmPartnerChangeOpen, setIsConfirmPartnerChangeOpen] = React.useState(false);
-  const [partnerChangeData, setPartnerChangeData] = React.useState<{ oldPartnerName: string, newPartnerName: string, clientId: string } | null>(null);
+  const [partnerChangeData, setPartnerChangeData] = React.useState<{ oldPartnerId: string, newPartnerId: string, clientId: string } | null>(null);
 
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
   
@@ -105,12 +105,12 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
   const handleSaveClient = async (clientData: Partial<Client>) => {
     try {
         if (selectedClient?.id) { // Editing existing client
-            const oldPartnerName = selectedClient.Partner;
-            const newPartnerName = clientData.Partner;
+            const oldPartnerId = selectedClient.partnerId;
+            const newPartnerId = clientData.partnerId;
 
-            if (newPartnerName && oldPartnerName !== newPartnerName) {
+            if (newPartnerId && oldPartnerId !== newPartnerId) {
                 // Partner has changed, show confirmation dialog
-                setPartnerChangeData({ oldPartnerName, newPartnerName, clientId: selectedClient.id });
+                setPartnerChangeData({ oldPartnerId, newPartnerId, clientId: selectedClient.id });
                 setIsConfirmPartnerChangeOpen(true);
             }
             
@@ -161,9 +161,10 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
     if (!partnerChangeData) return;
     
     if (shouldUpdateEngagements) {
-        const { oldPartnerName, newPartnerName, clientId } = partnerChangeData;
-        const oldPartner = allEmployees.find(e => e.name === oldPartnerName);
-        const newPartner = allEmployees.find(e => e.name === newPartnerName);
+        const { oldPartnerId, newPartnerId, clientId } = partnerChangeData;
+        
+        const oldPartner = allEmployees.find(e => e.id === oldPartnerId);
+        const newPartner = allEmployees.find(e => e.id === newPartnerId);
         
         if (!oldPartner || !newPartner) {
             toast({ title: "Error", description: "Could not find partner profiles.", variant: "destructive" });
@@ -190,7 +191,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
             
             await batch.commit();
             if (updatedCount > 0) {
-                toast({ title: "Success", description: `${updatedCount} active engagement(s) have been reassigned to ${newPartnerName}.` });
+                toast({ title: "Success", description: `${updatedCount} active engagement(s) have been reassigned to ${newPartner.name}.` });
             } else {
                 toast({ title: "No Changes", description: "No active engagements were assigned to the old partner." });
             }
@@ -211,7 +212,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
     return allEmployees.filter(s => Array.isArray(s.role) && s.role.includes(partnerDept.name));
   }, [allEmployees, departments]);
 
-  const columns = React.useMemo(() => getColumns(handleOpenEditSheet, handleConfirmDeleteClient, handleUpdateClientField, partners, allClients), [partners, allClients]);
+  const columns = React.useMemo(() => getColumns(handleOpenEditSheet, handleConfirmDeleteClient, handleUpdateClientField, partners, allClients, allEmployees), [partners, allClients, allEmployees]);
 
   return (
     <>
@@ -246,7 +247,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Partner Changed</AlertDialogTitle>
             <AlertDialogDescription>
-              The partner for this client has been changed. Do you want to reassign the active engagements currently reported to <strong>{partnerChangeData?.oldPartnerName}</strong> to the new partner, <strong>{partnerChangeData?.newPartnerName}</strong>?
+              The partner for this client has been changed. Do you want to reassign the active engagements currently reported to <strong>{allEmployees.find(e => e.id === partnerChangeData?.oldPartnerId)?.name}</strong> to the new partner, <strong>{allEmployees.find(e => e.id === partnerChangeData?.newPartnerId)?.name}</strong>?
               <br/><br/>
               <small>Engagements reported to a Manager will not be affected.</small>
             </AlertDialogDescription>

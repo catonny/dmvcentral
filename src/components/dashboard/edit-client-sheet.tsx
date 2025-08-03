@@ -63,7 +63,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                     allClients.length === 0 ? getDocs(collection(db, "clients")) : Promise.resolve(null),
                 ]);
                 
-                const allEmployees = employeeSnapshot.docs.map(doc => doc.data() as Employee);
+                const allEmployees = employeeSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
                 const departments = deptsSnapshot.docs.map(doc => doc.data() as Department);
                 const partnerDept = departments.find(d => d.name.toLowerCase() === 'partner');
                 
@@ -106,7 +106,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                 'Billing Address Line 3': '',
                 State: '',
                 Country: 'India',
-                Partner: undefined,
+                partnerId: undefined,
                 Category: undefined,
                 'Date of Birth': undefined,
                 linkedClientIds: [],
@@ -127,13 +127,13 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
     }, [client, isOpen]);
 
     React.useEffect(() => {
-        if (isOpen && (!client || !('id' in client)) && partners.length > 0 && !formData.Partner) {
-            setFormData(prev => ({ ...prev, Partner: partners[0].name }));
+        if (isOpen && (!client || !('id' in client)) && partners.length > 0 && !formData.partnerId) {
+            setFormData(prev => ({ ...prev, partnerId: partners[0].id }));
         }
-    }, [isOpen, client, partners, formData.Partner]);
+    }, [isOpen, client, partners, formData.partnerId]);
 
     const handleSave = async () => {
-        if (!formData.Name || !formData['Mobile Number'] || !formData['Mail ID'] || !formData.Category || !formData.Partner) {
+        if (!formData.Name || !formData['Mobile Number'] || !formData['Mail ID'] || !formData.Category || !formData.partnerId) {
             toast({ title: "Validation Error", description: "Name, Mobile, Email, Category, and Partner are required.", variant: "destructive" });
             return;
         }
@@ -275,14 +275,14 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                     )}
 
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Partner" className="text-right">Partner*</Label>
-                        <Select onValueChange={handleSelectChange('Partner')} value={formData.Partner}>
+                        <Label htmlFor="partnerId" className="text-right">Partner*</Label>
+                        <Select onValueChange={handleSelectChange('partnerId')} value={formData.partnerId}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select partner" />
                             </SelectTrigger>
                             <SelectContent>
                                 {partners.map((s) => (
-                                    <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -385,5 +385,3 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
         </Sheet>
     )
 }
-
-    
