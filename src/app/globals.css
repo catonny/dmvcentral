@@ -1,0 +1,113 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-body), sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 210 90% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 210 90% 50%;
+    
+    --radius: 0.5rem;
+    
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+
+  .dark {
+    /* Keeping dark variables same as root for a consistent dark theme */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 210 90% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 210 90% 50%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+    .resizer {
+        @apply absolute top-0 right-0 h-full w-[5px] cursor-col-resize select-none touch-none;
+    }
+    .resizer:hover,
+    .resizer.isResizing {
+        @apply bg-primary;
+    }
+
+    .react-grid-layout {
+        @apply relative transition-all duration-200;
+    }
+    .react-grid-item {
+        @apply transition-all duration-200;
+    }
+    .react-grid-item.react-grid-placeholder {
+        @apply bg-primary/20 rounded-lg border-2 border-dashed border-primary;
+    }
+    .react-grid-item > .react-resizable-handle {
+        @apply absolute bottom-1 right-1 w-5 h-5 bg-no-repeat bg-center;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='hsl(var(--muted-foreground))' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-grip-corner'%3e%3ccircle cx='19' cy='19' r='1'/%3e%3ccircle cx='5' cy='19' r='1'/%3e%3ccircle cx='19' cy='5' r='1'/%3e%3ccircle cx='12' cy='19' r='1'/%3e%3ccircle cx='19' cy='12' r='1'/%3e%3c/svg%3e");
+        cursor: se-resize;
+    }
+    .widget-drag-handle {
+        @apply cursor-grab;
+    }
+}
