@@ -64,15 +64,21 @@ export default function AccountsPage() {
     React.useEffect(() => {
         if (!hasAccess) return;
 
-        const fetchStaticData = async () => {
-            const [clientSnapshot, employeeSnapshot] = await Promise.all([
-                getDocs(collection(db, "clients")),
-                getDocs(collection(db, "employees"))
-            ]);
-            setClients(new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
-            setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
+        const fetchAndSetStaticData = async () => {
+            try {
+                const [clientSnapshot, employeeSnapshot] = await Promise.all([
+                    getDocs(collection(db, "clients")),
+                    getDocs(collection(db, "employees"))
+                ]);
+                setClients(new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
+                setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
+            } catch (error) {
+                 console.error("Error fetching static data:", error);
+                 toast({ title: "Error", description: "Could not fetch supporting data.", variant: "destructive" });
+            }
         };
-        fetchStaticData();
+
+        fetchAndSetStaticData();
 
         const q = query(collection(db, "engagements"), where("billStatus", "==", "To Bill"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
