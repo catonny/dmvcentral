@@ -39,6 +39,7 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                 name: '',
                 email: '',
                 role: ['Employee'],
+                designation: '',
                 avatar: `https://placehold.co/40x40.png`,
             });
         }
@@ -88,6 +89,10 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="email" className="text-right">Email</Label>
                         <Input id="email" type="email" value={formData.email || ''} onChange={handleChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="designation" className="text-right">Designation</Label>
+                        <Input id="designation" value={formData.designation || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-start gap-4">
                         <Label className="text-right pt-2">Roles</Label>

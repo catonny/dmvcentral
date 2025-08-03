@@ -57,7 +57,8 @@ function DraggableEmployeeMember({ member, role }: { member: Employee, role: Emp
                     <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                 </Avatar>
                 <p className="font-semibold">{member.name}</p>
-                <p className="text-sm text-muted-foreground">{member.email}</p>
+                <p className="text-sm text-muted-foreground">{member.designation || 'N/A'}</p>
+                <p className="text-xs text-muted-foreground mt-1">{member.email}</p>
             </Card>
         </div>
     );
@@ -336,6 +337,7 @@ export default function EmployeePage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Name</TableHead>
+                                    <TableHead>Designation</TableHead>
                                     <TableHead>Department</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
@@ -345,6 +347,7 @@ export default function EmployeePage() {
                                 {employees.map((member) => (
                                     <TableRow key={member.id}>
                                         <TableCell className="font-medium">{member.name}</TableCell>
+                                        <TableCell>{member.designation || 'N/A'}</TableCell>
                                         <TableCell>{Array.isArray(member.role) ? member.role.join(', ') : member.role}</TableCell>
                                         <TableCell>{member.email}</TableCell>
                                         <TableCell className="text-right">

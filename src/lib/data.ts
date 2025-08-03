@@ -12,6 +12,7 @@ export interface Employee {
   id: string;
   name: string;
   email: string;
+  designation?: string;
   avatar: string;
   role: EmployeeRole[];
 }
@@ -128,7 +129,7 @@ export interface Country {
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
 export const employees: Employee[] = [
-  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] }
+  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] }
 ];
 
 export const departments: Omit<Department, "id">[] = [
