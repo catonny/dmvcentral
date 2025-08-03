@@ -21,11 +21,6 @@ export const SendEmailInputSchema = z.object({
 export type SendEmailInput = z.infer<typeof SendEmailInputSchema>;
 
 
-export async function sendEmail(input: SendEmailInput): Promise<{ success: boolean }> {
-  return sendEmailFlow(input);
-}
-
-
 const sendEmailFlow = ai.defineFlow(
   {
     name: 'sendEmailFlow',
@@ -48,3 +43,7 @@ const sendEmailFlow = ai.defineFlow(
     return { success: true };
   }
 );
+
+export async function sendEmail(input: SendEmailInput): Promise<{ success: boolean }> {
+  return sendEmailFlow(input);
+}
