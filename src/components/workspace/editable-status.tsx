@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, writeBatch, setDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const engagementStatuses: EngagementStatus[] = [
@@ -54,6 +54,7 @@ export function EditableStatus({ engagement, client, engagementType, onStatusCha
   const [currentStatus, setCurrentStatus] = React.useState<EngagementStatus>(engagement.status);
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
   const [nextStatus, setNextStatus] = React.useState<EngagementStatus | null>(null);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setCurrentStatus(engagement.status);
@@ -68,9 +69,35 @@ export function EditableStatus({ engagement, client, engagementType, onStatusCha
     }
   };
 
-  const handleConfirmBilling = (submit: boolean) => {
+  const handleConfirmBilling = async (submit: boolean) => {
     if (nextStatus) {
       onStatusChange(engagement.id, nextStatus, submit);
+      if (submit && client) {
+        try {
+            const batch = writeBatch(db);
+            const engagementRef = doc(db, "engagements", engagement.id);
+            batch.update(engagementRef, {
+                billStatus: "To Bill",
+                billSubmissionDate: new Date().toISOString()
+            });
+
+            const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
+            batch.set(pendingInvoiceRef, {
+                id: pendingInvoiceRef.id,
+                engagementId: engagement.id,
+                clientId: engagement.clientId,
+                assignedTo: engagement.assignedTo,
+                reportedTo: engagement.reportedTo,
+                partnerId: client.partnerId
+            });
+
+            await batch.commit();
+
+        } catch (error) {
+            console.error("Error creating pending invoice:", error);
+            toast({ title: "Error", description: "Could not create pending invoice record.", variant: "destructive" });
+        }
+      }
     }
     setIsConfirmOpen(false);
     setNextStatus(null);

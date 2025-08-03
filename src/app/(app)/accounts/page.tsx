@@ -2,10 +2,10 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Engagement, Employee, Client, BillStatus } from "@/lib/data";
+import type { Engagement, Employee, Client, BillStatus, PendingInvoice } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GripVertical, Loader2, Grip } from "lucide-react";
@@ -19,6 +19,11 @@ import GridLayout from "react-grid-layout";
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
 
+interface BillingDashboardEntry {
+    engagement: Engagement;
+    pendingInvoiceId: string;
+}
+
 interface Widget {
   id: string;
   component: React.FC<any>;
@@ -30,7 +35,7 @@ export default function AccountsPage() {
     const { toast } = useToast();
     const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
-    const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+    const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
     
@@ -80,10 +85,26 @@ export default function AccountsPage() {
 
         fetchAndSetStaticData();
 
-        const q = query(collection(db, "engagements"), where("billStatus", "==", "To Bill"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const engagementData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-            setEngagements(engagementData);
+        const q = query(collection(db, "pendingInvoices"));
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+            const pendingInvoices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingInvoice));
+            
+            const engagementPromises = pendingInvoices.map(pi => getDoc(doc(db, "engagements", pi.engagementId)));
+            const engagementSnapshots = await Promise.all(engagementPromises);
+
+            const fetchedEntries: BillingDashboardEntry[] = engagementSnapshots
+                .map((engSnap, index) => {
+                    if (engSnap.exists()) {
+                        return {
+                            engagement: { id: engSnap.id, ...engSnap.data() } as Engagement,
+                            pendingInvoiceId: pendingInvoices[index].id,
+                        };
+                    }
+                    return null;
+                })
+                .filter((entry): entry is BillingDashboardEntry => entry !== null && entry.engagement.billStatus === 'To Bill');
+            
+            setBillingEntries(fetchedEntries);
         }, (error) => {
             console.error("Error fetching billing engagements:", error);
             toast({ title: "Error", description: "Could not fetch billing data.", variant: "destructive" });
@@ -92,10 +113,16 @@ export default function AccountsPage() {
         return () => unsubscribe();
     }, [hasAccess, toast]);
     
-    const handleBillStatusUpdate = async (engagementId: string, newStatus: BillStatus) => {
+    const handleBillStatusUpdate = async (engagementId: string, newStatus: BillStatus, pendingInvoiceId: string) => {
         const engagementRef = doc(db, "engagements", engagementId);
         try {
             await updateDoc(engagementRef, { billStatus: newStatus });
+            
+            // If status is no longer "To Bill", remove from pendingInvoices
+            if (newStatus !== "To Bill") {
+                await deleteDoc(doc(db, "pendingInvoices", pendingInvoiceId));
+            }
+
             toast({ title: "Success", description: "Bill status updated." });
         } catch (error) {
             console.error("Error updating bill status:", error);
@@ -108,11 +135,11 @@ export default function AccountsPage() {
         localStorage.setItem('accountsLayout', JSON.stringify(newLayout));
     };
     
-    const paginatedEngagements = engagements.slice(
+    const paginatedEntries = billingEntries.slice(
         pageIndex * pageSize,
         (pageIndex + 1) * pageSize
     );
-    const pageCount = Math.ceil(engagements.length / pageSize);
+    const pageCount = Math.ceil(billingEntries.length / pageSize);
 
     const BillingDashboard = () => (
         <>
@@ -135,20 +162,21 @@ export default function AccountsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {paginatedEngagements.length > 0 ? (
-                                paginatedEngagements.map(eng => {
-                                    const client = clients.get(eng.clientId);
+                            {paginatedEntries.length > 0 ? (
+                                paginatedEntries.map(entry => {
+                                    const { engagement, pendingInvoiceId } = entry;
+                                    const client = clients.get(engagement.clientId);
                                     const partner = client ? employees.get(client.partnerId) : undefined;
                                     return (
-                                        <TableRow key={eng.id}>
-                                            <TableCell>{eng.billSubmissionDate ? format(parseISO(eng.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
+                                        <TableRow key={engagement.id}>
+                                            <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
                                             <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
-                                            <TableCell>{eng.remarks}</TableCell>
+                                            <TableCell>{engagement.remarks}</TableCell>
                                             <TableCell>{partner?.name || 'N/A'}</TableCell>
-                                            <TableCell>{eng.fees ? `₹${eng.fees.toLocaleString()}` : 'N/A'}</TableCell>
-                                            <TableCell>{eng.firm || 'N/A'}</TableCell>
+                                            <TableCell>{engagement.fees ? `₹${engagement.fees.toLocaleString()}` : 'N/A'}</TableCell>
+                                            <TableCell>{engagement.firm || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Select value={eng.billStatus} onValueChange={(value: BillStatus) => handleBillStatusUpdate(eng.id, value)}>
+                                                <Select value={engagement.billStatus} onValueChange={(value: BillStatus) => handleBillStatusUpdate(engagement.id, value, pendingInvoiceId)}>
                                                     <SelectTrigger className="w-[180px]">
                                                         <SelectValue placeholder="Update Status" />
                                                     </SelectTrigger>
@@ -174,7 +202,7 @@ export default function AccountsPage() {
             </CardContent>
              <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
                 <div className="flex-1 text-sm text-muted-foreground">
-                    {engagements.length} total row(s).
+                    {billingEntries.length} total row(s).
                 </div>
                 <div className="flex items-center space-x-2">
                     <p className="text-sm font-medium">Rows per page</p>

@@ -77,6 +77,16 @@ export interface Engagement {
   firm?: string;
 }
 
+export interface PendingInvoice {
+    id: string; // Firestore document ID
+    engagementId: string;
+    clientId: string;
+    assignedTo: string;
+    reportedTo: string;
+    partnerId: string;
+}
+
+
 export interface Task {
     id: string;
     engagementId: string;
