@@ -214,9 +214,9 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>Assignment List</CardTitle>
+                    <CardTitle>Your Assignments</CardTitle>
                     <CardDescription>
-                        Your assigned engagements, sorted by the nearest due date.
+                        Engagements assigned to you, sorted by the nearest due date.
                     </CardDescription>
                 </div>
                 <Button onClick={() => setIsDialogOpen(true)}>
