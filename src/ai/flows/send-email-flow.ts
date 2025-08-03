@@ -13,7 +13,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const SendEmailInputSchema = z.object({
+const SendEmailInputSchema = z.object({
     recipientEmails: z.array(z.string().email()).describe("A list of recipient email addresses."),
     subject: z.string().describe("The subject line of the email."),
     body: z.string().describe("The HTML body content of the email."),
