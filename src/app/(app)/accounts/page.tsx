@@ -158,13 +158,11 @@ export default function AccountsPage() {
                             <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Client</TableHead>
-                                <TableHead>Assignment</TableHead>
+                                <TableHead>Partner</TableHead>
                                 <TableHead>Engagement Type</TableHead>
                                 <TableHead>Assigned To</TableHead>
-                                <TableHead>Partner</TableHead>
-                                <TableHead>Fees</TableHead>
-                                <TableHead>Firm</TableHead>
-                                <TableHead>Bill Status</TableHead>
+                                <TableHead>Remarks</TableHead>
+                                <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -180,30 +178,23 @@ export default function AccountsPage() {
                                         <TableRow key={engagement.id}>
                                             <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
                                             <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
-                                            <TableCell>{engagement.remarks}</TableCell>
+                                            <TableCell>{partner?.name || 'N/A'}</TableCell>
                                             <TableCell>{engagementType?.name || 'N/A'}</TableCell>
                                             <TableCell>{assignedTo?.name || 'N/A'}</TableCell>
-                                            <TableCell>{partner?.name || 'N/A'}</TableCell>
-                                            <TableCell>{engagement.fees ? `₹${engagement.fees.toLocaleString()}` : 'N/A'}</TableCell>
-                                            <TableCell>{engagement.firm || 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <Select value={engagement.billStatus} onValueChange={(value: BillStatus) => handleBillStatusUpdate(engagement.id, value, pendingInvoiceId)}>
-                                                    <SelectTrigger className="w-[180px]">
-                                                        <SelectValue placeholder="Update Status" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {BILL_STATUSES.map(status => (
-                                                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                            <TableCell>{engagement.remarks}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    onClick={() => handleBillStatusUpdate(engagement.id, "Pending Collection", pendingInvoiceId)}
+                                                >
+                                                    Generate Invoice
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     )
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24">No engagements pending for billing.</TableCell>
+                                    <TableCell colSpan={7} className="text-center h-24">No engagements pending for billing.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -313,5 +304,3 @@ export default function AccountsPage() {
         </GridLayout>
     )
 }
-
-    
