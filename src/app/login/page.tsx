@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatabaseZap, Loader2 } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { ClientOnly } from "@/components/client-only";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -22,7 +23,7 @@ const GoogleIcon = () => (
     </svg>
   );
 
-export default function LoginPage() {
+function LoginPageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
@@ -135,4 +136,13 @@ export default function LoginPage() {
       </Card>
     </div>
   );
+}
+
+
+export default function LoginPage() {
+    return (
+        <ClientOnly>
+            <LoginPageContent />
+        </ClientOnly>
+    )
 }
