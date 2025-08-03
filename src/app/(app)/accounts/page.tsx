@@ -138,13 +138,13 @@ export default function AccountsPage() {
                             {paginatedEngagements.length > 0 ? (
                                 paginatedEngagements.map(eng => {
                                     const client = clients.get(eng.clientId);
-                                    const partner = client ? employees.get(employees.values().find(s => s.name === client.Partner)?.id || '') : undefined;
+                                    const partner = client ? employees.get(client.partnerId) : undefined;
                                     return (
                                         <TableRow key={eng.id}>
                                             <TableCell>{eng.billSubmissionDate ? format(parseISO(eng.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
                                             <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
                                             <TableCell>{eng.remarks}</TableCell>
-                                            <TableCell>{client?.Partner || 'N/A'}</TableCell>
+                                            <TableCell>{partner?.name || 'N/A'}</TableCell>
                                             <TableCell>{eng.fees ? `₹${eng.fees.toLocaleString()}` : 'N/A'}</TableCell>
                                             <TableCell>{eng.firm || 'N/A'}</TableCell>
                                             <TableCell>
