@@ -172,6 +172,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 'Mobile Number': !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
                 'Category': !row['Category'] ? 'unassigned' : row['Category'],
                 'Partner': !row['Partner'] ? 'unassigned' : row['Partner'],
+                linkedClientIds: row.linkedClientIds ? String(row.linkedClientIds).split(',').map(id => id.trim()) : [],
                 lastUpdated: new Date().toISOString()
             };
 
