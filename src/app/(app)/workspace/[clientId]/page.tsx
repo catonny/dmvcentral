@@ -12,10 +12,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Mail, Phone, History } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { PastEngagementsDialog } from "@/components/workspace/past-engagements-dialog";
 
 const statusColors: { [key: string]: string } = {
   "Pending": "bg-gray-200 text-gray-800",
@@ -32,6 +33,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isPastEngagementsOpen, setIsPastEngagementsOpen] = React.useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -49,13 +51,11 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       if (doc.exists()) {
         setClient({ id: doc.id, ...doc.data() } as Client);
       } else {
-        // Handle case where client is deleted while user is on the page
         setClient(null);
       }
-      setLoading(false); // Assume loading is done after client is fetched/not-found
+      setLoading(false);
     }, (error) => handleError(error, 'client details'));
 
-    // Fetch employees and engagement types (usually static, so one-time fetch is fine)
     const fetchStaticData = async () => {
         try {
             const [employeeSnapshot, engagementTypesSnapshot] = await Promise.all([
@@ -70,8 +70,12 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     };
     fetchStaticData();
 
-    // Listen to engagements for the client
-    const engagementsQuery = query(collection(db, "engagements"), where("clientId", "==", params.clientId));
+    // Listen to *active* engagements for the client
+    const engagementsQuery = query(
+        collection(db, "engagements"), 
+        where("clientId", "==", params.clientId),
+        where("status", "not-in", ["Completed", "Cancelled"])
+    );
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
       const engagementsData = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Engagement))
@@ -138,11 +142,17 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       </Card>
       
       <Card>
-        <CardHeader>
-          <CardTitle>Engagements</CardTitle>
-          <CardDescription>
-            Tasks and assignments for this client, sorted by the nearest due date.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Active Engagements</CardTitle>
+            <CardDescription>
+              Ongoing tasks and assignments for this client, sorted by the nearest due date.
+            </CardDescription>
+          </div>
+           <Button variant="outline" onClick={() => setIsPastEngagementsOpen(true)}>
+              <History className="mr-2 h-4 w-4" />
+              View Past Engagements
+            </Button>
         </CardHeader>
         <CardContent>
           <ScrollArea className="w-full whitespace-nowrap">
@@ -186,7 +196,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center h-24">
-                      No engagements found for this client.
+                      No active engagements found for this client.
                     </TableCell>
                   </TableRow>
                 )}
@@ -196,6 +206,14 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
           </ScrollArea>
         </CardContent>
       </Card>
+      <PastEngagementsDialog
+        isOpen={isPastEngagementsOpen}
+        onClose={() => setIsPastEngagementsOpen(false)}
+        clientId={params.clientId}
+        clientName={client.Name}
+        employees={employees}
+        engagementTypes={engagementTypes}
+      />
     </>
   );
 }
