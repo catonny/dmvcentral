@@ -30,10 +30,9 @@ export function KanbanBoard({ tasks, clients, employees, engagements }: { tasks:
     if (!over) return;
 
     const taskId = active.id as string;
-    // Correctly determine the destination stage. `over.data.current` holds droppable data.
-    const newStage = over.data.current?.sortable?.containerId || over.id as TaskStatus;
+    const newStage = over.data.current?.sortable?.containerId as TaskStatus || over.id as TaskStatus;
     
-    if (active.id === over.id || !newStage) return;
+    if (active.id === over.id || !newStage || !KANBAN_STAGES.includes(newStage)) return;
 
     const taskToMove = taskState.find(t => t.id === taskId);
     if (taskToMove && taskToMove.status !== newStage) {
@@ -63,11 +62,20 @@ export function KanbanBoard({ tasks, clients, employees, engagements }: { tasks:
     }
   };
 
-  const columns = KANBAN_STAGES.map(stage => ({
-    id: stage,
-    title: stage,
-    tasks: taskState.filter(task => (task.status || "Pending") === stage),
-  }));
+  const columns = KANBAN_STAGES.map(stage => {
+    let stageTasks: Task[];
+    if (stage === "Pending") {
+      // Any task that is not explicitly 'Completed' or 'Cancelled' is considered 'Pending'
+      stageTasks = taskState.filter(task => task.status !== "Completed" && task.status !== "Cancelled");
+    } else {
+      stageTasks = taskState.filter(task => task.status === stage);
+    }
+    return {
+      id: stage,
+      title: stage,
+      tasks: stageTasks,
+    };
+  });
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
