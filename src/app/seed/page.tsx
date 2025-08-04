@@ -10,7 +10,7 @@ import {
   clients,
   engagementTypes,
   engagements,
-  tasks, // import the new tasks
+  tasks,
   countries,
   departments,
   clientCategories
@@ -32,7 +32,8 @@ export default function SeedPage() {
             const q = query(collection(db, "employees"));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
-                setIsSeeded(true);
+                // This doesn't prevent re-seeding, just changes the UI message.
+                // The button will now be a "Reset and Seed" button.
             }
         } catch (e) {
             console.error("Could not check if db is seeded", e)
@@ -45,6 +46,28 @@ export default function SeedPage() {
     setLoading(true);
     try {
       const batch = writeBatch(db);
+      
+      // ---- DELETION LOGIC ----
+      // These are all the collections managed by the seed script.
+      // Note: 'permissions' are managed by the admin UI and are not cleared here.
+      const collectionsToDelete = [
+          'employees', 
+          'clients', 
+          'engagementTypes', 
+          'clientCategories', 
+          'departments', 
+          'countries', 
+          'engagements', 
+          'tasks', 
+          'pendingInvoices'
+      ];
+      
+      for (const collectionName of collectionsToDelete) {
+          const snapshot = await getDocs(collection(db, collectionName));
+          snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      }
+      
+      // ---- CREATION LOGIC ----
       const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
       const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
 
@@ -93,7 +116,6 @@ export default function SeedPage() {
             const newEngagementData = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
             batch.set(engagementDocRef, newEngagementData);
             
-            // If the sample engagement is set to "To Bill", create a pending invoice for it
             if (engagement.billStatus === "To Bill") {
                 const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
                 batch.set(pendingInvoiceRef, {
@@ -106,7 +128,6 @@ export default function SeedPage() {
                 });
             }
             
-            // Now, create the sub-tasks for this engagement from the template
             const template = engagementTypeMap.get(engagement.type);
             if (template && template.subTaskTitles) {
                 template.subTaskTitles.forEach((taskTitle, taskIndex) => {
@@ -115,8 +136,9 @@ export default function SeedPage() {
                         id: taskDocRef.id,
                         engagementId: engagementDocRef.id,
                         title: taskTitle,
-                        status: 'Pending', // All tasks start as pending
+                        status: 'Pending',
                         order: taskIndex + 1,
+                        assignedTo: engagement.assignedTo[0] || '', // Assign task to first person on engagement
                     });
                 });
             }
@@ -129,8 +151,8 @@ export default function SeedPage() {
       await batch.commit();
       
       toast({
-        title: 'Database Seeded',
-        description: 'Your Firestore database has been populated with initial data.',
+        title: 'Database Reset and Seeded',
+        description: 'Your Firestore database has been cleared and populated with fresh sample data.',
       });
       setIsSeeded(true);
     } catch (error) {
@@ -151,8 +173,7 @@ export default function SeedPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Seed Database</CardTitle>
           <CardDescription>
-            This action will populate your Firestore database with the initial sample data.
-            This should only be done once.
+            This action will first <span className="font-bold text-destructive">delete all existing data</span> (clients, employees, engagements, etc.) and then populate your Firestore database with the initial sample data.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -169,10 +190,10 @@ export default function SeedPage() {
                     {loading ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Seeding...
+                            Resetting and Seeding...
                         </>
                     ) : (
-                        'Seed Database'
+                        'Reset and Seed Database'
                     )}
                 </Button>
             )}

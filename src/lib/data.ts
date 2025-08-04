@@ -1,4 +1,5 @@
 
+
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -187,7 +188,7 @@ export const employees: Employee[] = [
   { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"] },
   { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"] },
   { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accounts Head", avatar: "https://placehold.co/40x40.png", role: ["Accounts"] },
-  { id: "S006", name: "Dojo Davis", email: "dojodavis@example.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"] },
+  { id: "S006", name: "Dojo Davis", email: "cadojodavis@gmail.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"] },
 ];
 
 export const departments: Omit<Department, "id">[] = [
@@ -446,9 +447,6 @@ export const countries: Country[] = [
     { name: "Zimbabwe", code: "ZW" }
 ];
 
-
-// This is now just for master data, not for display.
-// Firestore will be the source of truth for clients.
 export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
     {
         Name: "Innovate Inc.",
@@ -568,38 +566,32 @@ export const engagementTypes: EngagementType[] = [
     },
 ];
 
-// Engagements are now high-level projects
 export const engagements: Omit<Engagement, 'id'>[] = [
     { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
     { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
     { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: ["S001", "S002"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
 ];
 
-// Tasks are the sub-items for engagements
-// The 'id' and 'engagementId' will be replaced during seeding
-export const tasks: Omit<Task, 'id' | 'engagementId'>[] = [
-    // Tasks for Engagement 1 (ITR Filing) - Assigned to Priya
-    { title: "Contact Client", status: "Completed", order: 1, assignedTo: "S003" },
-    { title: "Collect Documents", status: "Completed", order: 2, assignedTo: "S003" },
-    { title: "Prepare Computation", status: "Pending", order: 3, assignedTo: "S003" },
-    { title: "Finalise Computation", status: "Pending", order: 4, assignedTo: "S003" },
-    { title: "File ITR", status: "Pending", order: 5, assignedTo: "S003" },
-    { title: "e-Verify ITR", status: "Pending", order: 6, assignedTo: "S003" },
-    { title: "Send ITR-V to Client", status: "Pending", order: 7, assignedTo: "S003" },
-    { title: "Bill for Services", status: "Pending", order: 8, assignedTo: "S003" },
-    { title: "Collect Payment", status: "Pending", order: 9, assignedTo: "S003" },
+export const tasks: Omit<Task, 'id' | 'engagementId' | 'assignedTo'>[] = [
+    { title: "Contact Client", status: "Completed", order: 1 },
+    { title: "Collect Documents", status: "Completed", order: 2 },
+    { title: "Prepare Computation", status: "Pending", order: 3 },
+    { title: "Finalise Computation", status: "Pending", order: 4 },
+    { title: "File ITR", status: "Pending", order: 5 },
+    { title: "e-Verify ITR", status: "Pending", order: 6 },
+    { title: "Send ITR-V to Client", status: "Pending", order: 7 },
+    { title: "Bill for Services", status: "Pending", order: 8 },
+    { title: "Collect Payment", status: "Pending", order: 9 },
 
-    // Tasks for Engagement 2 (GST Return) - Assigned to Priya
-    { title: "Request Sales Data", status: "Pending", order: 1, assignedTo: "S003" },
-    { title: "Request Purchase Data", status: "Pending", order: 2, assignedTo: "S003" },
+    { title: "Request Sales Data", status: "Pending", order: 1 },
+    { title: "Request Purchase Data", status: "Pending", order: 2 },
 
-    // Tasks for Engagement 3 (Tax Audit) - Split between Tonny and Alex
-    { title: "Send Audit Request List", status: "Completed", order: 1, assignedTo: "S002" }, // Alex
-    { title: "Collect Financial Statements", status: "Completed", order: 2, assignedTo: "S002" }, // Alex
-    { title: "Vouching and Verification", status: "Completed", order: 3, assignedTo: "S002" }, // Alex
-    { title: "Prepare Audit Report", status: "Completed", order: 4, assignedTo: "S002" }, // Alex
-    { title: "Finalize Audit Report", status: "Completed", order: 5, assignedTo: "S001" }, // Tonny
-    { title: "Upload Tax Audit Report", status: "Completed", order: 6, assignedTo: "S001" }, // Tonny
-    { title: "Bill for Services", status: "Completed", order: 7, assignedTo: "S001" }, // Tonny
-    { title: "Collect Payment", status: "Completed", order: 8, assignedTo: "S001" }, // Tonny
+    { title: "Send Audit Request List", status: "Completed", order: 1 },
+    { title: "Collect Financial Statements", status: "Completed", order: 2 },
+    { title: "Vouching and Verification", status: "Completed", order: 3 },
+    { title: "Prepare Audit Report", status: "Completed", order: 4 },
+    { title: "Finalize Audit Report", status: "Completed", order: 5 },
+    { title: "Upload Tax Audit Report", status: "Completed", order: 6 },
+    { title: "Bill for Services", status: "Completed", order: 7 },
+    { title: "Collect Payment", status: "Completed", order: 8 },
 ];
