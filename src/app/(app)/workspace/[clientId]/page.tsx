@@ -27,7 +27,6 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
-  const { clientId } = params;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
@@ -36,7 +35,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if (!clientId) return;
+    if (!params.clientId) return;
 
     setLoading(true);
 
@@ -46,7 +45,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     };
 
     // Listen to client document
-    const clientUnsub = onSnapshot(doc(db, "clients", clientId), (doc) => {
+    const clientUnsub = onSnapshot(doc(db, "clients", params.clientId), (doc) => {
       if (doc.exists()) {
         setClient({ id: doc.id, ...doc.data() } as Client);
       } else {
@@ -72,7 +71,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     fetchStaticData();
 
     // Listen to engagements for the client
-    const engagementsQuery = query(collection(db, "engagements"), where("clientId", "==", clientId));
+    const engagementsQuery = query(collection(db, "engagements"), where("clientId", "==", params.clientId));
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
       const engagementsData = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Engagement))
@@ -84,7 +83,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       clientUnsub();
       engagementsUnsub();
     };
-  }, [clientId, toast]);
+  }, [params.clientId, toast]);
 
 
   if (loading) {
