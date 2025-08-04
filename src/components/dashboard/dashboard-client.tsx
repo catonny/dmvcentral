@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
-import type { Client, Employee, Engagement } from "@/lib/data";
+import type { Client, Employee, Engagement, EngagementStatus } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
@@ -60,7 +60,9 @@ export function DashboardClient() {
             setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
         }, (error) => handleError(error, "clients"));
 
-        const unsubEngagements = onSnapshot(query(collection(db, "engagements")), (snapshot) => {
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
+        const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
             setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
         }, (error) => handleError(error, "engagements"));
 

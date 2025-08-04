@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, onSnapshot, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Engagement, Employee, Client, EngagementType } from "@/lib/data";
+import type { Engagement, Employee, Client, EngagementType, EngagementStatus } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GripVertical, Loader2, Grip } from "lucide-react";
@@ -64,7 +64,10 @@ export default function PartnerViewPage() {
     React.useEffect(() => {
         if (!isPartner) return;
 
-        const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
+
+        const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
             let employeeMapInternal: Map<string, Employee> = new Map();
             let clientMap: Map<string, Client> = new Map();
             let engagementTypeMap: Map<string, EngagementType> = new Map();
