@@ -3,7 +3,7 @@
 
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
-import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserSwitch } from "lucide-react";
+import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog } from "lucide-react";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { ClientOnly } from "./client-only";
 
 interface NavItem {
   id: string;
@@ -70,8 +71,16 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   const [navItems, setNavItems] = useState<NavItem[]>([]);
   
   const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null);
-  const isSuperAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
+  
+  // Super admin status depends on role selected at login
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
+  useEffect(() => {
+    if (user?.email === 'ca.tonnyvarghese@gmail.com') {
+        const role = sessionStorage.getItem('userRole');
+        setIsSuperAdmin(role === 'developer');
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -99,8 +108,9 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
             ? allEmployees.find(e => e.id === impersonatedUserId)?.email
             : user.email;
 
+        // If Developer mode is active, don't fetch a profile for the developer themselves
+        // unless they are impersonating someone.
         if (isSuperAdmin && !impersonatedUserId) {
-            // Super admin not impersonating anyone
             setCurrentUserEmployeeProfile({
                 id: 'super-admin',
                 name: 'Developer',
@@ -122,6 +132,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         setProfileLoading(false);
       };
       
+      // We need allEmployees list to be ready before we can impersonate
       if (!isSuperAdmin || (isSuperAdmin && allEmployees.length > 0)) {
           fetchEmployeeProfile();
       }
@@ -257,7 +268,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center gap-4">
                   {isSuperAdmin && (
                       <div className="flex items-center gap-2 text-white">
-                          <UserSwitch className="h-5 w-5" />
+                          <UserCog className="h-5 w-5" />
                           <Select value={impersonatedUserId || "none"} onValueChange={(value) => setImpersonatedUserId(value === "none" ? null : value)}>
                               <SelectTrigger className="w-[180px] bg-transparent border-white/50">
                                 <SelectValue placeholder="Impersonate User" />
@@ -286,7 +297,9 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
 export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
   return (
     <AuthProvider>
-      <LayoutRenderer>{children}</LayoutRenderer>
+        <ClientOnly>
+            <LayoutRenderer>{children}</LayoutRenderer>
+        </ClientOnly>
     </AuthProvider>
   )
 }

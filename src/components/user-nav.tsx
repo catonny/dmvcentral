@@ -24,6 +24,7 @@ export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | nul
   const router = useRouter();
 
   const handleSignOut = async () => {
+    sessionStorage.removeItem('userRole');
     await auth.signOut();
     router.push('/login');
   };

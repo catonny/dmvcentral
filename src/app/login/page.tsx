@@ -10,9 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DatabaseZap, Loader2 } from "lucide-react";
+import { DatabaseZap, HardHat, Briefcase, Loader2 } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { ClientOnly } from "@/components/client-only";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -23,22 +24,54 @@ const GoogleIcon = () => (
     </svg>
   );
 
+function RoleSelectionDialog({ onSelectRole }: { onSelectRole: (role: 'developer' | 'employee') => void }) {
+    return (
+        <Dialog open={true}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Choose Your Role</DialogTitle>
+                    <DialogDescription>
+                        Select how you want to log in for this session.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-around py-4">
+                    <Button variant="outline" className="flex flex-col h-24 w-32 gap-2" onClick={() => onSelectRole('developer')}>
+                        <HardHat className="h-8 w-8" />
+                        <span>Developer</span>
+                    </Button>
+                    <Button variant="outline" className="flex flex-col h-24 w-32 gap-2" onClick={() => onSelectRole('employee')}>
+                        <Briefcase className="h-8 w-8" />
+                        <span>Partner</span>
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function LoginPageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [isSigningIn, setIsSigningIn] = useState(false);
+    const [showRoleDialog, setShowRoleDialog] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // If user is super admin, let them pass immediately
-                if (user.email === 'ca.tonnyvarghese@gmail.com') {
+                // If role is already selected, proceed
+                if (sessionStorage.getItem('userRole')) {
                     router.push('/dashboard');
                     return;
                 }
+                
+                // If it's the special user and no role is selected, wait for dialog
+                if (user.email === 'ca.tonnyvarghese@gmail.com') {
+                    setLoading(false); // Stop loading to allow dialog to show
+                    return;
+                }
 
-                // Final check to ensure only valid employees stay logged in
+                // Final check for other users
                 const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
                 const employeeSnapshot = await getDocs(employeeQuery);
                 if (employeeSnapshot.empty) {
@@ -66,26 +99,25 @@ function LoginPageContent() {
                 throw new Error("Could not retrieve email from Google account.");
             }
             
-            // Allow super admin to bypass employee check
             if (user.email === 'ca.tonnyvarghese@gmail.com') {
-                // The onAuthStateChanged listener will handle the redirect.
+                setShowRoleDialog(true);
+                // Don't redirect yet, wait for role selection
                 return;
             }
 
-            // Check if user email exists in the employees collection
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
             const employeeSnapshot = await getDocs(employeeQuery);
 
             if (employeeSnapshot.empty) {
-                // If not an employee, sign them out immediately and show an error
                 await auth.signOut();
                 toast({
                     title: "Access Denied",
                     description: "You are not authorized to access this application.",
                     variant: "destructive",
                 });
+            } else {
+                // The onAuthStateChanged listener will handle the redirect for regular employees
             }
-            // If they are an employee, the onAuthStateChanged listener will handle the redirect.
             
         } catch (error) {
             console.error("Error signing in with Google: ", error);
@@ -98,9 +130,19 @@ function LoginPageContent() {
             setIsSigningIn(false);
         }
     };
+    
+    const handleRoleSelection = (role: 'developer' | 'employee') => {
+        sessionStorage.setItem('userRole', role);
+        setShowRoleDialog(false);
+        router.push('/dashboard');
+    };
 
     if (loading) {
         return <div className="flex h-screen w-full items-center justify-center bg-gray-900">Loading...</div>;
+    }
+    
+    if (showRoleDialog) {
+        return <RoleSelectionDialog onSelectRole={handleRoleSelection} />;
     }
 
   return (
