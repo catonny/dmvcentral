@@ -182,7 +182,9 @@ export const indianStatesAndUTs: string[] = [
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
 export const employees: Employee[] = [
-  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] }
+  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] },
+  { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager", "Employee"] },
+  { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee", "Articles"] },
 ];
 
 export const departments: Omit<Department, "id">[] = [
@@ -532,27 +534,36 @@ export const engagementTypes: EngagementType[] = [
 
 // Engagements are now high-level projects
 export const engagements: Omit<Engagement, 'id'>[] = [
-    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
-    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
-    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
+    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
+    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
+    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: ["S001", "S002"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
 ];
 
 // Tasks are the sub-items for engagements
 // The 'id' and 'engagementId' will be replaced during seeding
 export const tasks: Omit<Task, 'id' | 'engagementId'>[] = [
-    // Tasks for Engagement 1 (ITR Filing)
-    { title: "Contact Client", status: "Completed", order: 1, assignedTo: "S001" },
-    { title: "Collect Documents", status: "Completed", order: 2, assignedTo: "S001" },
-    { title: "Prepare Computation", status: "Pending", order: 3, assignedTo: "S001" },
-    { title: "Finalise Computation", status: "Pending", order: 4, assignedTo: "S001" },
-    { title: "File ITR", status: "Pending", order: 5, assignedTo: "S001" },
-    { title: "e-Verify ITR", status: "Pending", order: 6, assignedTo: "S001" },
-    { title: "Send ITR-V to Client", status: "Pending", order: 7, assignedTo: "S001" },
-    { title: "Bill for Services", status: "Pending", order: 8, assignedTo: "S001" },
-    { title: "Collect Payment", status: "Pending", order: 9, assignedTo: "S001" },
+    // Tasks for Engagement 1 (ITR Filing) - Assigned to Priya
+    { title: "Contact Client", status: "Completed", order: 1, assignedTo: "S003" },
+    { title: "Collect Documents", status: "Completed", order: 2, assignedTo: "S003" },
+    { title: "Prepare Computation", status: "Pending", order: 3, assignedTo: "S003" },
+    { title: "Finalise Computation", status: "Pending", order: 4, assignedTo: "S003" },
+    { title: "File ITR", status: "Pending", order: 5, assignedTo: "S003" },
+    { title: "e-Verify ITR", status: "Pending", order: 6, assignedTo: "S003" },
+    { title: "Send ITR-V to Client", status: "Pending", order: 7, assignedTo: "S003" },
+    { title: "Bill for Services", status: "Pending", order: 8, assignedTo: "S003" },
+    { title: "Collect Payment", status: "Pending", order: 9, assignedTo: "S003" },
 
-    // Tasks for Engagement 2 (GST Return)
-    { title: "Request Sales Data", status: "Pending", order: 1, assignedTo: "S001" },
-    { title: "Request Purchase Data", status: "Pending", order: 2, assignedTo: "S001" },
-    // ... more tasks for other engagements
+    // Tasks for Engagement 2 (GST Return) - Assigned to Priya
+    { title: "Request Sales Data", status: "Pending", order: 1, assignedTo: "S003" },
+    { title: "Request Purchase Data", status: "Pending", order: 2, assignedTo: "S003" },
+
+    // Tasks for Engagement 3 (Tax Audit) - Split between Tonny and Alex
+    { title: "Send Audit Request List", status: "Completed", order: 1, assignedTo: "S002" }, // Alex
+    { title: "Collect Financial Statements", status: "Completed", order: 2, assignedTo: "S002" }, // Alex
+    { title: "Vouching and Verification", status: "Completed", order: 3, assignedTo: "S002" }, // Alex
+    { title: "Prepare Audit Report", status: "Completed", order: 4, assignedTo: "S002" }, // Alex
+    { title: "Finalize Audit Report", status: "Completed", order: 5, assignedTo: "S001" }, // Tonny
+    { title: "Upload Tax Audit Report", status: "Completed", order: 6, assignedTo: "S001" }, // Tonny
+    { title: "Bill for Services", status: "Completed", order: 7, assignedTo: "S001" }, // Tonny
+    { title: "Collect Payment", status: "Completed", order: 8, assignedTo: "S001" }, // Tonny
 ];
