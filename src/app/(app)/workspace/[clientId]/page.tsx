@@ -177,7 +177,8 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
               <TableBody>
                 {engagements.length > 0 ? (
                   engagements.map((eng) => {
-                    const assignedEmployees = eng.assignedTo.map(getEmployeeMember).filter(Boolean);
+                    const assignedToIds = Array.isArray(eng.assignedTo) ? eng.assignedTo : [eng.assignedTo].filter(Boolean);
+                    const assignedEmployees = assignedToIds.map(getEmployeeMember).filter(Boolean);
                     const engagementType = getEngagementType(eng.type);
                     return (
                       <TableRow key={eng.id}>
