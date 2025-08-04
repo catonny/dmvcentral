@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Client, Engagement, Employee, EngagementType } from "@/lib/data";
+import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +29,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
-  const { clientId } = React.use(params);
+  const clientId = React.use(params).clientId;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
@@ -74,10 +74,11 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     fetchStaticData();
 
     // Listen to *active* engagements for the client
+    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "not-in", ["Completed", "Cancelled"]),
+        where("status", "in", activeStatuses),
         orderBy("dueDate", "asc")
     );
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
