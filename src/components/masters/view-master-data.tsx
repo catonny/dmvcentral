@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
-type MasterType = "Clients" | "Engagement Types" | "Employees" | "Departments" | "Client Categories";
+type MasterType = "Engagement Types" | "Employees" | "Departments" | "Client Categories";
 
-const MASTER_TYPES: MasterType[] = ["Clients", "Engagement Types", "Employees", "Departments", "Client Categories"];
+const MASTER_TYPES: MasterType[] = ["Engagement Types", "Employees", "Departments", "Client Categories"];
 
 export function ViewMasterData({ onBack }: { onBack: () => void }) {
   const [selectedMaster, setSelectedMaster] = React.useState<MasterType | null>(null);
@@ -28,9 +28,6 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
     try {
       let q;
       switch (masterType) {
-        case "Clients":
-          q = query(collection(db, "clients"));
-          break;
         case "Engagement Types":
           q = query(collection(db, "engagementTypes"));
           break;
