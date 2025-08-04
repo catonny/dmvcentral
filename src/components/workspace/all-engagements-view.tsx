@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { doc, updateDoc, writeBatch, collection, getDocs } from "firebase/firestore";
+import { doc, updateDoc, writeBatch, getDocs, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EditEngagementSheet } from "../reports/edit-engagement-sheet";
@@ -180,9 +180,19 @@ export function AllEngagementsView({ engagements, clientMap, employees, currentU
                                             {!hasEditAccess && <TooltipContent><p>You must be the Partner, Reporter, or an Assignee to edit.</p></TooltipContent>}
                                         </Tooltip>
                                      </TooltipProvider>
-                                    <Button size="sm" onClick={() => handleJoinEngagement(engagement)} disabled={isAssigned || !hasEditAccess}>
-                                        {isAssigned ? "Joined" : "Join"}
-                                    </Button>
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div>
+                                                     <Button size="sm" onClick={() => handleJoinEngagement(engagement)} disabled={isAssigned || !hasEditAccess}>
+                                                        {isAssigned ? "Joined" : "Join"}
+                                                    </Button>
+                                                </div>
+                                            </TooltipTrigger>
+                                             {isAssigned && <TooltipContent><p>You are already assigned to this engagement.</p></TooltipContent>}
+                                             {!hasEditAccess && <TooltipContent><p>You must be the Partner or Reporter to join.</p></TooltipContent>}
+                                        </Tooltip>
+                                     </TooltipProvider>
                                 </CardFooter>
                             </Card>
                         )

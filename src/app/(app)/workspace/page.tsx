@@ -2,20 +2,20 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs } from "firebase/firestore";
-import type { Client, Engagement, Employee } from "@/lib/data";
+import { collection, query, onSnapshot, where, getDocs, orderBy } from "firebase/firestore";
+import type { Client, Engagement, Employee, Department } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { AssignmentList } from "@/components/workspace/assignment-list";
 import { Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AllEngagementsView } from "@/components/workspace/all-engagements-view";
+import { WorkspaceBoard } from "@/components/workspace/workspace-board";
+
 
 export default function WorkspacePage() {
   const [allEngagements, setAllEngagements] = React.useState<Engagement[]>([]);
   const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
   const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [departments, setDepartments] = React.useState<Department[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   const { toast } = useToast();
@@ -45,6 +45,10 @@ export default function WorkspacePage() {
         const allEmployeesUnsub = onSnapshot(collection(db, "employees"), (snapshot) => {
           setEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)))
         }, (error) => handleError(error, "employees"));
+        
+        const deptsUnsub = onSnapshot(query(collection(db, "departments"), orderBy("order")), (snapshot) => {
+          setDepartments(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Department)))
+        }, (error) => handleError(error, "departments"));
 
         const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
         const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
@@ -61,6 +65,7 @@ export default function WorkspacePage() {
             clientsUnsub();
             engagementsUnsub();
             allEmployeesUnsub();
+            deptsUnsub();
         };
 
       } catch (error) {
@@ -77,47 +82,32 @@ export default function WorkspacePage() {
     fetchInitialData();
   }, [user, toast]);
   
-  const myEngagements = React.useMemo(() => {
-    if (!currentUserEmployee) return [];
-    return allEngagements.filter(e => e.assignedTo.includes(currentUserEmployee.id));
-  }, [allEngagements, currentUserEmployee]);
-
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Workspace...</div>;
   }
 
+  if (!currentUserEmployee) {
+    return <div className="flex h-full w-full items-center justify-center">Could not load your user profile.</div>;
+  }
+
   return (
     <div className="flex h-full flex-col">
-       <Tabs defaultValue="my-engagements" className="flex-grow flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Workspace</h2>
-                    <p className="text-muted-foreground">
-                        Manage your assigned work and view all active engagements.
-                    </p>
-                </div>
-                <TabsList>
-                    <TabsTrigger value="my-engagements">My Engagements</TabsTrigger>
-                    <TabsTrigger value="all-engagements">All Engagements</TabsTrigger>
-                </TabsList>
+       <div className="flex items-center justify-between mb-4">
+            <div>
+                <h2 className="text-3xl font-bold tracking-tight font-headline">Workspace</h2>
+                <p className="text-muted-foreground">
+                    Manage your firm's workload and collaborate with your team.
+                </p>
             </div>
-            <TabsContent value="my-engagements" className="flex-grow">
-                <AssignmentList 
-                    engagements={myEngagements}
-                    clientMap={clients}
-                    currentUserEmployee={currentUserEmployee}
-                />
-            </TabsContent>
-            <TabsContent value="all-engagements" className="flex-grow">
-                <AllEngagementsView
-                    engagements={allEngagements}
-                    clientMap={clients}
-                    employees={employees}
-                    currentUserEmployee={currentUserEmployee}
-                />
-            </TabsContent>
-        </Tabs>
+        </div>
+        <WorkspaceBoard
+            allEngagements={allEngagements}
+            allEmployees={employees}
+            allDepartments={departments}
+            clientMap={clients}
+            currentUser={currentUserEmployee}
+        />
     </div>
   );
 }
