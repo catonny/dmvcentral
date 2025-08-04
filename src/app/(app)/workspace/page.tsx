@@ -9,10 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { AssignmentList } from "@/components/workspace/assignment-list";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AllEngagementsView } from "@/components/workspace/all-engagements-view";
 
 export default function WorkspacePage() {
-  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [allEngagements, setAllEngagements] = React.useState<Engagement[]>([]);
   const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
+  const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   const { toast } = useToast();
@@ -39,10 +42,15 @@ export default function WorkspacePage() {
             setClients(new Map(snapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
         }, (error) => handleError(error, "clients"));
 
-        const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "array-contains", employeeProfile.id));
+        const allEmployeesUnsub = onSnapshot(collection(db, "employees"), (snapshot) => {
+          setEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)))
+        }, (error) => handleError(error, "employees"));
+
+        const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
         const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
             const engagementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-            setEngagements(engagementsData);
+            setAllEngagements(engagementsData);
             setLoading(false);
         }, (error) => {
             handleError(error, "engagements");
@@ -52,6 +60,7 @@ export default function WorkspacePage() {
         return () => {
             clientsUnsub();
             engagementsUnsub();
+            allEmployeesUnsub();
         };
 
       } catch (error) {
@@ -67,6 +76,11 @@ export default function WorkspacePage() {
 
     fetchInitialData();
   }, [user, toast]);
+  
+  const myEngagements = React.useMemo(() => {
+    if (!currentUserEmployee) return [];
+    return allEngagements.filter(e => e.assignedTo.includes(currentUserEmployee.id));
+  }, [allEngagements, currentUserEmployee]);
 
 
   if (loading) {
@@ -74,12 +88,36 @@ export default function WorkspacePage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-        <AssignmentList 
-            engagements={engagements}
-            clientMap={clients}
-            currentUserEmployee={currentUserEmployee}
-        />
+    <div className="flex h-full flex-col">
+       <Tabs defaultValue="my-engagements" className="flex-grow flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Workspace</h2>
+                    <p className="text-muted-foreground">
+                        Manage your assigned work and view all active engagements.
+                    </p>
+                </div>
+                <TabsList>
+                    <TabsTrigger value="my-engagements">My Engagements</TabsTrigger>
+                    <TabsTrigger value="all-engagements">All Engagements</TabsTrigger>
+                </TabsList>
+            </div>
+            <TabsContent value="my-engagements" className="flex-grow">
+                <AssignmentList 
+                    engagements={myEngagements}
+                    clientMap={clients}
+                    currentUserEmployee={currentUserEmployee}
+                />
+            </TabsContent>
+            <TabsContent value="all-engagements" className="flex-grow">
+                <AllEngagementsView
+                    engagements={allEngagements}
+                    clientMap={clients}
+                    employees={employees}
+                    currentUserEmployee={currentUserEmployee}
+                />
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
