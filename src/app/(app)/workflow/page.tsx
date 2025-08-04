@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Task, Client, Engagement } from "@/lib/data";
+import type { Task, Client, Engagement, EngagementStatus } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +38,12 @@ export default function WorkflowPage() {
                 setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
              });
 
-             const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "array-contains", currentUser.id), where("status", "!=", "Completed"), where("status", "!=", "Cancelled"));
+             const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+             const engagementsQuery = query(
+                collection(db, "engagements"), 
+                where("assignedTo", "array-contains", currentUser.id), 
+                where("status", "in", activeStatuses)
+            );
              const unsubEngagements = onSnapshot(engagementsQuery, (engagementsSnapshot) => {
                  const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
                  setEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
