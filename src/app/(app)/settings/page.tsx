@@ -189,23 +189,18 @@ export default function SettingsPage() {
     try {
       const batch = writeBatch(db);
       
-      // These are your transactional data collections
-      const clientsQuery = query(collection(db, 'clients'));
-      const engagementsQuery = query(collection(db, 'engagements'));
-
-      const [clientsSnapshot, engagementsSnapshot] = await Promise.all([
-          getDocs(clientsQuery),
-          getDocs(engagementsQuery)
-      ]);
-
-      clientsSnapshot.forEach((doc) => batch.delete(doc.ref));
-      engagementsSnapshot.forEach((doc) => batch.delete(doc.ref));
+      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices'];
+      
+      for (const collectionName of collectionsToDelete) {
+          const snapshot = await getDocs(query(collection(db, collectionName)));
+          snapshot.forEach((doc) => batch.delete(doc.ref));
+      }
 
       await batch.commit();
 
       toast({
         title: 'Success',
-        description: 'All clients and engagements have been deleted.',
+        description: 'All clients, engagements, tasks, and pending invoices have been deleted.',
       });
     } catch (error) {
       console.error('Error deleting transactional data:', error);
@@ -356,7 +351,7 @@ export default function SettingsPage() {
                 <div>
                     <h3 className="font-semibold">Delete Transactional Data</h3>
                     <p className="text-sm text-muted-foreground">
-                    This will permanently delete all **clients** and **engagements**. Master data will not be affected.
+                    This will permanently delete all **clients, engagements, tasks, and pending invoices**. Master data will not be affected.
                     </p>
                 </div>
                 <AlertDialog>
@@ -370,7 +365,7 @@ export default function SettingsPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete all client and engagement data from the database. Master data will NOT be deleted.
+                        This action cannot be undone. This will permanently delete all transactional data (clients, engagements, tasks, and pending invoices). Master data will NOT be deleted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
