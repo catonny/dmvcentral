@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { DataTableColumnFilter } from "./data-table-column-filter"
 import { engagementStatuses } from "./engagement-statuses"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip"
 
 const statusColors: { [key: string]: string } = {
   "Pending": "bg-gray-200 text-gray-800",
@@ -23,7 +24,7 @@ const statusColors: { [key: string]: string } = {
 
 export const getPartnerViewColumns = (
   engagementTypes: string[],
-  employeeNames: string[],
+  employeeMap: Map<string, { name: string, avatar?: string }>,
   openEditSheet: (engagement: PartnerViewEngagement) => void
 ): ColumnDef<PartnerViewEngagement>[] => [
   {
@@ -132,7 +133,7 @@ export const getPartnerViewColumns = (
     },
   },
   {
-    accessorKey: "assignedToName",
+    accessorKey: "assignedTo",
     header: ({ column }) => (
         <div className="flex items-center space-x-2">
              <Button
@@ -143,24 +144,43 @@ export const getPartnerViewColumns = (
                 Assigned To
                 <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
-            <DataTableColumnFilter column={column} title="Employee" options={employeeNames} />
+            <DataTableColumnFilter column={column} title="Employee" options={Array.from(employeeMap.values()).map(e => e.name)} />
         </div>
     ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 px-4">
-        {row.original.assignedToName !== 'Unassigned' && (
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={row.original.assignedToAvatar} alt={row.original.assignedToName} />
-            <AvatarFallback>{row.original.assignedToName.charAt(0)}</AvatarFallback>
-          </Avatar>
-        )}
-        <span>{row.original.assignedToName}</span>
-      </div>
-    ),
+    cell: ({ row }) => {
+        const assignedIds = row.original.assignedTo || [];
+        if (assignedIds.length === 0) {
+            return <div className="px-4 text-muted-foreground">Unassigned</div>
+        }
+
+        return (
+             <div className="flex items-center px-4 -space-x-2">
+                <TooltipProvider>
+                    {assignedIds.map(id => {
+                        const employee = employeeMap.get(id);
+                        if (!employee) return null;
+                        return (
+                            <Tooltip key={id}>
+                                <TooltipTrigger asChild>
+                                     <Avatar className="h-8 w-8 border-2 border-background">
+                                        <AvatarImage src={employee.avatar} alt={employee.name} />
+                                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{employee.name}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )
+                    })}
+                </TooltipProvider>
+            </div>
+        )
+    },
     filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
+        const assignedIds = row.getValue(id) as string[];
+        const assignedNames = assignedIds.map(id => employeeMap.get(id)?.name).filter(Boolean);
+        return value.some((v: string) => assignedNames.includes(v))
     },
   },
 ]
-
-    

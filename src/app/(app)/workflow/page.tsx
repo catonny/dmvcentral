@@ -48,7 +48,6 @@ export default function WorkflowPage() {
                  setEngagements(userEngagements);
 
                  if (userEngagements.length > 0) {
-                     const engagementIds = userEngagements.map(e => e.id);
                      // Fetch tasks for those engagements, now filtering by task assignee
                      const tasksQuery = query(collection(db, "tasks"), where("assignedTo", "==", currentUser.id));
                      const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {

@@ -19,8 +19,6 @@ import GridLayout from "react-grid-layout";
 export interface PartnerViewEngagement extends Engagement {
     clientName: string;
     engagementTypeName: string;
-    assignedToName: string;
-    assignedToAvatar?: string;
 }
 
 interface Widget {
@@ -38,6 +36,7 @@ export default function PartnerViewPage() {
     const [tableData, setTableData] = React.useState<PartnerViewEngagement[]>([]);
     const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+    const [employeeMap, setEmployeeMap] = React.useState<Map<string, {name: string, avatar?: string}>>(new Map());
     
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
     const [selectedEngagement, setSelectedEngagement] = React.useState<PartnerViewEngagement | null>(null);
@@ -66,7 +65,7 @@ export default function PartnerViewPage() {
         if (!isPartner) return;
 
         const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
-            let employeeMap: Map<string, Employee> = new Map();
+            let employeeMapInternal: Map<string, Employee> = new Map();
             let clientMap: Map<string, Client> = new Map();
             let engagementTypeMap: Map<string, EngagementType> = new Map();
             
@@ -76,7 +75,8 @@ export default function PartnerViewPage() {
                 getDocs(collection(db, "engagementTypes"))
             ]).then(([employeeSnapshot, clientSnapshot, engagementTypeSnapshot]) => {
                 const employeeData = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-                employeeMap = new Map(employeeData.map(s => [s.id, s]));
+                employeeMapInternal = new Map(employeeData.map(s => [s.id, s]));
+                setEmployeeMap(new Map(employeeData.map(e => [e.id, { name: e.name, avatar: e.avatar }])));
                 setAllEmployees(employeeData);
 
                 clientMap = new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
@@ -90,14 +90,11 @@ export default function PartnerViewPage() {
                 const formattedData: PartnerViewEngagement[] = engagementData.map(eng => {
                     const client = clientMap.get(eng.clientId);
                     const engagementType = engagementTypeMap.get(eng.type);
-                    const assignedEmployee = eng.assignedTo ? employeeMap.get(eng.assignedTo) : undefined;
 
                     return {
                         ...eng,
                         clientName: client?.Name || 'N/A',
                         engagementTypeName: engagementType?.name || 'N/A',
-                        assignedToName: assignedEmployee?.name || 'Unassigned',
-                        assignedToAvatar: assignedEmployee?.avatar,
                     };
                 });
                 
@@ -181,7 +178,7 @@ export default function PartnerViewPage() {
     
     const columns = getPartnerViewColumns(
         engagementTypes.map(et => et.name), 
-        allEmployees.map(s => s.name),
+        employeeMap,
         handleOpenEditSheet
     );
 

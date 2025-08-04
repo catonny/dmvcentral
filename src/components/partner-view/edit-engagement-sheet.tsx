@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { PartnerViewEngagement } from '@/app/(app)/partner-view/page';
 import { Textarea } from '../ui/textarea';
+import { Checkbox } from '../ui/checkbox';
+import { Badge } from '../ui/badge';
 
 interface EditEngagementSheetProps {
     engagement: PartnerViewEngagement | null;
@@ -95,6 +97,14 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
             }
         }
     };
+    
+    const handleAssigneeToggle = (employeeId: string) => {
+        const currentAssignees = formData.assignedTo || [];
+        const newAssignees = currentAssignees.includes(employeeId)
+            ? currentAssignees.filter(id => id !== employeeId)
+            : [...currentAssignees, employeeId];
+        setFormData({ ...formData, assignedTo: newAssignees });
+    };
 
 
     return (
@@ -120,19 +130,44 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                         <Label htmlFor="remarks" className="text-right">Remarks</Label>
                         <Textarea id="remarks" value={formData.remarks || ''} onChange={handleChange} className="col-span-3" />
                     </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="assignedTo" className="text-right">Assigned To</Label>
-                        <Select onValueChange={handleSelectChange('assignedTo')} value={formData.assignedTo?.[0]}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="">Unassigned</SelectItem>
-                                {allEmployees.map((s) => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                     <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-2">Assigned To</Label>
+                        <div className="col-span-3 space-y-2">
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-start">
+                                        <div className="flex gap-1 flex-wrap">
+                                            {(formData.assignedTo && formData.assignedTo.length > 0) ? 
+                                                formData.assignedTo.map(id => (
+                                                    <Badge key={id} variant="secondary">
+                                                        {allEmployees.find(e => e.id === id)?.name || '...'}
+                                                    </Badge>
+                                                )) : "Select team members..."}
+                                        </div>
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search employees..." />
+                                        <CommandList>
+                                            <CommandEmpty>No employees found.</CommandEmpty>
+                                            <CommandGroup>
+                                            {allEmployees.map(employee => (
+                                                <CommandItem
+                                                    key={employee.id}
+                                                    value={employee.name}
+                                                    onSelect={() => handleAssigneeToggle(employee.id)}
+                                                >
+                                                    <Checkbox checked={(formData.assignedTo || []).includes(employee.id)} className="mr-2"/>
+                                                    <span>{employee.name}</span>
+                                                </CommandItem>
+                                            ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="dueDate" className="text-right">Due Date</Label>

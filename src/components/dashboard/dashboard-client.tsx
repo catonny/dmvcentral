@@ -97,7 +97,7 @@ export function DashboardClient() {
       const partnerClientIds = partnerClients.map(c => c.id);
       
       const relevantEngagements = engagements.filter(e => 
-        (e.assignedTo === null || e.assignedTo === "") || 
+        (e.assignedTo === null || e.assignedTo.length === 0) || 
         partnerClientIds.includes(e.clientId) 
       );
 
@@ -107,7 +107,7 @@ export function DashboardClient() {
         dashboardEngagements: relevantEngagements 
       };
     } else {
-      const assignedEngagements = engagements.filter(e => e.assignedTo === currentUserEmployeeProfile.id);
+      const assignedEngagements = engagements.filter(e => e.assignedTo.includes(currentUserEmployeeProfile.id));
       const assignedClientIds = new Set(assignedEngagements.map(e => e.clientId));
       const assignedClients = allClients.filter(client => assignedClientIds.has(client.id));
       

@@ -96,7 +96,7 @@ export interface Task {
     title: string;
     status: TaskStatus;
     order: number;
-    assignedTo?: string; // Corresponds to Employee.id
+    assignedTo: string; // Corresponds to Employee.id
 }
 
 export type FeatureName = 
