@@ -230,7 +230,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>Engagement Type</TableHead>
+                                <TableHead>Engagement (Remarks)</TableHead>
                                 <TableHead>Client</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Due Date</TableHead>
@@ -290,7 +290,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                                                 <tr>
                                                     <td colSpan={5} className="p-0">
                                                         <div className="p-4 bg-muted/50">
-                                                            <h4 className="font-semibold mb-2">Tasks for: {eng.remarks}</h4>
+                                                            <h4 className="font-semibold mb-2 text-sm">Tasks for: {eng.remarks}</h4>
                                                             <div className="space-y-2">
                                                                 {engagementTasks.map(task => (
                                                                     <div key={task.id} className="flex items-center space-x-2">

@@ -78,7 +78,7 @@ export function TaskTableView({
     <Card className="h-full flex flex-col">
       <div className="p-4 flex items-center justify-between gap-4 border-b">
         <Input
-          placeholder="Search tasks, clients, or remarks..."
+          placeholder="Search tasks or clients..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
@@ -102,7 +102,6 @@ export function TaskTableView({
                 <TableHead className="w-[50px]"></TableHead>
                 <TableHead>Task</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead>Engagement</TableHead>
                 <TableHead>Due Date</TableHead>
               </TableRow>
             </TableHeader>
@@ -131,7 +130,6 @@ export function TaskTableView({
                       {task.title}
                     </TableCell>
                     <TableCell>{task.clientName}</TableCell>
-                    <TableCell className="text-muted-foreground">{task.engagementRemarks}</TableCell>
                     <TableCell className={cn(
                         isPast(task.dueDate) && task.status !== 'Completed' && "text-destructive font-semibold"
                     )}>
@@ -141,7 +139,7 @@ export function TaskTableView({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     No tasks found.
                   </TableCell>
                 </TableRow>
