@@ -122,11 +122,13 @@ export type FeatureName =
     | "employee-management" 
     | "workflow-editor" 
     | "settings-data-management" 
-    | "settings-access-control";
+    | "settings-access-control"
+    | "timesheet";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
     { id: "accounts", name: "Accounts", description: "Access the billing and collections dashboard." },
+    { id: "timesheet", name: "Timesheet", description: "Access to view and manage timesheets" },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
     { id: "employee-management", name: "Employee Management", description: "Manage employee roles and departments." },
