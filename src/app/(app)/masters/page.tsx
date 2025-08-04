@@ -3,14 +3,15 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, PenSquare, PlusCircle } from "lucide-react";
+import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch } from "lucide-react";
 import { ViewMasterData } from "@/components/masters/view-master-data";
 import { CreateMasterData } from "@/components/masters/create-master-data";
 import { AlterMasterData } from "@/components/masters/alter-master-data";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { WorkflowEditor } from "@/components/masters/workflow-editor";
 
-type Action = "view" | "create" | "alter" | null;
+type Action = "view" | "create" | "alter" | "workflow" | null;
 
 export default function MastersPage() {
   const [currentAction, setCurrentAction] = React.useState<Action>(null);
@@ -27,6 +28,8 @@ export default function MastersPage() {
         return <CreateMasterData onBack={() => setCurrentAction(null)} />;
       case "alter":
         return <AlterMasterData onBack={() => setCurrentAction(null)} />;
+      case "workflow":
+        return <WorkflowEditor onBack={() => setCurrentAction(null)} />;
       default:
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -47,6 +50,12 @@ export default function MastersPage() {
                 description="Edit or delete existing records from your master data sets."
                 icon={PenSquare}
                 onClick={() => handleActionClick("alter")}
+                />
+                <ActionCard
+                title="Edit Engagement Workflows"
+                description="Define the sequence of tasks for different engagement types."
+                icon={GitBranch}
+                onClick={() => handleActionClick("workflow")}
                 />
             </div>
         );

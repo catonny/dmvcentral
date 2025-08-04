@@ -125,7 +125,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
         { id: 'employee', href: '/employee', icon: Group, tooltip: 'Employee', label: 'Employee', condition: checkPermission('employee-management') },
         { id: 'bulk-import', href: '/bulk-import', icon: UploadCloud, tooltip: 'Bulk Import', label: 'Bulk Import', condition: checkPermission('bulk-import') },
-        { id: 'workflow-editor', href: '/workflow-editor', icon: GitBranch, tooltip: 'Workflow Editor', label: 'Workflow Editor', condition: checkPermission('workflow-editor') },
         { id: 'settings', href: '/settings', icon: Settings, tooltip: 'Settings', label: 'Settings', condition: checkPermission('settings-data-management') || checkPermission('settings-access-control') }
     ];
     
