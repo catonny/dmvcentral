@@ -48,7 +48,9 @@ export interface EngagementType {
   id: string;
   name: string;
   description: string;
-  subTaskTitles: string[]; // Standard sub-tasks for this engagement type
+  // This is a template list. When an engagement of this type is created,
+  // a 'Task' document will be created for each of these titles.
+  subTaskTitles: string[]; 
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
 }
 
