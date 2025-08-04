@@ -11,6 +11,19 @@ import { EngagementCard } from "./engagement-card";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { LogTimeDialog } from "./log-time-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 interface WorkspaceBoardProps {
     allEngagements: Engagement[];
@@ -23,6 +36,36 @@ interface WorkspaceBoardProps {
 export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, clientMap, currentUser }: WorkspaceBoardProps) {
     const { toast } = useToast();
     const [activeEngagement, setActiveEngagement] = React.useState<Engagement | null>(null);
+    const [isLogTimeDialogOpen, setIsLogTimeDialogOpen] = React.useState(false);
+    const [engagementToLog, setEngagementToLog] = React.useState<Engagement | null>(null);
+    
+    const [isPromptOpen, setIsPromptOpen] = React.useState(false);
+    const activityTimer = React.useRef<NodeJS.Timeout | null>(null);
+
+    const resetActivityTimer = React.useCallback(() => {
+        if (activityTimer.current) {
+            clearTimeout(activityTimer.current);
+        }
+        activityTimer.current = setTimeout(() => {
+            setIsPromptOpen(true);
+        }, ACTIVITY_TIMEOUT);
+    }, []);
+
+    React.useEffect(() => {
+        resetActivityTimer();
+        window.addEventListener('mousemove', resetActivityTimer);
+        window.addEventListener('keydown', resetActivityTimer);
+        window.addEventListener('click', resetActivityTimer);
+
+        return () => {
+            if (activityTimer.current) {
+                clearTimeout(activityTimer.current);
+            }
+            window.removeEventListener('mousemove', resetActivityTimer);
+            window.removeEventListener('keydown', resetActivityTimer);
+            window.removeEventListener('click', resetActivityTimer);
+        };
+    }, [resetActivityTimer]);
 
     // Determine which departments the current user can see
     const visibleDepartments = React.useMemo(() => {
@@ -66,9 +109,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         
         const newAssignedTo = [...engagement.assignedTo, targetEmployeeId];
         
-        // Optimistic update can be done here by calling a state setter function from the parent
-        // For now, we directly update Firestore
-        
         try {
             const engagementRef = doc(db, "engagements", engagementId);
             await updateDoc(engagementRef, { assignedTo: newAssignedTo });
@@ -84,7 +124,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                 description: "Could not reassign the engagement.",
                 variant: "destructive",
             });
-            // Here you would revert the optimistic update
         }
     };
     
@@ -121,6 +160,16 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         }
     };
 
+    const handleOpenLogTimeDialog = (engagement: Engagement) => {
+        setEngagementToLog(engagement);
+        setIsLogTimeDialogOpen(true);
+    }
+    
+    const handleClosePrompt = () => {
+        setIsPromptOpen(false);
+        resetActivityTimer();
+    }
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -144,6 +193,7 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                             clientMap={clientMap}
                             employeeMap={employeeMap}
                             onRemoveUser={handleRemoveUser}
+                            onLogTime={handleOpenLogTimeDialog}
                         />
                     ))}
                 </div>
@@ -156,9 +206,29 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                         client={clientMap.get(activeEngagement.clientId)}
                         employeeMap={employeeMap}
                         onRemoveUser={() => {}} // No action during drag
+                        onLogTime={() => {}}
                     />
                 ) : null}
             </DragOverlay>
+            <LogTimeDialog
+                isOpen={isLogTimeDialogOpen}
+                onClose={() => setIsLogTimeDialogOpen(false)}
+                engagement={engagementToLog}
+                currentUser={currentUser}
+            />
+            <AlertDialog open={isPromptOpen} onOpenChange={setIsPromptOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Don't Forget to Log Your Time!</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            It looks like you've been working for a while. Remember to log your hours to ensure accurate reporting.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={handleClosePrompt}>OK, I'll Remember</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </DndContext>
     );
 }

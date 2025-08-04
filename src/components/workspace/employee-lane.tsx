@@ -15,9 +15,10 @@ interface EmployeeLaneProps {
     clientMap: Map<string, Client>;
     employeeMap: Map<string, Employee>;
     onRemoveUser: (engagementId: string, userIdToRemove: string) => void;
+    onLogTime: (engagement: Engagement) => void;
 }
 
-export function EmployeeLane({ employee, engagements, clientMap, employeeMap, onRemoveUser }: EmployeeLaneProps) {
+export function EmployeeLane({ employee, engagements, clientMap, employeeMap, onRemoveUser, onLogTime }: EmployeeLaneProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: employee.id,
     });
@@ -49,6 +50,7 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
                             client={clientMap.get(engagement.clientId)}
                             employeeMap={employeeMap}
                             onRemoveUser={onRemoveUser}
+                            onLogTime={onLogTime}
                         />
                     ))}
                 </SortableContext>

@@ -89,6 +89,21 @@ export interface PendingInvoice {
     partnerId: string;
 }
 
+export interface TimesheetEntry {
+    engagementId: string;
+    hours: number;
+}
+
+export interface Timesheet {
+    id: string; // Composite key: userId_weekStartDate (e.g., S003_2024-07-22)
+    userId: string;
+    userName: string;
+    isPartner: boolean;
+    weekStartDate: string; // ISO 8601 string for the Monday of that week
+    totalHours: number;
+    entries: TimesheetEntry[];
+}
+
 
 export interface Task {
     id: string;
@@ -594,5 +609,3 @@ export const tasks: Omit<Task, 'id' | 'engagementId' | 'assignedTo'>[] = [
     { title: "Bill for Services", status: "Completed", order: 7 },
     { title: "Collect Payment", status: "Completed", order: 8 },
 ];
-
-    

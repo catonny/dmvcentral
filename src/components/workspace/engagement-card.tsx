@@ -8,7 +8,7 @@ import { Engagement, Client, Employee } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { XIcon } from "lucide-react";
+import { Clock, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,10 @@ interface EngagementCardProps {
     client?: Client;
     employeeMap: Map<string, Employee>;
     onRemoveUser: (engagementId: string, userIdToRemove: string) => void;
+    onLogTime: (engagement: Engagement) => void;
 }
 
-export function EngagementCard({ engagement, client, employeeMap, onRemoveUser }: EngagementCardProps) {
+export function EngagementCard({ engagement, client, employeeMap, onRemoveUser, onLogTime }: EngagementCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: engagement.id,
     });
@@ -32,7 +33,7 @@ export function EngagementCard({ engagement, client, employeeMap, onRemoveUser }
     };
 
     return (
-        <Card ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none bg-background hover:shadow-md">
+        <Card ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none bg-background hover:shadow-md flex flex-col">
             <CardHeader className="p-3 pb-2">
                 <CardTitle className="text-sm font-semibold leading-tight">{engagement.remarks}</CardTitle>
                  <CardDescription className="text-xs">
@@ -44,7 +45,7 @@ export function EngagementCard({ engagement, client, employeeMap, onRemoveUser }
                     </Button>
                 </CardDescription>
             </CardHeader>
-            <CardContent className="p-3 pt-0">
+            <CardContent className="p-3 pt-0 flex-grow">
                  <div className="flex items-center -space-x-2">
                     <TooltipProvider>
                         {engagement.assignedTo.map(id => {
@@ -78,6 +79,12 @@ export function EngagementCard({ engagement, client, employeeMap, onRemoveUser }
                     </TooltipProvider>
                 </div>
             </CardContent>
+            <CardFooter className="p-3 pt-0">
+                <Button variant="outline" size="sm" className="w-full" onClick={() => onLogTime(engagement)}>
+                    <Clock className="mr-2 h-3 w-3" />
+                    Log Time
+                </Button>
+            </CardFooter>
         </Card>
     );
 }
