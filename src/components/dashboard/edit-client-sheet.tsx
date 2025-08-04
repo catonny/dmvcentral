@@ -22,6 +22,7 @@ import {
   } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
 import type { Client, Employee, Country, ClientCategory, Department } from "@/lib/data";
+import { indianStatesAndUTs } from "@/lib/data";
 import * as React from 'react';
 import { ScrollArea } from "../ui/scroll-area";
 import { collection, getDocs, query } from "firebase/firestore";
@@ -357,10 +358,6 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                         <Input id="Billing Address Line 3" value={formData['Billing Address Line 3'] || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="State" className="text-right">State</Label>
-                        <Input id="State" value={formData.State || ''} onChange={handleChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="Country" className="text-right">Country</Label>
                         <Select onValueChange={handleSelectChange('Country')} value={formData.Country}>
                             <SelectTrigger className="col-span-3">
@@ -372,6 +369,23 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="State" className="text-right">State</Label>
+                        {formData.Country === 'India' ? (
+                            <Select onValueChange={handleSelectChange('State')} value={formData.State}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {indianStatesAndUTs.map((s) => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input id="State" value={formData.State || ''} onChange={handleChange} className="col-span-3" />
+                        )}
                     </div>
                 </div>
                 </ScrollArea>
