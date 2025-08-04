@@ -2,19 +2,21 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Task, Client, Employee, Engagement } from "@/lib/data";
+import type { Task, Client, Employee, Engagement, TaskStatus } from "@/lib/data";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TaskTableView } from "@/components/workflow/task-table-view";
 
 export default function WorkflowPage() {
     const { user } = useAuth();
     const [tasks, setTasks] = React.useState<Task[]>([]);
     const [engagements, setEngagements] = React.useState<Engagement[]>([]);
-    const [clients, setClients] = React.useState<Client[]>([]);
-    const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
+    const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
@@ -29,20 +31,20 @@ export default function WorkflowPage() {
                  setLoading(false);
                  return;
              }
-             const currentUser = employeeSnapshot.docs[0].data() as Employee;
+             const currentUser = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
              
              // Fetch all master data once
             const [clientsSnapshot, employeesSnapshot] = await Promise.all([
                 getDocs(collection(db, "clients")),
                 getDocs(collection(db, "employees"))
             ]);
-            setClients(clientsSnapshot.docs.map(doc => doc.data() as Client));
-            setEmployees(employeesSnapshot.docs.map(doc => doc.data() as Employee));
+            setClients(new Map(clientsSnapshot.docs.map(doc => [doc.id, doc.data() as Client])));
+            setEmployees(new Map(employeesSnapshot.docs.map(doc => [doc.id, doc.data() as Employee])));
              
              // Listen to engagements assigned to the current user
              const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "==", currentUser.id));
              const unsubEngagements = onSnapshot(engagementsQuery, (engagementsSnapshot) => {
-                 const userEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement);
+                 const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
                  setEngagements(userEngagements);
 
                  if (userEngagements.length > 0) {
@@ -50,15 +52,15 @@ export default function WorkflowPage() {
                      // Fetch tasks for those engagements
                      const tasksQuery = query(collection(db, "tasks"), where("engagementId", "in", engagementIds));
                      const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
-                         setTasks(tasksSnapshot.docs.map(doc => doc.data() as Task));
+                         setTasks(tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
                          setLoading(false);
-                     });
+                     }, () => setLoading(false));
                      return () => unsubTasks();
                  } else {
                      setTasks([]);
                      setLoading(false);
                  }
-             });
+             }, () => setLoading(false));
              return () => unsubEngagements();
         }
         
@@ -66,21 +68,52 @@ export default function WorkflowPage() {
 
     }, [user]);
 
+    const handleTaskStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+        const taskRef = doc(db, "tasks", taskId);
+        try {
+            await updateDoc(taskRef, { status: newStatus });
+            setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? {...t, status: newStatus} : t));
+        } catch (error) {
+             console.error(`Error updating task status:`, error);
+        }
+    };
+
     if (loading) {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Workflow...</div>;
     }
 
     return (
         <div className="flex h-full flex-col">
-            <div className="mb-4">
-                <h2 className="text-3xl font-bold tracking-tight font-headline">My Workflow</h2>
-                <p className="text-muted-foreground">
-                    Drag and drop your tasks to update their status.
-                </p>
-            </div>
-            <div className="flex-grow">
-                 <KanbanBoard tasks={tasks} clients={clients} employees={employees} engagements={engagements} />
-            </div>
+            <Tabs defaultValue="table" className="flex-grow flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight font-headline">My Workflow</h2>
+                        <p className="text-muted-foreground">
+                            A view of all tasks assigned to you.
+                        </p>
+                    </div>
+                    <TabsList>
+                        <TabsTrigger value="table">Table View</TabsTrigger>
+                        <TabsTrigger value="kanban">Kanban View</TabsTrigger>
+                    </TabsList>
+                </div>
+                <TabsContent value="table" className="flex-grow">
+                     <TaskTableView 
+                        tasks={tasks}
+                        engagements={engagements}
+                        clients={clients}
+                        onTaskStatusChange={handleTaskStatusChange}
+                     />
+                </TabsContent>
+                 <TabsContent value="kanban" className="flex-grow">
+                     <KanbanBoard 
+                        tasks={tasks} 
+                        clients={Array.from(clients.values())} 
+                        employees={Array.from(employees.values())}
+                        engagements={engagements}
+                    />
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

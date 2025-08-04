@@ -70,7 +70,7 @@ export function KanbanBoard({ tasks, clients, employees, engagements }: { tasks:
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 overflow-x-auto pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 h-full">
         {columns.map(col => (
           <KanbanColumn key={col.id} id={col.id} title={col.title} tasks={col.tasks} clientMap={clientMap} employeeMap={employeeMap} engagementMap={engagementMap} />
         ))}

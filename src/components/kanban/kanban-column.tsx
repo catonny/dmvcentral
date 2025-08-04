@@ -22,7 +22,7 @@ export function KanbanColumn({ id, title, tasks, clientMap, employeeMap, engagem
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="p-3 bg-muted/50 rounded-t-lg border-b border-white/10">
         <h3 className="font-semibold text-foreground">
           {title} <span className="text-sm text-muted-foreground">({tasks.length})</span>
@@ -31,7 +31,7 @@ export function KanbanColumn({ id, title, tasks, clientMap, employeeMap, engagem
       <ScrollArea
         ref={setNodeRef}
         className={cn(
-            "bg-muted/50 rounded-b-lg p-3 h-[calc(100vh-16rem)] transition-colors",
+            "bg-muted/50 rounded-b-lg p-3 flex-grow transition-colors",
             isOver ? "bg-white/10" : ""
         )}
       >
