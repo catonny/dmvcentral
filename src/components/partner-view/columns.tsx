@@ -148,7 +148,9 @@ export const getPartnerViewColumns = (
         </div>
     ),
     cell: ({ row }) => {
-        const assignedIds = row.original.assignedTo || [];
+        const assignedToValue = row.original.assignedTo;
+        const assignedIds = Array.isArray(assignedToValue) ? assignedToValue : (assignedToValue ? [assignedToValue] : []);
+        
         if (assignedIds.length === 0) {
             return <div className="px-4 text-muted-foreground">Unassigned</div>
         }
