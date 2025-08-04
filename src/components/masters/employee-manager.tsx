@@ -5,12 +5,12 @@ import * as React from "react";
 import { collection, query, onSnapshot, doc, updateDoc, addDoc, deleteDoc, orderBy, writeBatch, getDocs, setDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, EmployeeRole, Department, Engagement, EngagementType, Client } from "@/lib/data";
+import type { Employee, EmployeeRole, Department } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { EditEmployeeSheet } from "@/components/employee/edit-employee-sheet";
 import {
@@ -89,8 +89,7 @@ function DroppableRoleGroup({ role, members }: { role: Department, members: Empl
     );
 }
 
-
-export default function EmployeePage() {
+export function EmployeeManager({ onBack }: { onBack: () => void }) {
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [departments, setDepartments] = React.useState<Department[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -294,6 +293,10 @@ export default function EmployeePage() {
 
   return (
     <>
+      <Button variant="outline" size="sm" onClick={onBack} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Actions
+      </Button>
       <div className="flex items-center justify-between space-y-2 mb-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight font-headline">Employee Management</h2>
