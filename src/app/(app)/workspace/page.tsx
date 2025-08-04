@@ -39,7 +39,7 @@ export default function WorkspacePage() {
             setClients(new Map(snapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
         }, (error) => handleError(error, "clients"));
 
-        const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "==", employeeProfile.id));
+        const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "array-contains", employeeProfile.id));
         const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
             const engagementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
             setEngagements(engagementsData);

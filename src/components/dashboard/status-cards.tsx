@@ -45,7 +45,7 @@ export function StatusCards({ clients, engagements, isPartner }: StatusCardsProp
         let unassigned = 0;
         
         for (const engagement of engagements) {
-            if (!engagement.assignedTo || engagement.assignedTo === "") {
+            if (!engagement.assignedTo || engagement.assignedTo.length === 0) {
                 unassigned++;
             }
             if (engagement.status) {

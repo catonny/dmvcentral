@@ -42,15 +42,15 @@ export default function WorkflowPage() {
             setEmployees(new Map(employeesSnapshot.docs.map(doc => [doc.id, doc.data() as Employee])));
              
              // Listen to engagements assigned to the current user
-             const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "==", currentUser.id));
+             const engagementsQuery = query(collection(db, "engagements"), where("assignedTo", "array-contains", currentUser.id));
              const unsubEngagements = onSnapshot(engagementsQuery, (engagementsSnapshot) => {
                  const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
                  setEngagements(userEngagements);
 
                  if (userEngagements.length > 0) {
                      const engagementIds = userEngagements.map(e => e.id);
-                     // Fetch tasks for those engagements
-                     const tasksQuery = query(collection(db, "tasks"), where("engagementId", "in", engagementIds));
+                     // Fetch tasks for those engagements, now filtering by task assignee
+                     const tasksQuery = query(collection(db, "tasks"), where("assignedTo", "==", currentUser.id));
                      const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
                          setTasks(tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
                          setLoading(false);

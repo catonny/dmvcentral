@@ -39,8 +39,8 @@ export function KanbanColumn({ id, title, tasks, clientMap, employeeMap, engagem
           <div className="space-y-3">
             {tasks.map(task => {
                 const engagement = engagementMap.get(task.engagementId);
+                const employee = task.assignedTo ? employeeMap.get(task.assignedTo) : undefined;
                 const client = engagement ? clientMap.get(engagement.clientId) : undefined;
-                const employee = engagement ? employeeMap.get(engagement.assignedTo) : undefined;
                 return (
                     <TaskCard key={task.id} task={task} client={client} employee={employee} engagementRemarks={engagement?.remarks} />
                 )

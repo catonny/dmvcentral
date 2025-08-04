@@ -68,7 +68,7 @@ export interface Engagement {
   clientId: string;
   remarks: string;
   type: string; // Corresponds to EngagementType.id
-  assignedTo: string; // Corresponds to Employee.id
+  assignedTo: string[]; // Corresponds to Employee.id - Team members on the engagement
   reportedTo: string; // Corresponds to Employee.id (Manager or Partner)
   dueDate: string; // ISO 8601
   status: EngagementStatus;
@@ -84,7 +84,7 @@ export interface PendingInvoice {
     id: string; // Firestore document ID
     engagementId: string;
     clientId: string;
-    assignedTo: string;
+    assignedTo: string[];
     reportedTo: string;
     partnerId: string;
 }
@@ -96,6 +96,7 @@ export interface Task {
     title: string;
     status: TaskStatus;
     order: number;
+    assignedTo?: string; // Corresponds to Employee.id
 }
 
 export type FeatureName = 
@@ -531,27 +532,27 @@ export const engagementTypes: EngagementType[] = [
 
 // Engagements are now high-level projects
 export const engagements: Omit<Engagement, 'id'>[] = [
-    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
-    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
-    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: "S001", reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
+    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
+    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
+    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
 ];
 
 // Tasks are the sub-items for engagements
 // The 'id' and 'engagementId' will be replaced during seeding
 export const tasks: Omit<Task, 'id' | 'engagementId'>[] = [
     // Tasks for Engagement 1 (ITR Filing)
-    { title: "Contact Client", status: "Completed", order: 1 },
-    { title: "Collect Documents", status: "Completed", order: 2 },
-    { title: "Prepare Computation", status: "Pending", order: 3 },
-    { title: "Finalise Computation", status: "Pending", order: 4 },
-    { title: "File ITR", status: "Pending", order: 5 },
-    { title: "e-Verify ITR", status: "Pending", order: 6 },
-    { title: "Send ITR-V to Client", status: "Pending", order: 7 },
-    { title: "Bill for Services", status: "Pending", order: 8 },
-    { title: "Collect Payment", status: "Pending", order: 9 },
+    { title: "Contact Client", status: "Completed", order: 1, assignedTo: "S001" },
+    { title: "Collect Documents", status: "Completed", order: 2, assignedTo: "S001" },
+    { title: "Prepare Computation", status: "Pending", order: 3, assignedTo: "S001" },
+    { title: "Finalise Computation", status: "Pending", order: 4, assignedTo: "S001" },
+    { title: "File ITR", status: "Pending", order: 5, assignedTo: "S001" },
+    { title: "e-Verify ITR", status: "Pending", order: 6, assignedTo: "S001" },
+    { title: "Send ITR-V to Client", status: "Pending", order: 7, assignedTo: "S001" },
+    { title: "Bill for Services", status: "Pending", order: 8, assignedTo: "S001" },
+    { title: "Collect Payment", status: "Pending", order: 9, assignedTo: "S001" },
 
     // Tasks for Engagement 2 (GST Return)
-    { title: "Request Sales Data", status: "Pending", order: 1 },
-    { title: "Request Purchase Data", status: "Pending", order: 2 },
+    { title: "Request Sales Data", status: "Pending", order: 1, assignedTo: "S001" },
+    { title: "Request Purchase Data", status: "Pending", order: 2, assignedTo: "S001" },
     // ... more tasks for other engagements
 ];

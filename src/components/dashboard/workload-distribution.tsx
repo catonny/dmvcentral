@@ -30,7 +30,7 @@ export function WorkloadDistribution({ engagements, employees }: WorkloadDistrib
 
     const employeeWorkload = employees.map(member => {
       const pendingCount = engagements.filter(
-        e => e.assignedTo === member.id && e.status === "Pending"
+        e => e.assignedTo.includes(member.id) && e.status === "Pending"
       ).length
       return {
         name: member.name.split(" ")[0], // Use first name for brevity
@@ -39,7 +39,7 @@ export function WorkloadDistribution({ engagements, employees }: WorkloadDistrib
     })
 
     const unassignedCount = engagements.filter(
-      e => !e.assignedTo || e.assignedTo === ""
+      e => !e.assignedTo || e.assignedTo.length === 0
     ).length
 
     if (unassignedCount > 0) {

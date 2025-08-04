@@ -176,7 +176,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
               <TableBody>
                 {engagements.length > 0 ? (
                   engagements.map((eng) => {
-                    const assignedEmployee = getEmployeeMember(eng.assignedTo);
+                    const assignedEmployees = eng.assignedTo.map(getEmployeeMember).filter(Boolean);
                     const engagementType = getEngagementType(eng.type);
                     return (
                       <TableRow key={eng.id}>
@@ -189,13 +189,15 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={assignedEmployee?.avatar} alt={assignedEmployee?.name} />
-                              <AvatarFallback>{assignedEmployee?.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span>{assignedEmployee?.name || 'Unassigned'}</span>
-                          </div>
+                           <div className="flex items-center -space-x-2">
+                            {assignedEmployees.map(employee => (
+                                <Avatar key={employee.id} className="h-8 w-8 border-2 border-background">
+                                <AvatarImage src={employee.avatar} alt={employee.name} />
+                                <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            ))}
+                            {assignedEmployees.length === 0 && <span>Unassigned</span>}
+                           </div>
                         </TableCell>
                       </TableRow>
                     );

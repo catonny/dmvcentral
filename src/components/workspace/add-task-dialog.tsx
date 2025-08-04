@@ -68,9 +68,10 @@ interface AddTaskDialogProps {
   engagementTypes: EngagementType[];
   allEmployees: Employee[];
   departments: Department[];
+  currentUserEmployee: Employee | null;
 }
 
-export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments }: AddTaskDialogProps) {
+export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
   const { toast } = useToast();
   const {
     register,

@@ -24,7 +24,7 @@ export function TodoSection() {
 
     React.useEffect(() => {
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
-        const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "in", [null, ""]));
+        const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
 
         const unsubReporter = onSnapshot(reporterQuery, (querySnapshot) => {
             setEngagementsWithMissingReporter(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Engagement) ));

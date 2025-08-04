@@ -71,7 +71,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
         setFormData({ ...formData, [e.target.id]: e.target.value });
     }
     
-    const handleSelectChange = (field: keyof Engagement) => (value: string) => {
+    const handleSelectChange = (field: keyof Engagement) => (value: string | string[]) => {
         setFormData({ ...formData, [field]: value });
     }
 
@@ -122,7 +122,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="assignedTo" className="text-right">Assigned To</Label>
-                        <Select onValueChange={handleSelectChange('assignedTo')} value={formData.assignedTo}>
+                        <Select onValueChange={handleSelectChange('assignedTo')} value={formData.assignedTo?.[0]}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select employee" />
                             </SelectTrigger>
@@ -178,5 +178,3 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
         </Sheet>
     )
 }
-
-    

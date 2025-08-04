@@ -205,7 +205,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                 remarks: data.remarks,
                 clientId: data.clientId,
                 type: engagementTypeId,
-                assignedTo: currentUserEmployee.id,
+                assignedTo: [currentUserEmployee.id],
                 reportedTo: reporterId || "", 
                 status: 'Pending',
                 dueDate: data.dueDate.toISOString()
@@ -223,6 +223,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                     title,
                     status: 'Pending',
                     order: index + 1,
+                    assignedTo: currentUserEmployee.id,
                 };
                 batch.set(taskDocRef, newTask);
             });
@@ -378,6 +379,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                 engagementTypes={engagementTypes}
                 allEmployees={allEmployees}
                 departments={departments}
+                currentUserEmployee={currentUserEmployee}
             />
         </Card>
     );

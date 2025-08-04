@@ -35,10 +35,10 @@ export function EngagementSummaryTable({ engagements, engagementTypes }: Engagem
         }
 
         for (const engagement of engagements) {
-            if (data[engagement.engagementType]) {
+            if (engagement.engagementTypeName && data[engagement.engagementTypeName]) {
                 const status = engagement.status as EngagementStatus;
                 if (status === "Pending" || status === "In Process" || status === "Partner Review") {
-                    data[engagement.engagementType][status]++;
+                    data[engagement.engagementTypeName][status]++;
                 }
             }
         }

@@ -170,7 +170,7 @@ export default function AccountsPage() {
                                     const { engagement, pendingInvoiceId } = entry;
                                     const client = clients.get(engagement.clientId);
                                     const partner = client ? employees.get(client.partnerId) : undefined;
-                                    const assignedTo = employees.get(engagement.assignedTo);
+                                    const assignedToNames = engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
                                     const engagementType = engagementTypes.get(engagement.type);
 
                                     return (
@@ -179,7 +179,7 @@ export default function AccountsPage() {
                                             <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
                                             <TableCell>{partner?.name || 'N/A'}</TableCell>
                                             <TableCell>{engagementType?.name || 'N/A'}</TableCell>
-                                            <TableCell>{assignedTo?.name || 'N/A'}</TableCell>
+                                            <TableCell>{assignedToNames || 'N/A'}</TableCell>
                                             <TableCell>{engagement.remarks}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button
@@ -303,5 +303,3 @@ export default function AccountsPage() {
         </GridLayout>
     )
 }
-
-    
