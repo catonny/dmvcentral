@@ -122,8 +122,8 @@ export function DashboardClient() {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements across the team.', component: WorkloadDistribution, condition: isPartner, defaultLayout: { x: 0, y: 4, w: 7, h: 8 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 7, y: 4, w: 5, h: 8 } },
+        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements across the team.', component: WorkloadDistribution, condition: isPartner, defaultLayout: { x: 0, y: 4, w: 12, h: 8 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 12, w: 12, h: 8 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
