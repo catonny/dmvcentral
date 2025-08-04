@@ -33,6 +33,8 @@ import { PartnerViewEngagement } from '@/app/(app)/partner-view/page';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+
 
 interface EditEngagementSheetProps {
     engagement: PartnerViewEngagement | null;
