@@ -20,11 +20,37 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { Checkbox } from "../ui/checkbox";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { Textarea } from "../ui/textarea";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface AssignmentListProps {
     engagements: Engagement[];
     clientMap: Map<string, Client>;
     currentUserEmployee: Employee | null;
+}
+
+function EngagementNotes({ engagement, onNotesChange }: { engagement: Engagement, onNotesChange: (engagementId: string, notes: string) => void }) {
+    const [notes, setNotes] = React.useState(engagement.notes || "");
+    const debouncedNotes = useDebounce(notes, 500);
+
+    React.useEffect(() => {
+        setNotes(engagement.notes || "");
+    }, [engagement.notes]);
+
+    React.useEffect(() => {
+        if (debouncedNotes !== engagement.notes) {
+            onNotesChange(engagement.id, debouncedNotes);
+        }
+    }, [debouncedNotes, engagement.id, engagement.notes, onNotesChange]);
+
+    return (
+        <Textarea
+            placeholder="Add notes for this engagement..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="mt-2"
+        />
+    );
 }
 
 export function AssignmentList({ engagements, clientMap, currentUserEmployee }: AssignmentListProps) {
@@ -78,14 +104,16 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
         }
     }, []);
     
-    const updateEngagementField = async (engagementId: string, field: keyof Engagement, value: any, successMessage: string) => {
+    const updateEngagementField = async (engagementId: string, field: keyof Engagement, value: any, successMessage?: string) => {
         const engagementRef = doc(db, "engagements", engagementId);
         try {
             await updateDoc(engagementRef, { [field]: value });
-            toast({
-                title: "Success",
-                description: successMessage,
-            });
+            if (successMessage) {
+                toast({
+                    title: "Success",
+                    description: successMessage,
+                });
+            }
         } catch (error) {
             console.error(`Error updating ${field}:`, error);
             toast({
@@ -141,6 +169,10 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
              console.error(`Error updating task status:`, error);
             toast({ title: "Error", description: `Failed to update task status.`, variant: "destructive" });
         }
+    };
+
+    const handleNotesChange = (engagementId: string, notes: string) => {
+        updateEngagementField(engagementId, 'notes', notes); // No toast for auto-save
     };
 
     const handleAddTask = async (data: any, client?: Client, reporterId?: string) => {
@@ -289,27 +321,33 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                                             <CollapsibleContent asChild>
                                                 <tr>
                                                     <td colSpan={5} className="p-0">
-                                                        <div className="p-4 bg-muted/50">
-                                                            <h4 className="font-semibold mb-2 text-sm">Tasks for: {eng.remarks}</h4>
-                                                            <div className="space-y-2">
-                                                                {engagementTasks.map(task => (
-                                                                    <div key={task.id} className="flex items-center space-x-2">
-                                                                        <Checkbox
-                                                                            id={`task-${task.id}`}
-                                                                            checked={task.status === 'Completed'}
-                                                                            onCheckedChange={(checked) => {
-                                                                                const newStatus = checked ? 'Completed' : 'Pending';
-                                                                                handleTaskStatusChange(task.id, newStatus);
-                                                                            }}
-                                                                        />
-                                                                        <label
-                                                                            htmlFor={`task-${task.id}`}
-                                                                            className={cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", task.status === 'Completed' && 'line-through text-muted-foreground')}
-                                                                        >
-                                                                            {task.title}
-                                                                        </label>
-                                                                    </div>
-                                                                ))}
+                                                        <div className="p-4 bg-muted/50 grid grid-cols-2 gap-6">
+                                                            <div>
+                                                                <h4 className="font-semibold mb-2 text-sm">Tasks</h4>
+                                                                <div className="space-y-2">
+                                                                    {engagementTasks.map(task => (
+                                                                        <div key={task.id} className="flex items-center space-x-2">
+                                                                            <Checkbox
+                                                                                id={`task-${task.id}`}
+                                                                                checked={task.status === 'Completed'}
+                                                                                onCheckedChange={(checked) => {
+                                                                                    const newStatus = checked ? 'Completed' : 'Pending';
+                                                                                    handleTaskStatusChange(task.id, newStatus);
+                                                                                }}
+                                                                            />
+                                                                            <label
+                                                                                htmlFor={`task-${task.id}`}
+                                                                                className={cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", task.status === 'Completed' && 'line-through text-muted-foreground')}
+                                                                            >
+                                                                                {task.title}
+                                                                            </label>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                             <div>
+                                                                <h4 className="font-semibold mb-2 text-sm">Notes</h4>
+                                                                <EngagementNotes engagement={eng} onNotesChange={handleNotesChange} />
                                                             </div>
                                                         </div>
                                                     </td>

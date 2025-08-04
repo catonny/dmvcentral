@@ -72,6 +72,7 @@ export interface Engagement {
   reportedTo: string; // Corresponds to Employee.id (Manager or Partner)
   dueDate: string; // ISO 8601
   status: EngagementStatus;
+  notes?: string; // New field for rich text notes
   // Billing fields
   billStatus?: BillStatus;
   billSubmissionDate?: string; // ISO 8601 format
