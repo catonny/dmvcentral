@@ -183,8 +183,11 @@ export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Pa
 
 export const employees: Employee[] = [
   { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] },
-  { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager", "Employee"] },
-  { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee", "Articles"] },
+  { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager"] },
+  { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"] },
+  { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"] },
+  { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accounts Head", avatar: "https://placehold.co/40x40.png", role: ["Accounts"] },
+  { id: "S006", name: "Dojo Davis", email: "dojodavis@example.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"] },
 ];
 
 export const departments: Omit<Department, "id">[] = [
@@ -452,7 +455,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
         PAN: "AABCI1234F",
         'Mobile Number': "9876543210",
         'Mail ID': "contact@innovate.com",
-        partnerId: "S001",
+        partnerId: "S001", // Tonny
         Category: "Corporate",
         Country: "India",
         GSTN: "22AABCI1234F1Z5",
@@ -460,13 +463,46 @@ export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
         'Contact Person Designation': "CEO"
     },
     {
-        Name: "Solutions Corp.",
-        PAN: "AALCS5678F",
+        Name: "John Doe",
+        PAN: "AALPD5678F",
         'Mobile Number': "9123456789",
-        'Mail ID': "accounts@solutions.com",
-        partnerId: "S001",
+        'Mail ID': "john.doe@example.com",
+        partnerId: "S006", // Dojo
+        Category: "Individual",
+        Country: "India",
+    },
+    {
+        Name: "GreenFuture LLP",
+        PAN: "BBGFL0987D",
+        'Mobile Number': "9988776655",
+        'Mail ID': "accounts@greenfuture.com",
+        partnerId: "S001", // Tonny
         Category: "LLP",
-        Country: "United States",
+        Country: "India",
+        'Contact Person': "Emily White",
+        'Contact Person Designation': "Designated Partner"
+    },
+    {
+        Name: "Buildwell Partners",
+        PAN: "CCBPF4321B",
+        'Mobile Number': "9765432109",
+        'Mail ID': "info@buildwell.com",
+        partnerId: "S006", // Dojo
+        Category: "Partnership",
+        Country: "India",
+        'Contact Person': "Anand Mehta",
+        'Contact Person Designation': "Partner"
+    },
+    {
+        Name: "Hope Foundation",
+        PAN: "DDHFT1234E",
+        'Mobile Number': "9654321098",
+        'Mail ID': "trust@hopefoundation.org",
+        partnerId: "S001", // Tonny
+        Category: "Trust",
+        Country: "India",
+        'Contact Person': "Riya Singh",
+        'Contact Person Designation': "Trustee"
     }
 ];
 
