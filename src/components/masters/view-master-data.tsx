@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
-type MasterType = "Clients" | "Engagement Types" | "Employees" | "Departments" | "Client Categories" | "Countries";
+type MasterType = "Clients" | "Engagement Types" | "Employees" | "Departments" | "Client Categories";
 
-const MASTER_TYPES: MasterType[] = ["Clients", "Engagement Types", "Employees", "Departments", "Client Categories", "Countries"];
+const MASTER_TYPES: MasterType[] = ["Clients", "Engagement Types", "Employees", "Departments", "Client Categories"];
 
 export function ViewMasterData({ onBack }: { onBack: () => void }) {
   const [selectedMaster, setSelectedMaster] = React.useState<MasterType | null>(null);
@@ -43,9 +43,6 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
         case "Client Categories":
           q = query(collection(db, "clientCategories"));
           break;
-        case "Countries":
-            q = query(collection(db, "countries"));
-            break;
         default:
           throw new Error("Unknown master type");
       }
