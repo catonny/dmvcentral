@@ -2,15 +2,15 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Client, EngagementType, Employee, Department, ClientCategory, Country } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
-import { ArrowLeft, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 type MasterType = "Engagement Types" | "Employees" | "Departments" | "Client Categories";
 
@@ -29,17 +29,17 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
       let q;
       switch (masterType) {
         case "Engagement Types":
-          q = query(collection(db, "engagementTypes"));
+          q = query(collection(db, "engagementTypes"), orderBy("name"));
           break;
         case "Employees":
-          q = query(collection(db, "employees"));
+          q = query(collection(db, "employees"), orderBy("name"));
           break;
         case "Departments":
-          q = query(collection(db, "departments"));
+          q = query(collection(db, "departments"), orderBy("order"));
           break;
         case "Client Categories":
-          q = query(collection(db, "clientCategories"));
-          break;
+            q = query(collection(db, "clientCategories"), orderBy("name"));
+            break;
         default:
           throw new Error("Unknown master type");
       }
@@ -68,33 +68,43 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
   }
 
   const renderTable = () => {
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (!selectedMaster) return null;
-    if (data.length === 0) return <div>No data found for {selectedMaster}.</div>;
+    if (data.length === 0) return <div className="text-center p-8 text-muted-foreground">No data found for {selectedMaster}.</div>;
 
-    const headers = Object.keys(data[0]).filter(key => key !== 'id');
+    const headers = Object.keys(data[0]).filter(key => key !== 'id' && !key.toLowerCase().includes('avatar'));
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>{selectedMaster}</CardTitle>
+                <CardDescription>A list of all records for this master data type.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ScrollArea className="w-full whitespace-nowrap">
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            {headers.map(header => <TableHead key={header}>{header}</TableHead>)}
+                            {selectedMaster === "Employees" && <TableHead>Avatar</TableHead>}
+                            {headers.map(header => <TableHead key={header}>{header.replace(/([A-Z])/g, ' $1')}</TableHead>)}
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {data.map((item) => (
                             <TableRow key={item.id}>
-                            {headers.map(header => (
-                                <TableCell key={header}>
-                                    {typeof item[header] === 'object' ? JSON.stringify(item[header]) : item[header]}
-                                </TableCell>
-                            ))}
+                                {selectedMaster === "Employees" && (
+                                    <TableCell>
+                                        <Avatar>
+                                            <AvatarImage src={item.avatar} alt={item.name} />
+                                            <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    </TableCell>
+                                )}
+                                {headers.map(header => (
+                                    <TableCell key={header}>
+                                        {Array.isArray(item[header]) ? item[header].join(', ') : String(item[header])}
+                                    </TableCell>
+                                ))}
                             </TableRow>
                         ))}
                         </TableBody>
@@ -112,24 +122,29 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back
       </Button>
-      {selectedMaster ? (
-        renderTable()
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {MASTER_TYPES.map(type => (
-            <Card 
-                key={type} 
-                onClick={() => handleSelectMaster(type)}
-                className="cursor-pointer hover:bg-muted/50 transition-colors group"
-            >
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>{type}</CardTitle>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-              </CardHeader>
-            </Card>
-          ))}
+
+      {!selectedMaster ? (
+         <div className="space-y-4">
+            <CardHeader className="p-0">
+                <CardTitle>View Master Data</CardTitle>
+                <CardDescription>Select a master data type to view its records.</CardDescription>
+            </CardHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {MASTER_TYPES.map(type => (
+                <Card 
+                    key={type} 
+                    onClick={() => handleSelectMaster(type)}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                >
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>{type}</CardTitle>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                </CardHeader>
+                </Card>
+            ))}
+            </div>
         </div>
-      )}
+      ) : renderTable() }
     </div>
   );
 }
