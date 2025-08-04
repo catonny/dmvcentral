@@ -10,7 +10,7 @@ import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EditableDueDate } from "./editable-due-date";
 import { Button } from "../ui/button";
-import { Check, ChevronDown, PlusCircle } from "lucide-react";
+import { Check, ChevronDown, PlusCircle, MoreHorizontal, Edit } from "lucide-react";
 import { AddTaskDialog } from "./add-task-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { EditableStatus } from "./editable-status";
@@ -23,6 +23,8 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { Textarea } from "../ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import Link from "next/link";
+import { EditEngagementSheet } from "../reports/edit-engagement-sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 interface AssignmentListProps {
     engagements: Engagement[];
@@ -62,6 +64,8 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
     const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
     const [departments, setDepartments] = React.useState<Department[]>([]);
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+    const [selectedEngagement, setSelectedEngagement] = React.useState<Engagement | null>(null);
     const [openCollapsibleId, setOpenCollapsibleId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
@@ -239,10 +243,39 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
         }
     };
 
+    const handleOpenEditSheet = (engagement: Engagement) => {
+        setSelectedEngagement(engagement);
+        setIsSheetOpen(true);
+    };
+
+    const handleCloseEditSheet = () => {
+        setIsSheetOpen(false);
+        setSelectedEngagement(null);
+    };
+
+    const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
+        if (!selectedEngagement?.id) return;
+        try {
+            const engagementRef = doc(db, "engagements", selectedEngagement.id);
+            await updateDoc(engagementRef, engagementData);
+            toast({ title: "Success", description: "Engagement updated successfully." });
+            handleCloseEditSheet();
+        } catch (error) {
+            console.error("Error saving engagement:", error);
+            toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
+        }
+    };
 
     const sortedEngagements = React.useMemo(() => {
         return [...engagements].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     }, [engagements]);
+
+    // This is needed to pass the correct type to the EditEngagementSheet
+    const typedSelectedEngagement = selectedEngagement ? {
+        ...selectedEngagement,
+        clientName: clientMap.get(selectedEngagement.clientId)?.Name || "N/A",
+        engagementTypeName: engagementTypes.find(et => et.id === selectedEngagement.type)?.name || "N/A",
+    } : null;
 
     return (
         <Card>
@@ -268,6 +301,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                                 <TableHead>Client</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Due Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         {sortedEngagements.length > 0 ? (
@@ -318,10 +352,26 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                                                         onDueDateChange={handleDueDateChange}
                                                     />
                                                 </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Open menu</span>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => handleOpenEditSheet(eng)}>
+                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                Edit Engagement
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
                                             </TableRow>
                                             <CollapsibleContent asChild>
                                                 <tr>
-                                                    <td colSpan={5} className="p-0">
+                                                    <td colSpan={6} className="p-0">
                                                         <div className="p-4 bg-muted/50 grid grid-cols-2 gap-6">
                                                             <div>
                                                                 <h4 className="font-semibold mb-2 text-sm">Tasks</h4>
@@ -361,7 +411,7 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                         ) : (
                              <TableBody>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">
+                                    <TableCell colSpan={6} className="text-center h-24">
                                         You have no assigned engagements.
                                     </TableCell>
                                 </TableRow>
@@ -380,6 +430,13 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                 allEmployees={allEmployees}
                 departments={departments}
                 currentUserEmployee={currentUserEmployee}
+            />
+            <EditEngagementSheet
+                isOpen={isSheetOpen}
+                onClose={handleCloseEditSheet}
+                onSave={handleSaveEngagement}
+                engagement={typedSelectedEngagement}
+                allEmployees={allEmployees}
             />
         </Card>
     );
