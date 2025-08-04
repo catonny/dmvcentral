@@ -164,7 +164,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
         { id: 'workspace', href: '/workspace', icon: Briefcase, tooltip: 'Workspace', label: 'Workspace', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
-        { id: 'partner-view', href: '/partner-view', icon: Eye, tooltip: 'Partner View', label: 'Partner View', condition: checkPermission('partner-view') },
+        { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'accounts', href: '/accounts', icon: Receipt, tooltip: 'Accounts', label: 'Accounts', condition: checkPermission('accounts') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
@@ -303,3 +303,5 @@ export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
     </AuthProvider>
   )
 }
+
+    

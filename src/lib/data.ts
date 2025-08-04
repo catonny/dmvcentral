@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -101,7 +100,7 @@ export interface Task {
 }
 
 export type FeatureName = 
-    | "partner-view" 
+    | "reports" 
     | "accounts" 
     | "masters" 
     | "bulk-import" 
@@ -111,7 +110,7 @@ export type FeatureName =
     | "settings-access-control";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
-    { id: "partner-view", name: "Partner View", description: "Access the firm-wide engagement overview." },
+    { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
     { id: "accounts", name: "Accounts", description: "Access the billing and collections dashboard." },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
@@ -595,3 +594,5 @@ export const tasks: Omit<Task, 'id' | 'engagementId' | 'assignedTo'>[] = [
     { title: "Bill for Services", status: "Completed", order: 7 },
     { title: "Collect Payment", status: "Completed", order: 8 },
 ];
+
+    
