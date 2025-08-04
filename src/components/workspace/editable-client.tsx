@@ -27,6 +27,8 @@ interface EditableClientProps {
   onClientChange: (engagementId: string, newClientId: string) => void;
 }
 
+// THIS COMPONENT IS NO LONGER USED in assignment-list.tsx.
+// It was replaced by a simple <Link>. It can be deleted or kept for future reference.
 export function EditableClient({ engagement, currentClient, allClients, onClientChange }: EditableClientProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");

@@ -22,6 +22,7 @@ import { Checkbox } from "../ui/checkbox";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { Textarea } from "../ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
+import Link from "next/link";
 
 interface AssignmentListProps {
     engagements: Engagement[];
@@ -297,12 +298,11 @@ export function AssignmentList({ engagements, clientMap, currentUserEmployee }: 
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                <EditableClient
-                                                    engagement={eng}
-                                                    currentClient={client}
-                                                    allClients={allClients}
-                                                    onClientChange={handleClientChange}
-                                                />
+                                                    <Button variant="link" asChild className="p-0 h-auto font-normal">
+                                                        <Link href={`/workspace/${eng.clientId}`}>
+                                                            {client?.Name || "..."}
+                                                        </Link>
+                                                    </Button>
                                                 </TableCell>
                                                 <TableCell>
                                                     <EditableStatus 
