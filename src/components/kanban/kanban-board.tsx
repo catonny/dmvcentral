@@ -27,12 +27,13 @@ export function KanbanBoard({ tasks, clients, employees, engagements }: { tasks:
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (!over) return;
-    if (active.id === over.id) return;
 
     const taskId = active.id as string;
-    const newStage = over.id as TaskStatus;
+    // Correctly determine the destination stage. `over.data.current` holds droppable data.
+    const newStage = over.data.current?.sortable?.containerId || over.id as TaskStatus;
+    
+    if (active.id === over.id || !newStage) return;
 
     const taskToMove = taskState.find(t => t.id === taskId);
     if (taskToMove && taskToMove.status !== newStage) {
