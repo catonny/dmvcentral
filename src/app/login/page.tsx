@@ -32,6 +32,12 @@ function LoginPageContent() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
+                // If user is super admin, let them pass immediately
+                if (user.email === 'ca.tonnyvarghese@gmail.com') {
+                    router.push('/dashboard');
+                    return;
+                }
+
                 // Final check to ensure only valid employees stay logged in
                 const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
                 const employeeSnapshot = await getDocs(employeeQuery);
@@ -60,6 +66,12 @@ function LoginPageContent() {
                 throw new Error("Could not retrieve email from Google account.");
             }
             
+            // Allow super admin to bypass employee check
+            if (user.email === 'ca.tonnyvarghese@gmail.com') {
+                // The onAuthStateChanged listener will handle the redirect.
+                return;
+            }
+
             // Check if user email exists in the employees collection
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
             const employeeSnapshot = await getDocs(employeeQuery);

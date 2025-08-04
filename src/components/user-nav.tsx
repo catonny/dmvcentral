@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,9 +16,10 @@ import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import type { Employee } from "@/lib/data";
 
 
-export function UserNav() {
+export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | null }) {
   const { user } = useAuth();
   const router = useRouter();
 
@@ -30,12 +32,16 @@ export function UserNav() {
     return null;
   }
   
+  const displayName = impersonatedUser ? impersonatedUser.name : user.displayName;
+  const displayEmail = impersonatedUser ? impersonatedUser.email : user.email;
+  const displayAvatar = impersonatedUser ? impersonatedUser.avatar : user.photoURL;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User'} />}
+             {displayAvatar && <AvatarImage src={displayAvatar} alt={displayName || 'User'} />}
             <AvatarFallback>
               <User />
             </AvatarFallback>
@@ -45,10 +51,13 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.displayName}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {displayEmail}
             </p>
+            {impersonatedUser && (
+                <p className="text-xs leading-none text-blue-500 pt-1">(Impersonating)</p>
+            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

@@ -3,7 +3,7 @@
 
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
-import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow } from "lucide-react";
+import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserSwitch } from "lucide-react";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import type { Employee, Permission, FeatureName } from "@/lib/data";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface NavItem {
   id: string;
@@ -61,35 +62,69 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [isPinned, setIsPinned] = useState(true);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = useState<Employee | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
   
   const [navItems, setNavItems] = useState<NavItem[]>([]);
+  
+  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null);
+  const isSuperAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
+
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+  
+  // Effect to fetch all employees for impersonation dropdown
+  useEffect(() => {
+    if (isSuperAdmin) {
+        const unsub = onSnapshot(collection(db, "employees"), (snapshot) => {
+            setAllEmployees(snapshot.docs.map(d => ({id: d.id, ...d.data()} as Employee)));
+        });
+        return () => unsub();
+    }
+  }, [isSuperAdmin]);
+
 
   useEffect(() => {
     if (user) {
       const fetchEmployeeProfile = async () => {
         setProfileLoading(true);
-        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-        const employeeSnapshot = await getDocs(employeeQuery);
-        if (!employeeSnapshot.empty) {
-          const userEmployeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-          setCurrentUserEmployeeProfile(userEmployeeProfile);
-        } else {
-             // If no profile found for a logged-in user, they can still proceed.
-             // Role-based checks will handle permissions gracefully.
-             setCurrentUserEmployeeProfile(null);
+
+        const targetEmail = impersonatedUserId 
+            ? allEmployees.find(e => e.id === impersonatedUserId)?.email
+            : user.email;
+
+        if (isSuperAdmin && !impersonatedUserId) {
+            // Super admin not impersonating anyone
+            setCurrentUserEmployeeProfile({
+                id: 'super-admin',
+                name: 'Developer',
+                email: user.email!,
+                role: ['Admin'], // Give all permissions
+                avatar: ''
+            });
+        } else if (targetEmail) {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", targetEmail));
+            const employeeSnapshot = await getDocs(employeeQuery);
+            if (!employeeSnapshot.empty) {
+              const userEmployeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+              setCurrentUserEmployeeProfile(userEmployeeProfile);
+            } else {
+                 setCurrentUserEmployeeProfile(null);
+            }
         }
+        
         setProfileLoading(false);
       };
-      fetchEmployeeProfile();
+      
+      if (!isSuperAdmin || (isSuperAdmin && allEmployees.length > 0)) {
+          fetchEmployeeProfile();
+      }
       
       const permissionsUnsub = onSnapshot(collection(db, "permissions"), (snapshot) => {
           const permsData = snapshot.docs.map(doc => ({ ...doc.data() } as Permission));
@@ -100,16 +135,15 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     } else if (!loading) {
         setProfileLoading(false);
     }
-  }, [user, loading]);
+  }, [user, loading, impersonatedUserId, isSuperAdmin, allEmployees]);
 
   useEffect(() => {
     if (profileLoading) return;
     
     const userRoles = currentUserEmployeeProfile?.role || [];
-    const isSuperAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
     
     const checkPermission = (feature: FeatureName) => {
-        if (isSuperAdmin || userRoles.includes("Admin")) return true;
+        if (isSuperAdmin) return true;
         const permission = permissions.find(p => p.feature === feature);
         if (!permission) return false;
         return userRoles.some(role => permission.departments.includes(role));
@@ -123,7 +157,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'accounts', href: '/accounts', icon: Receipt, tooltip: 'Accounts', label: 'Accounts', condition: checkPermission('accounts') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
-        { id: 'employee', href: '/employee', icon: Group, tooltip: 'Employee', label: 'Employee', condition: checkPermission('employee-management') },
         { id: 'bulk-import', href: '/bulk-import', icon: UploadCloud, tooltip: 'Bulk Import', label: 'Bulk Import', condition: checkPermission('bulk-import') },
         { id: 'settings', href: '/settings', icon: Settings, tooltip: 'Settings', label: 'Settings', condition: checkPermission('settings-data-management') || checkPermission('settings-access-control') }
     ];
@@ -147,7 +180,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     } else {
          setNavItems(visibleItems);
     }
-  }, [currentUserEmployeeProfile, profileLoading, permissions, user?.email]);
+  }, [currentUserEmployeeProfile, profileLoading, permissions, isSuperAdmin]);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -178,6 +211,10 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   if (!user) {
     return null; 
   }
+  
+  const currentDisplayName = impersonatedUserId 
+    ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
+    : user?.displayName?.split(' ')[0] || 'there';
   
   return (
       <SidebarProvider isPinned={isPinned}>
@@ -211,15 +248,31 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
             <header className="flex items-center justify-between gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
                 <div className="flex flex-col">
                      <h2 className="text-2xl font-bold tracking-tight text-white">
-                        Hi, {user?.displayName?.split(' ')[0] || 'there'}!
+                        Hi, {currentDisplayName}!
                     </h2>
                     <p className="text-muted-foreground text-sm">
-                      What would you like to solve next?
+                      {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
+                  {isSuperAdmin && (
+                      <div className="flex items-center gap-2 text-white">
+                          <UserSwitch className="h-5 w-5" />
+                          <Select value={impersonatedUserId || "none"} onValueChange={(value) => setImpersonatedUserId(value === "none" ? null : value)}>
+                              <SelectTrigger className="w-[180px] bg-transparent border-white/50">
+                                <SelectValue placeholder="Impersonate User" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="none">Stop Impersonating</SelectItem>
+                                  {allEmployees.map(emp => (
+                                      <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                      </div>
+                  )}
                   <ClockWidget />
-                  <UserNav />
+                  <UserNav impersonatedUser={impersonatedUserId ? allEmployees.find(e => e.id === impersonatedUserId) : null} />
                 </div>
             </header>
             <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
