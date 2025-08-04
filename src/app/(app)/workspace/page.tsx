@@ -2,22 +2,27 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs, orderBy } from "firebase/firestore";
-import type { Client, Engagement, Employee, Department } from "@/lib/data";
+import { collection, query, onSnapshot, where, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
+import type { Client, Engagement, Employee, Department, Task, EngagementType } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusCircle } from "lucide-react";
 import { WorkspaceBoard } from "@/components/workspace/workspace-board";
+import { Button } from "@/components/ui/button";
+import { AddTaskDialog } from "@/components/workspace/add-task-dialog";
 
 
 export default function WorkspacePage() {
   const [allEngagements, setAllEngagements] = React.useState<Engagement[]>([]);
   const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
   const [departments, setDepartments] = React.useState<Department[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -40,6 +45,7 @@ export default function WorkspacePage() {
 
         const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
             setClients(new Map(snapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
+            setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
         }, (error) => handleError(error, "clients"));
 
         const allEmployeesUnsub = onSnapshot(collection(db, "employees"), (snapshot) => {
@@ -49,6 +55,10 @@ export default function WorkspacePage() {
         const deptsUnsub = onSnapshot(query(collection(db, "departments"), orderBy("order")), (snapshot) => {
           setDepartments(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Department)))
         }, (error) => handleError(error, "departments"));
+
+        const engagementTypesUnsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
+          setEngagementTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType)));
+        }, (error) => handleError(error, "engagement types"));
 
         const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
         const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
@@ -66,6 +76,7 @@ export default function WorkspacePage() {
             engagementsUnsub();
             allEmployeesUnsub();
             deptsUnsub();
+            engagementTypesUnsub();
         };
 
       } catch (error) {
@@ -82,6 +93,69 @@ export default function WorkspacePage() {
     fetchInitialData();
   }, [user, toast]);
   
+  const handleAddTask = async (data: any, client?: Client, reporterId?: string) => {
+        if (!currentUserEmployee) {
+             toast({ title: "Error", description: "Could not identify current user.", variant: "destructive" });
+             return;
+        }
+        try {
+            const batch = writeBatch(db);
+            let engagementTypeId = data.type;
+            const engagementTypeIsExisting = engagementTypes.some(et => et.id === engagementTypeId);
+
+            // Handle new template creation
+            if (data.saveAsTemplate && data.templateName && !engagementTypeIsExisting) {
+                const newTypeRef = doc(collection(db, 'engagementTypes'));
+                engagementTypeId = newTypeRef.id;
+                const newEngagementType: EngagementType = {
+                    id: newTypeRef.id,
+                    name: data.templateName,
+                    description: data.remarks.substring(0, 100),
+                    subTaskTitles: ["Task 1", "Task 2", "Task 3"]
+                };
+                batch.set(newTypeRef, newEngagementType);
+                toast({ title: "Template Created", description: `New workflow template "${data.templateName}" was created.` });
+            }
+
+            const newEngagementDocRef = doc(collection(db, 'engagements'));
+            const newEngagementData: Engagement = {
+                id: newEngagementDocRef.id,
+                remarks: data.remarks,
+                clientId: data.clientId,
+                type: engagementTypeId,
+                assignedTo: [currentUserEmployee.id],
+                reportedTo: reporterId || "", 
+                status: 'Pending',
+                dueDate: data.dueDate.toISOString()
+            };
+            batch.set(newEngagementDocRef, newEngagementData);
+            
+            const engagementType = engagementTypes.find(et => et.id === engagementTypeId);
+            const subTaskTitles = engagementType?.subTaskTitles || (data.saveAsTemplate ? ["Task 1", "Task 2", "Task 3"] : []);
+            
+            subTaskTitles.forEach((title, index) => {
+                const taskDocRef = doc(collection(db, 'tasks'));
+                const newTask: Task = {
+                    id: taskDocRef.id,
+                    engagementId: newEngagementDocRef.id,
+                    title,
+                    status: 'Pending',
+                    order: index + 1,
+                    assignedTo: currentUserEmployee.id,
+                };
+                batch.set(taskDocRef, newTask);
+            });
+
+            await batch.commit();
+            
+            toast({ title: "Engagement Added", description: `New engagement and its tasks have been created.` });
+            setIsDialogOpen(false);
+        } catch (error) {
+            console.error("Error adding engagement:", error);
+            toast({ title: "Error", description: "Failed to add the new engagement.", variant: "destructive" });
+        }
+    };
+
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Workspace...</div>;
@@ -100,6 +174,10 @@ export default function WorkspacePage() {
                     Manage your firm's workload and collaborate with your team.
                 </p>
             </div>
+             <Button onClick={() => setIsDialogOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Engagement
+            </Button>
         </div>
         <WorkspaceBoard
             allEngagements={allEngagements}
@@ -107,6 +185,16 @@ export default function WorkspacePage() {
             allDepartments={departments}
             clientMap={clients}
             currentUser={currentUserEmployee}
+        />
+        <AddTaskDialog 
+            isOpen={isDialogOpen}
+            onClose={() => setIsDialogOpen(false)}
+            onSave={handleAddTask}
+            clients={allClients}
+            engagementTypes={engagementTypes}
+            allEmployees={employees}
+            departments={departments}
+            currentUserEmployee={currentUserEmployee}
         />
     </div>
   );
