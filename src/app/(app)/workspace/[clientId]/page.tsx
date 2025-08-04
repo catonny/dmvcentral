@@ -17,6 +17,7 @@ import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PastEngagementsDialog } from "@/components/workspace/past-engagements-dialog";
+import { EngagementHistoryDialog } from "@/components/workspace/engagement-history-dialog";
 
 const statusColors: { [key: string]: string } = {
   "Pending": "bg-gray-200 text-gray-800",
@@ -35,6 +36,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
   const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isPastEngagementsOpen, setIsPastEngagementsOpen] = React.useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -138,6 +140,10 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
                         </a>
                     </Button>
                 )}
+                 <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
+                    <History className="mr-2" />
+                    View History
+                </Button>
             </div>
         </CardHeader>
       </Card>
@@ -210,6 +216,14 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       <PastEngagementsDialog
         isOpen={isPastEngagementsOpen}
         onClose={() => setIsPastEngagementsOpen(false)}
+        clientId={clientId}
+        clientName={client.Name}
+        employees={employees}
+        engagementTypes={engagementTypes}
+      />
+       <EngagementHistoryDialog
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
         clientId={clientId}
         clientName={client.Name}
         employees={employees}
