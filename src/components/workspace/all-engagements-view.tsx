@@ -124,7 +124,11 @@ export function AllEngagementsView({ engagements, clientMap, employees, currentU
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-4 pb-4">
                     {filteredEngagements.map(engagement => {
                         const client = clientMap.get(engagement.clientId);
-                        const isMember = currentUserEmployee && engagement.assignedTo.includes(currentUserEmployee.id);
+                        const isAssigned = currentUserEmployee && engagement.assignedTo.includes(currentUserEmployee.id);
+                        const isReporter = currentUserEmployee && engagement.reportedTo === currentUserEmployee.id;
+                        const isPartner = currentUserEmployee && client?.partnerId === currentUserEmployee.id;
+                        const hasEditAccess = isAssigned || isReporter || isPartner;
+
                         return (
                             <Card key={engagement.id} className="flex flex-col">
                                 <CardHeader>
@@ -164,11 +168,20 @@ export function AllEngagementsView({ engagements, clientMap, employees, currentU
                                     </div>
                                 </CardContent>
                                 <CardFooter className="flex justify-end gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => handleOpenEditSheet(engagement)}>
-                                        Details
-                                    </Button>
-                                    <Button size="sm" onClick={() => handleJoinEngagement(engagement)} disabled={isMember}>
-                                        {isMember ? "Joined" : "Join"}
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                 <div className="flex-grow">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleOpenEditSheet(engagement)} disabled={!hasEditAccess}>
+                                                        Details
+                                                    </Button>
+                                                </div>
+                                            </TooltipTrigger>
+                                            {!hasEditAccess && <TooltipContent><p>You must be the Partner, Reporter, or an Assignee to edit.</p></TooltipContent>}
+                                        </Tooltip>
+                                     </TooltipProvider>
+                                    <Button size="sm" onClick={() => handleJoinEngagement(engagement)} disabled={isAssigned || !hasEditAccess}>
+                                        {isAssigned ? "Joined" : "Join"}
                                     </Button>
                                 </CardFooter>
                             </Card>
