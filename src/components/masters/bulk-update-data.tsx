@@ -66,15 +66,63 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
     }
 
     let headers: string[] = [];
+    let dummyData: any[] = [];
+
     if (selectedMaster === "Clients") {
         headers = CLIENT_HEADERS.map(header => 
             MANDATORY_CLIENT_HEADERS.includes(header) ? `${header}*` : header
         );
+        dummyData = [
+            {
+                "Name*": "Example Corp",
+                "Mail ID*": "contact@examplecorp.com",
+                "Mobile Number*": "9876543210",
+                "Category*": "Corporate",
+                "Partner*": "Tonny Varghese", // Use name for readability
+                "Phone Number": "0484-2345678",
+                "Date of Birth": "",
+                "linkedClientIds": "ABCDE1234F,ZYXWV9876G", // Example PANs or Client IDs
+                "PAN": "AABCE1234F",
+                "GSTN": "22AABCE1234F1Z5",
+                "Billing Address Line 1": "123 Business Ave",
+                "Billing Address Line 2": "Commerce Street",
+                "Billing Address Line 3": "Financial District",
+                "State": "Maharashtra",
+                "Country": "India",
+                "Contact Person": "Rohan Sharma",
+                "Contact Person Designation": "Finance Head"
+            },
+            {
+                "Name*": "Jane Smith",
+                "Mail ID*": "jane.smith@email.com",
+                "Mobile Number*": "9123456780",
+                "Category*": "Individual",
+                "Partner*": "Dojo Davis",
+                "Phone Number": "",
+                "Date of Birth": "15/05/1990",
+                "linkedClientIds": "",
+                "PAN": "JKLMN5678G",
+                "GSTN": "",
+                "Billing Address Line 1": "Apt 4B, Residence Towers",
+                "Billing Address Line 2": "Green Valley",
+                "Billing Address Line 3": "",
+                "State": "Karnataka",
+                "Country": "India",
+                "Contact Person": "",
+                "Contact Person Designation": ""
+            }
+        ];
     }
-    // Future 'else if' blocks for other master types
+    
+    const csvContent = Papa.unparse({
+        fields: headers,
+        data: dummyData
+    });
+    
+    const footerMessage = "\n\n# IMPORTANT: Please delete these example rows before entering your own data and uploading the file.";
+    const fullCsv = csvContent + footerMessage;
 
-    const csv = Papa.unparse([headers]);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -137,7 +185,7 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                     }}
                     onDragOver={(e: any) => e.preventDefault()}
                     onDragLeave={(e: any) => e.preventDefault()}
-                    config={{ header: true, skipEmptyLines: true }}
+                    config={{ header: true, skipEmptyLines: true, comments: "#" }}
                 >
                     {({ getRootProps, acceptedFile, ProgressBar, getRemoveFileProps, Remove }: any) => {
                         const removeFile = (e?: React.MouseEvent<HTMLButtonElement>) => {

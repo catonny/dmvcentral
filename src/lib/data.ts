@@ -583,31 +583,32 @@ export const engagementTypes: EngagementType[] = [
 ];
 
 export const engagements: Omit<Engagement, 'id'>[] = [
-    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-31T00:00:00.000Z", status: "In Process", fees: 5000, firm: "Firm A" },
-    { clientId: "client1_id_placeholder", remarks: "GST Return for June 2024", type: "ET02", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 2500, firm: "Firm A" },
-    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 2023-24", type: "ET04", assignedTo: ["S001", "S002"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 25000, firm: "Firm B" },
+    // PENDING
+    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-31T00:00:00.000Z", status: "Pending", fees: 5000, firm: "Firm A" },
+    { clientId: "client3_id_placeholder", remarks: "GST Filing Q1", type: "ET02", assignedTo: ["S004"], reportedTo: "S002", dueDate: "2024-07-20T00:00:00.000Z", status: "Pending", fees: 8000, firm: "Firm A" },
+    
+    // AWAITING DOCUMENTS
+    { clientId: "client2_id_placeholder", remarks: "Net Worth Certificate for Visa", type: "ET06", assignedTo: ["S003"], reportedTo: "S006", dueDate: "2024-08-15T00:00:00.000Z", status: "Awaiting Documents", fees: 10000, firm: "Firm B" },
+    { clientId: "client4_id_placeholder", remarks: "Book Keeping for H1 2024", type: "ET08", assignedTo: ["S004", "S003"], reportedTo: "S002", dueDate: "2024-08-10T00:00:00.000Z", status: "Awaiting Documents", fees: 12000, firm: "Firm B" },
+
+    // IN PROCESS
+    { clientId: "client5_id_placeholder", remarks: "TDS Return Q1", type: "ET03", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-07-25T00:00:00.000Z", status: "In Process", fees: 6000, firm: "Firm A" },
+    { clientId: "client1_id_placeholder", remarks: "Company Audit FY 23-24", type: "ET05", assignedTo: ["S002", "S004"], reportedTo: "S001", dueDate: "2024-09-30T00:00:00.000Z", status: "In Process", fees: 50000, firm: "Firm A" },
+
+    // PARTNER REVIEW
+    { clientId: "client3_id_placeholder", remarks: "ROC Filing for AGM", type: "ET09", assignedTo: ["S002"], reportedTo: "S001", dueDate: "2024-08-20T00:00:00.000Z", status: "Partner Review", fees: 15000, firm: "Firm A" },
+    { clientId: "client4_id_placeholder", remarks: "Internal Audit Report", type: "ET07", assignedTo: ["S002", "S003"], reportedTo: "S006", dueDate: "2024-08-05T00:00:00.000Z", status: "Partner Review", fees: 30000, firm: "Firm B" },
+
+    // COMPLETED
+    { clientId: "client2_id_placeholder", remarks: "ITR Filing FY 2022-23", type: "ET01", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2023-07-31T00:00:00.000Z", status: "Completed", billStatus: "Collected", fees: 4500, firm: "Firm B" },
+    { clientId: "client5_id_placeholder", remarks: "GST Return for May 2024", type: "ET02", assignedTo: ["S003"], reportedTo: "S002", dueDate: "2024-06-20T00:00:00.000Z", status: "Completed", billStatus: "To Bill", billSubmissionDate: new Date().toISOString(), fees: 2500, firm: "Firm A" },
+
+    // CANCELLED
+    { clientId: "client1_id_placeholder", remarks: "Tax Planning Session", type: "ET01", assignedTo: ["S001"], reportedTo: "S001", dueDate: "2024-06-15T00:00:00.000Z", status: "Cancelled", fees: 7500, firm: "Firm A" },
 ];
 
+
 export const tasks: Omit<Task, 'id' | 'engagementId' | 'assignedTo'>[] = [
-    { title: "Contact Client", status: "Completed", order: 1 },
-    { title: "Collect Documents", status: "Completed", order: 2 },
-    { title: "Prepare Computation", status: "Pending", order: 3 },
-    { title: "Finalise Computation", status: "Pending", order: 4 },
-    { title: "File ITR", status: "Pending", order: 5 },
-    { title: "e-Verify ITR", status: "Pending", order: 6 },
-    { title: "Send ITR-V to Client", status: "Pending", order: 7 },
-    { title: "Bill for Services", status: "Pending", order: 8 },
-    { title: "Collect Payment", status: "Pending", order: 9 },
-
-    { title: "Request Sales Data", status: "Pending", order: 1 },
-    { title: "Request Purchase Data", status: "Pending", order: 2 },
-
-    { title: "Send Audit Request List", status: "Completed", order: 1 },
-    { title: "Collect Financial Statements", status: "Completed", order: 2 },
-    { title: "Vouching and Verification", status: "Completed", order: 3 },
-    { title: "Prepare Audit Report", status: "Completed", order: 4 },
-    { title: "Finalize Audit Report", status: "Completed", order: 5 },
-    { title: "Upload Tax Audit Report", status: "Completed", order: 6 },
-    { title: "Bill for Services", status: "Completed", order: 7 },
-    { title: "Collect Payment", status: "Completed", order: 8 },
+    // This is now just a placeholder. The seed script creates tasks based on the subTaskTitles in EngagementType.
+    { title: "Placeholder Task", status: "Pending", order: 1 },
 ];

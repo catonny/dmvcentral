@@ -85,8 +85,33 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
   
   const handleDownloadTemplate = () => {
     const headers = ASSIGNMENT_HEADERS.map(h => MANDATORY_ASSIGNMENT_HEADERS.includes(h) ? `${h}*` : h);
-    const csv = Papa.unparse([headers]);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    
+    const dummyData = [
+        {
+            "Engagement Type*": "ITR Filing",
+            "Client Name*": "Innovate Inc.",
+            "Due Date*": "31/07/2024",
+            "Allotted User*": "Priya Sharma",
+            "Remarks": "ITR for Innovate Inc. for Assessment Year 2024-25"
+        },
+        {
+            "Engagement Type*": "GST Filing",
+            "Client Name*": "GreenFuture LLP",
+            "Due Date*": "20/07/2024",
+            "Allotted User*": "Ben Carter",
+            "Remarks": "Monthly GST returns for June 2024"
+        }
+    ];
+
+    const csvContent = Papa.unparse({
+        fields: headers,
+        data: dummyData
+    });
+    
+    const footerMessage = "\n\n# IMPORTANT: Please delete these example rows before entering your own data and uploading the file.";
+    const fullCsv = csvContent + footerMessage;
+
+    const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -210,7 +235,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                 id: newEngagementDocRef.id,
                 clientId: row.client.id,
                 type: row.engagementType.id,
-                assignedTo: row.allottedUser.id,
+                assignedTo: [row.allottedUser.id],
                 remarks: row.row["Remarks"] || row.engagementType.name,
                 dueDate: row.parsedDate.toISOString(),
                 status: 'Pending',
@@ -228,6 +253,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                     title,
                     status: 'Pending',
                     order: index + 1,
+                    assignedTo: row.allottedUser!.id,
                 };
                 batch.set(taskDocRef, newTask);
             });
@@ -290,7 +316,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
           <h3 className="font-medium">Step 2: Upload Completed CSV File</h3>
             <CSVReader
                 onUploadAccepted={(results: any) => handleUpload(results)}
-                config={{ skipEmptyLines: true, header: true }}
+                config={{ skipEmptyLines: true, header: true, comments: "#" }}
             >
             {({ getRootProps, acceptedFile, ProgressBar, getRemoveFileProps }: any) => {
                 const removeFile = (e?: React.MouseEvent<HTMLButtonElement>) => {
