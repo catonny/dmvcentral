@@ -28,6 +28,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
+  const clientId = params.clientId;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
@@ -37,7 +38,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if (!params.clientId) return;
+    if (!clientId) return;
 
     setLoading(true);
 
@@ -47,7 +48,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     };
 
     // Listen to client document
-    const clientUnsub = onSnapshot(doc(db, "clients", params.clientId), (doc) => {
+    const clientUnsub = onSnapshot(doc(db, "clients", clientId), (doc) => {
       if (doc.exists()) {
         setClient({ id: doc.id, ...doc.data() } as Client);
       } else {
@@ -73,7 +74,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
     // Listen to *active* engagements for the client
     const engagementsQuery = query(
         collection(db, "engagements"), 
-        where("clientId", "==", params.clientId),
+        where("clientId", "==", clientId),
         where("status", "not-in", ["Completed", "Cancelled"])
     );
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
@@ -87,7 +88,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       clientUnsub();
       engagementsUnsub();
     };
-  }, [params.clientId, toast]);
+  }, [clientId, toast]);
 
 
   if (loading) {
@@ -209,7 +210,7 @@ export default function ClientWorkspacePage({ params }: { params: { clientId: st
       <PastEngagementsDialog
         isOpen={isPastEngagementsOpen}
         onClose={() => setIsPastEngagementsOpen(false)}
-        clientId={params.clientId}
+        clientId={clientId}
         clientName={client.Name}
         employees={employees}
         engagementTypes={engagementTypes}
