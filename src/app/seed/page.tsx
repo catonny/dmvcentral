@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { writeBatch, doc, collection, getDocs, query } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDocs, query, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   employees,
@@ -13,7 +13,9 @@ import {
   tasks,
   countries,
   departments,
-  clientCategories
+  clientCategories,
+  timesheets,
+  engagementIdMapForTimesheet,
 } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,9 +49,6 @@ export default function SeedPage() {
     try {
       const batch = writeBatch(db);
       
-      // ---- DELETION LOGIC ----
-      // These are all the collections managed by the seed script.
-      // Note: 'permissions' are managed by the admin UI and are not cleared here.
       const collectionsToDelete = [
           'employees', 
           'clients', 
@@ -59,7 +58,8 @@ export default function SeedPage() {
           'countries', 
           'engagements', 
           'tasks', 
-          'pendingInvoices'
+          'pendingInvoices',
+          'timesheets'
       ];
       
       for (const collectionName of collectionsToDelete) {
@@ -67,54 +67,55 @@ export default function SeedPage() {
           snapshot.docs.forEach(doc => batch.delete(doc.ref));
       }
       
-      // ---- CREATION LOGIC ----
       const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
       const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
+      const realEngagementIdMap = new Map<string, string>(); // Maps placeholder to real ID
 
-      // Seed Employees
       employees.forEach((employee) => {
         const docRef = doc(db, 'employees', employee.id);
         batch.set(docRef, employee);
       });
 
-      // Seed Clients and store their new IDs
       clients.forEach((client, index) => {
         const docRef = doc(collection(db, 'clients'));
         batch.set(docRef, { ...client, id: docRef.id, lastUpdated: new Date().toISOString() });
         clientRefs[`client${index + 1}_id_placeholder`] = {id: docRef.id, partnerId: client.partnerId};
       });
 
-      // Seed Engagement Types (which are now templates)
       engagementTypes.forEach((type) => {
         const docRef = doc(db, 'engagementTypes', type.id);
         batch.set(docRef, type);
       });
       
-      // Seed Client Categories
       clientCategories.forEach((category) => {
         const docRef = doc(collection(db, 'clientCategories'));
         batch.set(docRef, { id: docRef.id, name: category });
       });
 
-      // Seed Departments
       departments.forEach((department) => {
         const docRef = doc(collection(db, 'departments'));
         batch.set(docRef, { ...department, id: docRef.id });
       });
 
-      // Seed Countries
       countries.forEach((country) => {
         const docRef = doc(db, 'countries', country.code);
         batch.set(docRef, country);
       });
       
-      // Seed Engagements and their related Tasks
       engagements.forEach((engagement, index) => {
           const clientRefData = clientRefs[engagement.clientId];
           if (clientRefData) {
             const engagementDocRef = doc(collection(db, 'engagements'));
             const newEngagementData = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
             batch.set(engagementDocRef, newEngagementData);
+            
+            // Map placeholder remarks to the new ID for timesheets
+            const timesheetPlaceholder = Object.keys(engagementIdMapForTimesheet).find(
+                key => engagementIdMapForTimesheet[key as keyof typeof engagementIdMapForTimesheet].remarks === engagement.remarks
+            );
+            if (timesheetPlaceholder) {
+                realEngagementIdMap.set(timesheetPlaceholder, engagementDocRef.id);
+            }
             
             if (engagement.billStatus === "To Bill") {
                 const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
@@ -138,13 +139,35 @@ export default function SeedPage() {
                         title: taskTitle,
                         status: 'Pending',
                         order: taskIndex + 1,
-                        assignedTo: engagement.assignedTo[0] || '', // Assign task to first person on engagement
+                        assignedTo: engagement.assignedTo[0] || '',
                     });
                 });
             }
           } else {
             console.warn(`Could not find new client ID for placeholder: ${engagement.clientId}`);
           }
+      });
+      
+      // Seed Timesheets with real engagement IDs
+      timesheets.forEach(ts => {
+        const employee = employees.find(e => e.id === ts.userId);
+        if (employee) {
+            const timesheetId = `${ts.userId}_${ts.weekStartDate.substring(0,10)}`;
+            const timesheetRef = doc(db, 'timesheets', timesheetId);
+            
+            const updatedEntries = ts.entries.map(entry => ({
+                ...entry,
+                engagementId: realEngagementIdMap.get(entry.engagementId) || entry.engagementId,
+            }));
+
+            batch.set(timesheetRef, {
+                ...ts,
+                id: timesheetId,
+                userName: employee.name,
+                isPartner: employee.role.includes("Partner"),
+                entries: updatedEntries
+            });
+        }
       });
 
 
