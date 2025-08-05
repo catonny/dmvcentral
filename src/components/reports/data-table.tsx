@@ -61,8 +61,8 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
   })
 
   return (
-    <Card>
-      <div className="flex items-center justify-between p-4">
+    <Card className="h-full flex flex-col">
+      <div className="flex items-center justify-between p-4 flex-shrink-0">
         <div className="flex flex-1 items-center space-x-2">
           <Input
             placeholder="Filter by client..."
@@ -74,10 +74,10 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
           />
         </div>
       </div>
-      <CardContent className="p-0">
-        <ScrollArea className="w-full whitespace-nowrap">
+      <CardContent className="p-0 flex-grow overflow-hidden">
+        <ScrollArea className="w-full h-full whitespace-nowrap">
             <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-muted">
                 {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="border-white/10">
                     {headerGroup.headers.map((header) => {
@@ -123,7 +123,7 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </CardContent>
-       <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
+       <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10 flex-shrink-0">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length} row(s).
         </div>

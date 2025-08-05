@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReportsEngagement } from "@/app/(app)/reports/page";
 import type { EngagementStatus, EngagementType } from "@/lib/data";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
 interface EngagementSummaryTableProps {
     engagements: ReportsEngagement[];
@@ -63,37 +64,39 @@ export function EngagementSummaryTable({ engagements, engagementTypes }: Engagem
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Engagement Category</TableHead>
-                            <TableHead className="text-center">Pending</TableHead>
-                            <TableHead className="text-center">In Process</TableHead>
-                            <TableHead className="text-center">Partner Review</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {Object.keys(summaryData).length > 0 ? (
-                             Object.entries(summaryData).map(([typeName, counts]) => (
-                                <TableRow key={typeName}>
-                                    <TableCell className="font-medium">{typeName}</TableCell>
-                                    <TableCell className="text-center">{counts.Pending}</TableCell>
-                                    <TableCell className="text-center">{counts["In Process"]}</TableCell>
-                                    <TableCell className="text-center">{counts["Partner Review"]}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
-                                    No active engagements found.
-                                </TableCell>
+                <ScrollArea className="w-full whitespace-nowrap">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Engagement Category</TableHead>
+                                <TableHead className="text-center">Pending</TableHead>
+                                <TableHead className="text-center">In Process</TableHead>
+                                <TableHead className="text-center">Partner Review</TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.keys(summaryData).length > 0 ? (
+                                Object.entries(summaryData).map(([typeName, counts]) => (
+                                    <TableRow key={typeName}>
+                                        <TableCell className="font-medium">{typeName}</TableCell>
+                                        <TableCell className="text-center">{counts.Pending}</TableCell>
+                                        <TableCell className="text-center">{counts["In Process"]}</TableCell>
+                                        <TableCell className="text-center">{counts["Partner Review"]}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="h-24 text-center">
+                                        No active engagements found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                    <ScrollBar orientation="horizontal" />
+                    <ScrollBar orientation="vertical" />
+                </ScrollArea>
             </CardContent>
         </Card>
     );
 }
-
-    
