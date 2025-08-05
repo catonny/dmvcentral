@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
