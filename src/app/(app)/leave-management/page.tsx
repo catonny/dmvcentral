@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, doc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, where, doc, updateDoc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { LeaveRequest, Employee } from "@/lib/data";
@@ -21,13 +21,14 @@ export default function LeaveManagementPage() {
     const [loading, setLoading] = React.useState(true);
     const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([]);
     const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
+    const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
 
     React.useEffect(() => {
         if (!user) return;
 
         const checkUserRole = async () => {
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDoc(employeeQuery);
+            const employeeSnapshot = await getDocs(employeeQuery);
 
             if (!employeeSnapshot.empty) {
                 const employeeData = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
@@ -36,6 +37,10 @@ export default function LeaveManagementPage() {
                     setHasAccess(true);
                 }
             }
+             // Also fetch all employees for manager filtering
+            const allEmployeesSnapshot = await getDocs(collection(db, "employees"));
+            setAllEmployees(allEmployeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+
             setLoading(false);
         };
         checkUserRole();
@@ -65,12 +70,13 @@ export default function LeaveManagementPage() {
         }
 
         const unsubscribe = onSnapshot(leaveQuery, (snapshot) => {
-            setLeaveRequests(snapshot.docs.map(doc => doc.data() as LeaveRequest));
+            const requests = snapshot.docs.map(doc => doc.data() as LeaveRequest);
+            setLeaveRequests(requests);
         });
 
         return () => unsubscribe();
 
-    }, [hasAccess, currentUserEmployee]);
+    }, [hasAccess, currentUserEmployee, allEmployees]);
 
     const handleLeaveUpdate = async (requestId: string, status: "Approved" | "Rejected") => {
         if (!currentUserEmployee) return;
