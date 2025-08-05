@@ -57,7 +57,8 @@ const seedDatabase = async () => {
         'pendingInvoices',
         'timesheets',
         'chatMessages',
-        'communications'
+        'communications',
+        'leaveRequests'
     ];
 
     console.log('Deleting existing data...');
