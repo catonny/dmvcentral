@@ -70,7 +70,7 @@ export default function LeaveManagementPage() {
         }
 
         const unsubscribe = onSnapshot(leaveQuery, (snapshot) => {
-            const requests = snapshot.docs.map(doc => doc.data() as LeaveRequest);
+            const requests = snapshot.docs.map(doc => ({...doc.data(), id: doc.id } as LeaveRequest));
             setLeaveRequests(requests);
         });
 
