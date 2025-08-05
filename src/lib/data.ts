@@ -21,6 +21,8 @@ export interface Employee {
   linkedin?: string;
   emergencyContact?: string;
   bloodGroup?: string;
+  leaveAllowance?: number;
+  leavesTaken?: number;
 }
 
 export interface Client {
@@ -255,12 +257,12 @@ export const indianStatesAndUTs: string[] = [
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
 export const employees: Employee[] = [
-  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"], linkedin: "https://linkedin.com/in/tonnyv", emergencyContact: "+919876543210", bloodGroup: "O+" },
-  { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager"], managerId: "S001" },
-  { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"], managerId: "S002" },
-  { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"], managerId: "S002" },
-  { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accounts Head", avatar: "https://placehold.co/40x40.png", role: ["Accounts"], managerId: "S001" },
-  { id: "S006", name: "Dojo Davis", email: "cadojodavis@gmail.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"], managerId: "S001" },
+  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"], linkedin: "https://linkedin.com/in/tonnyv", emergencyContact: "+919876543210", bloodGroup: "O+", leaveAllowance: 20, leavesTaken: 5 },
+  { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager"], managerId: "S001", leaveAllowance: 18, leavesTaken: 2 },
+  { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"], managerId: "S002", leaveAllowance: 15, leavesTaken: 7 },
+  { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"], managerId: "S002", leaveAllowance: 12, leavesTaken: 10 },
+  { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accounts Head", avatar: "https://placehold.co/40x40.png", role: ["Accounts"], managerId: "S001", leaveAllowance: 18, leavesTaken: 4 },
+  { id: "S006", name: "Dojo Davis", email: "cadojodavis@gmail.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"], managerId: "S001", leaveAllowance: 20, leavesTaken: 1 },
 ];
 
 export const departments: Omit<Department, "id">[] = [
