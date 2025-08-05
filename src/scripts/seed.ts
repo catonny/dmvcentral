@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import { getFirestore, writeBatch } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import 'dotenv/config';
 import {
   employees,
@@ -42,7 +42,7 @@ const db = getFirestore(app);
 const seedDatabase = async () => {
   console.log('Starting database seed...');
   try {
-    const batch = writeBatch(db);
+    const batch = db.batch();
 
     const collectionsToDelete = [
         'employees',
