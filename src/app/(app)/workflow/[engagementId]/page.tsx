@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import * as React from "react";
-import { doc, getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, doc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, ChatMessage } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
@@ -172,9 +173,9 @@ export default function EngagementWorkflowPage() {
 
     setLoading(true);
 
-    const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), (doc) => {
-      if (doc.exists()) {
-        const engData = { id: doc.id, ...doc.data() } as Engagement;
+    const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), (docSnap) => {
+      if (docSnap.exists()) {
+        const engData = { id: docSnap.id, ...docSnap.data() } as Engagement;
         setEngagement(engData);
         // Fetch client after getting engagement data
         const clientUnsub = onSnapshot(doc(db, "clients", engData.clientId), (clientDoc) => {
