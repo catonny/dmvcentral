@@ -138,7 +138,13 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
             toast({ title: "Validation Error", description: "Name, Mobile, Email, Category, and Partner are required.", variant: "destructive" });
             return;
         }
-        await onSave(formData);
+
+        const dataToSave = { ...formData };
+        if (dataToSave['Date of Birth'] === undefined) {
+            delete dataToSave['Date of Birth'];
+        }
+
+        await onSave(dataToSave);
         onClose();
     }
 
