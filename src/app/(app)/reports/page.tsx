@@ -8,25 +8,95 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Engagement, Employee, Client, EngagementType, EngagementStatus } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GripVertical, Loader2, Grip } from "lucide-react";
+import { GripVertical, Loader2, Grip, TrendingUp, UserX, Repeat, HandCoins, BarChart } from "lucide-react";
 import { ReportsDataTable } from "@/components/reports/data-table";
 import { getReportsColumns } from "@/components/reports/columns";
 import { EngagementSummaryTable } from "@/components/reports/engagement-summary";
 import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import GridLayout from "react-grid-layout";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { differenceInDays, parseISO } from "date-fns";
 
+const RECURRING_KEYWORDS = ["book keeping", "gst filing", "monthly", "quarterly"];
 
 export interface ReportsEngagement extends Engagement {
     clientName: string;
     engagementTypeName: string;
-    partnerId?: string; // Add partnerId for the new column
+    partnerId?: string;
 }
 
 interface Widget {
   id: string;
   component: React.FC<any>;
   defaultLayout: { x: number; y: number; w: number; h: number; };
+}
+
+interface KpiData {
+    clientLifetimeValue: number;
+    churnRate: number;
+    monthlyRecurringRevenue: number;
+    averageRevenuePerClient: number;
+}
+
+
+function KpiCard({ title, value, description, icon: Icon, valuePrefix = "", valueSuffix = "" }: { title: string, value: string | number, description: string, icon: React.ElementType, valuePrefix?: string, valueSuffix?: string }) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    {valuePrefix}{value}{valueSuffix}
+                </div>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+const KpiDashboard = ({ kpiData, loading }: { kpiData: KpiData | null, loading: boolean }) => {
+    if (loading) {
+        return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /> <span className="ml-2">Calculating KPIs...</span></div>;
+    }
+    if (!kpiData) {
+        return <div className="text-center text-muted-foreground">Click "Generate KPIs" to view analytics.</div>;
+    }
+    return (
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+                title="Client Lifetime Value (CLV)"
+                value={kpiData.clientLifetimeValue.toFixed(0)}
+                valuePrefix="₹"
+                description="Estimated total revenue a client generates over their lifetime."
+                icon={TrendingUp}
+            />
+            <KpiCard
+                title="Client Churn Rate (Annual)"
+                value={kpiData.churnRate.toFixed(2)}
+                valueSuffix="%"
+                description="Percentage of clients with no activity in the last year."
+                icon={UserX}
+            />
+            <KpiCard
+                title="Estimated Monthly Recurring Revenue (MRR)"
+                value={(kpiData.monthlyRecurringRevenue / 1000).toFixed(1)}
+                valuePrefix="₹"
+                valueSuffix="k"
+                description="From completed retainership engagements."
+                icon={Repeat}
+            />
+            <KpiCard
+                title="Average Revenue Per Client (ARPC)"
+                value={kpiData.averageRevenuePerClient.toFixed(0)}
+                valuePrefix="₹"
+                description="Average revenue from all completed engagements per client."
+                icon={HandCoins}
+            />
+        </div>
+    )
 }
 
 
@@ -45,6 +115,9 @@ export default function ReportsPage() {
     const [selectedEngagement, setSelectedEngagement] = React.useState<ReportsEngagement | null>(null);
     const [widgets, setWidgets] = React.useState<Widget[]>([]);
     const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
+    
+    const [kpiData, setKpiData] = React.useState<KpiData | null>(null);
+    const [kpiLoading, setKpiLoading] = React.useState(false);
 
     React.useEffect(() => {
         if (!user) return;
@@ -166,6 +239,59 @@ export default function ReportsPage() {
         router.push(`/workflow/${engagementId}`);
     };
 
+    const handleGenerateKpis = async () => {
+        setKpiLoading(true);
+        try {
+            const [clientsSnapshot, engagementsSnapshot] = await Promise.all([
+                getDocs(collection(db, "clients")),
+                getDocs(collection(db, "engagements")),
+            ]);
+
+            const allFetchedClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+            const allFetchedEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement);
+
+            const completedEngagements = allFetchedEngagements.filter(e => e.status === 'Completed' && e.fees);
+            const totalRevenue = completedEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
+            const activeClients = new Set(completedEngagements.map(e => e.clientId));
+
+            const averageRevenuePerClient = activeClients.size > 0 ? totalRevenue / activeClients.size : 0;
+            
+            let totalLifespanDays = 0;
+            activeClients.forEach(clientId => {
+                const client = allFetchedClients.find(c => c.id === clientId);
+                if (client && client.createdAt) {
+                    totalLifespanDays += differenceInDays(new Date(), parseISO(client.createdAt));
+                }
+            });
+            const averageLifespanDays = activeClients.size > 0 ? totalLifespanDays / activeClients.size : 0;
+            const clientLifetimeValue = averageRevenuePerClient * (averageLifespanDays / 365);
+
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const clientsWithRecentActivity = new Set(allFetchedEngagements.filter(e => parseISO(e.dueDate) > oneYearAgo).map(e => e.clientId));
+            const churnedClients = allFetchedClients.filter(c => !clientsWithRecentActivity.has(c.id)).length;
+            const churnRate = allFetchedClients.length > 0 ? (churnedClients / allFetchedClients.length) * 100 : 0;
+            
+            const recurringEngagements = completedEngagements.filter(e => 
+                RECURRING_KEYWORDS.some(keyword => (e.remarks || '').toLowerCase().includes(keyword))
+            );
+            const monthlyRecurringRevenue = recurringEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
+
+            setKpiData({
+                clientLifetimeValue,
+                churnRate,
+                monthlyRecurringRevenue,
+                averageRevenuePerClient
+            });
+
+        } catch (error) {
+            toast({title: "Error", description: "Could not generate KPIs. Please try again.", variant: "destructive" });
+            console.error("Error generating KPIs:", error);
+        } finally {
+            setKpiLoading(false);
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
@@ -206,7 +332,7 @@ export default function ReportsPage() {
 
     return (
         <>
-             <div className="flex items-center justify-between space-y-2 mb-4">
+            <div className="flex items-center justify-between space-y-2 mb-4">
                 <div>
                 <h2 className="text-3xl font-bold tracking-tight font-headline">Reports</h2>
                 <p className="text-muted-foreground">
@@ -214,6 +340,23 @@ export default function ReportsPage() {
                 </p>
                 </div>
             </div>
+
+            <Card className="mb-6">
+                <CardHeader className="flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Firm Analytics</CardTitle>
+                        <CardDescription>Key Performance Indicators based on the Audit Quality Maturity Model.</CardDescription>
+                    </div>
+                    <Button onClick={handleGenerateKpis} disabled={kpiLoading}>
+                        <BarChart className="mr-2 h-4 w-4" />
+                        Generate KPIs
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <KpiDashboard kpiData={kpiData} loading={kpiLoading} />
+                </CardContent>
+            </Card>
+
             <GridLayout
                 className="layout"
                 layout={layout}

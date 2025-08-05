@@ -181,7 +181,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
-        { id: 'firm-analytics', href: '/firm-analytics', icon: LineChart, tooltip: 'Firm Analytics', label: 'Firm Analytics', condition: checkPermission('firm-analytics') },
         { id: 'accounts', href: '/accounts', icon: Receipt, tooltip: 'Accounts', label: 'Accounts', condition: checkPermission('accounts') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
         { id: 'profile', href: '/profile', icon: UserIcon, tooltip: 'My Profile', label: 'My Profile', condition: true },
