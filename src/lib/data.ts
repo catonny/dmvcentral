@@ -153,13 +153,15 @@ export type FeatureName =
     | "settings-data-management" 
     | "settings-access-control"
     | "timesheet"
-    | "calendar";
+    | "calendar"
+    | "inbox";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
     { id: "accounts", name: "Accounts", description: "Access the billing and collections dashboard." },
     { id: "timesheet", name: "Timesheet", description: "Access to view and manage timesheets" },
     { id: "calendar", name: "Calendar", description: "Access the shared team calendar." },
+    { id: "inbox", name: "Inbox", description: "View and manage AI-processed client communications." },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
     { id: "employee-management", name: "Employee Management", description: "Manage employee roles and departments." },
@@ -173,14 +175,20 @@ export interface Permission {
   departments: EmployeeRole[];
 }
 
-export interface CommunicationLog {
+export interface Communication {
   id: string;
-  clientId: string;
-  employeeId: string;
-  type: 'Email' | 'Call' | 'Meeting';
-  timestamp: string; // ISO 8601
-  subject?: string;
-  notes: string;
+  from: string;
+  subject: string;
+  body: string;
+  receivedAt: string; // ISO string
+  
+  // AI processing output
+  clientId?: string;
+  clientName?: string;
+  summary?: string;
+  category?: "Query" | "Document Submission" | "Follow-up" | "Appreciation" | "Urgent" | "General";
+  actionItems?: string[];
+  visibleTo: string[]; // employee IDs
 }
 
 export interface Country {

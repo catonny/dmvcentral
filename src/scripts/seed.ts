@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import 'dotenv/config';
@@ -55,7 +56,8 @@ const seedDatabase = async () => {
         'tasks',
         'pendingInvoices',
         'timesheets',
-        'chatMessages'
+        'chatMessages',
+        'communications'
     ];
 
     console.log('Deleting existing data...');
