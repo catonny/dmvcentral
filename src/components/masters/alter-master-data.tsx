@@ -31,8 +31,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
-type AlterableMasterType = "Engagement Types" | "Departments" | "Client Categories" | "Audit Templates";
-const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Engagement Types", "Departments", "Client Categories", "Audit Templates"];
+type AlterableMasterType = "Engagement Types" | "Departments" | "Client Categories";
+const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Engagement Types", "Departments", "Client Categories"];
 
 export function AlterMasterData({ onBack }: { onBack: () => void }) {
   const [selectedMaster, setSelectedMaster] = React.useState<AlterableMasterType | null>(null);
@@ -54,7 +54,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
         case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
-        case "Audit Templates": collectionName = "auditTemplates"; break;
         default: throw new Error("Unknown master type");
       }
       const q = query(collection(db, collectionName));
@@ -110,7 +109,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
         case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
-        case "Audit Templates": collectionName = "auditTemplates"; break;
     }
 
     try {
@@ -133,7 +131,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
         case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
-        case "Audit Templates": collectionName = "auditTemplates"; break;
     }
     
     try {
@@ -270,7 +267,7 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                             className="col-span-3"
                         />
                     </div>
-                     {(selectedMaster === "Engagement Types" || selectedMaster === "Audit Templates") && (
+                     {(selectedMaster === "Engagement Types") && (
                          <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="description" className="text-right">Description</Label>
                             <Input
@@ -278,18 +275,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                                 value={editFormData?.description || ""}
                                 onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                                 className="col-span-3"
-                            />
-                        </div>
-                     )}
-                     {selectedMaster === "Audit Templates" && (
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="part" className="text-right">Part</Label>
-                            <Input
-                                id="part"
-                                value={editFormData?.part || ""}
-                                onChange={(e) => setEditFormData({ ...editFormData, part: e.target.value })}
-                                className="col-span-3"
-                                disabled
                             />
                         </div>
                      )}

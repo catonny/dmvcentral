@@ -4,7 +4,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, FileCheck2 } from "lucide-react";
+import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group } from "lucide-react";
 import { ViewMasterData } from "@/components/masters/view-master-data";
 import { CreateMasterData } from "@/components/masters/create-master-data";
 import { AlterMasterData } from "@/components/masters/alter-master-data";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { WorkflowEditor } from "@/components/masters/workflow-editor";
 import { EmployeeManager } from "@/components/masters/employee-manager";
 
-type Action = "view" | "create" | "alter" | "workflow" | "employee" | "audit-templates" | null;
+type Action = "view" | "create" | "alter" | "workflow" | "employee" | null;
 
 export default function MastersPage() {
   const [currentAction, setCurrentAction] = React.useState<Action>(null);
@@ -34,9 +34,6 @@ export default function MastersPage() {
         return <WorkflowEditor onBack={() => setCurrentAction(null)} />;
       case "employee":
         return <EmployeeManager onBack={() => setCurrentAction(null)} />;
-       case "audit-templates":
-        // For now, we'll just re-use the "Alter" component to view/edit/delete templates
-        return <AlterMasterData onBack={() => setCurrentAction(null)} />;
       default:
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -69,12 +66,6 @@ export default function MastersPage() {
                 description="Add, edit, and manage employee profiles and department assignments."
                 icon={Group}
                 onClick={() => handleActionClick("employee")}
-                />
-                 <ActionCard
-                title="Manage Audit Templates"
-                description="View and manage Internal Audit checklists and templates."
-                icon={FileCheck2}
-                onClick={() => handleActionClick("audit-templates")}
                 />
             </div>
         );
