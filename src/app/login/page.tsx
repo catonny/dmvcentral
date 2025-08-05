@@ -171,16 +171,6 @@ function LoginPageContent() {
                     </>
                 )}
             </Button>
-            <Alert>
-              <DatabaseZap className="h-4 w-4" />
-              <AlertTitle>First time setup?</AlertTitle>
-              <AlertDescription>
-                If this is your first time running the app, you need to seed the database.
-                <Button variant="link" asChild className="p-0 h-auto ml-1">
-                    <Link href="/seed">Click here to add initial data.</Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
         </CardContent>
         <CardFooter className="flex-col gap-4">
           <p className="w-full text-center text-sm text-muted-foreground">
