@@ -234,18 +234,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (loading || profileLoading) {
-    return <div className="flex h-screen w-full items-center justify-center bg-gray-900 text-white">Loading...</div>;
-  }
-
-  if (!user) {
-    return null; 
-  }
-  
-  const currentDisplayName = impersonatedUserId 
-    ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
-    : user?.displayName?.split(' ')[0] || 'there';
-
   // Universal Search Keyboard Shortcut
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -257,6 +245,18 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
   }, [])
+
+  if (loading || profileLoading) {
+    return <div className="flex h-screen w-full items-center justify-center bg-gray-900 text-white">Loading...</div>;
+  }
+
+  if (!user) {
+    return null; 
+  }
+  
+  const currentDisplayName = impersonatedUserId 
+    ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
+    : user?.displayName?.split(' ')[0] || 'there';
   
   return (
       <SidebarProvider isPinned={isPinned}>
