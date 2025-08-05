@@ -165,15 +165,31 @@ export default function EngagementWorkflowPage() {
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!engagementId) return;
+    if (!engagementId) {
+        setLoading(true);
+        return;
+    }
 
     setLoading(true);
 
     const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), (doc) => {
       if (doc.exists()) {
-        setEngagement({ id: doc.id, ...doc.data() } as Engagement);
+        const engData = { id: doc.id, ...doc.data() } as Engagement;
+        setEngagement(engData);
+        // Fetch client after getting engagement data
+        const clientUnsub = onSnapshot(doc(db, "clients", engData.clientId), (clientDoc) => {
+          if (clientDoc.exists()) {
+            setClient({ id: clientDoc.id, ...clientDoc.data() } as Client);
+          } else {
+            setClient(null);
+          }
+          setLoading(false); // Set loading to false after client is fetched
+        });
+        return () => clientUnsub();
       } else {
         setEngagement(null);
+        setClient(null);
+        setLoading(false);
       }
     }, (error) => {
       console.error("Error fetching engagement:", error);
@@ -193,22 +209,6 @@ export default function EngagementWorkflowPage() {
       tasksUnsub();
     };
   }, [engagementId]);
-
-  React.useEffect(() => {
-      if (engagement?.clientId) {
-          const clientUnsub = onSnapshot(doc(db, "clients", engagement.clientId), (doc) => {
-              if (doc.exists()) {
-                  setClient({ id: doc.id, ...doc.data() } as Client);
-              }
-              setLoading(false);
-          });
-          return () => clientUnsub();
-      } else if (engagement === null) {
-          // This case handles when the engagement doc listener returns null.
-          // We set loading to false to trigger the notFound() call below.
-          setLoading(false);
-      }
-  }, [engagement]);
 
   const handleTaskStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     const taskRef = doc(db, "tasks", taskId);
