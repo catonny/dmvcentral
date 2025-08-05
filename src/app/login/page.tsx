@@ -8,7 +8,7 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebas
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import React, { useEffect, useState } from "react";
-import { Loader2, Building } from "lucide-react";
+import { Loader2, Building, Bot } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { ClientOnly } from "@/components/client-only";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -143,51 +143,49 @@ function LoginPageContent() {
 
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-2">
-      <div className="hidden lg:flex flex-col items-start justify-between bg-primary p-12 text-primary-foreground">
-        <div className="flex items-center gap-2 text-xl font-bold">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 36 36"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect
-              width="36"
-              height="36"
-              rx="8"
-              fill="white"
-            />
-            <text
-              x="50%"
-              y="50%"
-              dominantBaseline="middle"
-              textAnchor="middle"
-              fill="hsl(var(--primary))"
-              fontSize="14"
-              fontWeight="bold"
-              fontFamily="sans-serif"
-            >
-              DMV
-            </text>
-          </svg>
-          DMV Central
-        </div>
-        <div className="space-y-4">
-            <h1 className="text-4xl font-bold font-headline">Davis Martin & Varghese Chartered Accountants</h1>
-        </div>
-        <p className="text-sm text-primary-foreground/60">&copy; {new Date().getFullYear()} Davis Martin & Varghese Chartered Accountants. All Rights Reserved.</p>
+       <div className="hidden lg:flex flex-col items-start justify-between bg-primary p-12 text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-black opacity-80"></div>
+         <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center gap-2 text-xl font-bold">
+                <svg
+                    width="36"
+                    height="36"
+                    viewBox="0 0 36 36"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <rect width="36" height="36" rx="8" fill="white" />
+                    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fill="hsl(var(--primary))" fontSize="14" fontWeight="bold" fontFamily="sans-serif">
+                    DMV
+                    </text>
+                </svg>
+                 DMV Central
+            </div>
+            <div className="my-auto">
+                <h1 className="text-5xl font-bold tracking-tighter bg-gradient-to-r from-white via-neutral-300 to-white bg-clip-text text-transparent">
+                    Davis Martin & Varghese
+                </h1>
+                 <h2 className="text-3xl font-medium text-neutral-300">
+                    Chartered Accountants
+                </h2>
+                <p className="mt-4 flex items-center gap-2 text-lg text-green-300/80 font-medium">
+                    <Bot size={20} />
+                    AI Powered Work station
+                </p>
+            </div>
+            <p className="relative z-10 text-sm text-primary-foreground/60">&copy; {new Date().getFullYear()} Davis Martin & Varghese Chartered Accountants. All Rights Reserved.</p>
+         </div>
       </div>
       <div className="flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+        <Card className="w-full max-w-sm bg-background/50 border-white/20 backdrop-blur-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
+            <CardTitle className="text-2xl font-headline text-foreground">Welcome Back</CardTitle>
             <CardDescription>
               Sign in with your official Google account to access the dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningIn}>
+            <Button variant="outline" className="w-full bg-white/10 text-white hover:bg-white/20 border-white/20" onClick={handleGoogleSignIn} disabled={isSigningIn}>
               {isSigningIn ? (
                   <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

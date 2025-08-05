@@ -9,13 +9,13 @@ body {
 
 @layer base {
   :root {
-    --background: 222 47% 11.2%; /* Very light gray (#F0F2F5) -> Converted to HSL for dark theme */
+    --background: 222 47% 11.2%; /* Fallback */
     --foreground: 210 40% 98%;
     
-    --card: 222 47% 11.2%;
+    --card: 224 71.4% 4.1%;
     --card-foreground: 210 40% 98%;
     
-    --popover: 222 47% 11.2%;
+    --popover: 224 71.4% 4.1%;
     --popover-foreground: 210 40% 98%;
     
     --primary: 231 48% 48%; /* Deep indigo (#3F51B5) */
@@ -80,11 +80,15 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    background-color: #F0F2F5; /* Light gray background */
+    background-color: #111827; /* Dark Gray-Blue */
+    background-image: radial-gradient(circle at top right, hsla(231, 48%, 48%, 0.2), transparent 50%),
+                      radial-gradient(circle at bottom left, hsla(120, 39%, 49%, 0.2), transparent 50%);
   }
 
   .dark body {
      background-color: hsl(var(--background));
+     background-image: radial-gradient(circle at top right, hsla(231, 48%, 48%, 0.2), transparent 50%),
+                       radial-gradient(circle at bottom left, hsla(120, 39%, 49%, 0.2), transparent 50%);
   }
 }
 
