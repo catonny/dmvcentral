@@ -17,12 +17,12 @@ import type { CalendarEvent, Engagement, Employee } from '@/lib/data';
 
 
 // Schema Definitions
-export const HandleLeaveRequestInputSchema = z.object({
+const HandleLeaveRequestInputSchema = z.object({
   leaveRequestId: z.string().describe("The ID of the approved leave request."),
 });
 export type HandleLeaveRequestInput = z.infer<typeof HandleLeaveRequestInputSchema>;
 
-export const HandleLeaveRequestOutputSchema = z.object({
+const HandleLeaveRequestOutputSchema = z.object({
   plan: z.array(z.object({
       conflictingEventId: z.string(),
       conflictingEventTitle: z.string(),
