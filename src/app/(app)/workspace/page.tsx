@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -93,7 +92,7 @@ export default function WorkspacePage() {
     fetchInitialData();
   }, [user, toast]);
   
-  const handleAddTask = async (data: any, client?: Client, reporterId?: string) => {
+  const handleAddTask = async (data: any, client?: Client, reporterId?: string, engagementId?: string) => {
         if (!currentUserEmployee) {
              toast({ title: "Error", description: "Could not identify current user.", variant: "destructive" });
              return;
@@ -102,6 +101,7 @@ export default function WorkspacePage() {
             const batch = writeBatch(db);
             let engagementTypeId = data.type;
             const engagementTypeIsExisting = engagementTypes.some(et => et.id === engagementTypeId);
+            const engagementDocRef = engagementId ? doc(db, 'engagements', engagementId) : doc(collection(db, 'engagements'));
 
             // Handle new template creation
             if (data.saveAsTemplate && data.templateName && !engagementTypeIsExisting) {
@@ -117,9 +117,8 @@ export default function WorkspacePage() {
                 toast({ title: "Template Created", description: `New workflow template "${data.templateName}" was created.` });
             }
 
-            const newEngagementDocRef = doc(collection(db, 'engagements'));
             const newEngagementData: Engagement = {
-                id: newEngagementDocRef.id,
+                id: engagementDocRef.id,
                 remarks: data.remarks,
                 clientId: data.clientId,
                 type: engagementTypeId,
@@ -128,7 +127,7 @@ export default function WorkspacePage() {
                 status: 'Pending',
                 dueDate: data.dueDate.toISOString()
             };
-            batch.set(newEngagementDocRef, newEngagementData);
+            batch.set(engagementDocRef, newEngagementData);
             
             const engagementType = engagementTypes.find(et => et.id === engagementTypeId);
             const subTaskTitles = engagementType?.subTaskTitles || (data.saveAsTemplate ? ["Task 1", "Task 2", "Task 3"] : []);
@@ -137,7 +136,7 @@ export default function WorkspacePage() {
                 const taskDocRef = doc(collection(db, 'tasks'));
                 const newTask: Task = {
                     id: taskDocRef.id,
-                    engagementId: newEngagementDocRef.id,
+                    engagementId: engagementDocRef.id,
                     title,
                     status: 'Pending',
                     order: index + 1,

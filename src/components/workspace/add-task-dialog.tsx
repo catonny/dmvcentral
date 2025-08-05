@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -38,6 +37,7 @@ import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EditClientSheet } from "../dashboard/edit-client-sheet";
 import { Checkbox } from "../ui/checkbox";
+import { useRouter } from "next/navigation";
 
 
 const engagementSchema = z.object({
@@ -63,7 +63,7 @@ type EngagementFormData = z.infer<typeof engagementSchema>;
 interface AddTaskDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: EngagementFormData, client?: Client, reporterId?: string) => Promise<void>;
+  onSave: (data: EngagementFormData, client?: Client, reporterId?: string, engagementId?: string) => Promise<void>;
   clients: Client[];
   engagementTypes: EngagementType[];
   allEmployees: Employee[];
@@ -73,6 +73,7 @@ interface AddTaskDialogProps {
 
 export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -123,9 +124,12 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     if (!reporterId && client && client.partnerId) {
         reporterId = client.partnerId;
     }
-
-    await onSave(data, client, reporterId);
+    
+    const newEngagementDocRef = doc(collection(db, 'engagements'));
+    await onSave(data, client, reporterId, newEngagementDocRef.id);
     reset();
+    onClose();
+    router.push(`/workflow/${newEngagementDocRef.id}`);
   };
 
   const handleClose = () => {
@@ -190,8 +194,6 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
 
         toast({ title: "Success", description: "New client added successfully." });
         
-        // This relies on the parent component (AssignmentList) to update `allClients` via its snapshot listener.
-        // We optimistically update our local value here for immediate use.
         setValue("clientId", clientRef.id, { shouldValidate: true });
         
         setIsClientSheetOpen(false);

@@ -1,14 +1,13 @@
-
 "use client";
 
 import * as React from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Engagement, Employee, Department, Client } from "@/lib/data";
+import { Engagement, Employee, Department, Client, Task } from "@/lib/data";
 import { DepartmentColumn } from "./department-column";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { EngagementCard } from "./engagement-card";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, writeBatch, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { LogTimeDialog } from "./log-time-dialog";
