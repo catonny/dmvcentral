@@ -166,6 +166,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
         await batch.commit();
 
         toast({ title: "Success", description: `Client ${selectedClient.Name} and all associated engagements have been deleted.` });
+        handleCloseEditSheet();
     } catch (error) {
         console.error("Error deleting client:", error);
         toast({ title: "Error", description: "Failed to delete client.", variant: "destructive" });
@@ -235,7 +236,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
     return allEmployees.filter(s => Array.isArray(s.role) && s.role.includes(partnerDept.name));
   }, [allEmployees, departments]);
 
-  const columns = React.useMemo(() => getColumns(handleOpenEditSheet, handleConfirmDeleteClient, handleUpdateClientField, partners, allClients, allEmployees), [partners, allClients, allEmployees]);
+  const columns = React.useMemo(() => getColumns(handleOpenEditSheet, partners, allClients, allEmployees), [partners, allClients, allEmployees]);
 
   return (
     <>
@@ -250,6 +251,7 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
         isOpen={isSheetOpen}
         onClose={handleCloseEditSheet}
         onSave={handleSaveClient}
+        onDelete={handleConfirmDeleteClient}
       />
        <BulkEmailDialog
         isOpen={isBulkEmailDialogOpen}

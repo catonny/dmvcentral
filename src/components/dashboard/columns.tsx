@@ -5,14 +5,6 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, ArrowUpDown, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Client, Employee } from "@/lib/data"
 import { format, parseISO } from "date-fns"
 import { Checkbox } from "../ui/checkbox"
@@ -20,8 +12,6 @@ import { Checkbox } from "../ui/checkbox"
 
 export const getColumns = (
   openEditSheet: (client: Client) => void,
-  confirmDeleteClient: (client: Client) => void,
-  updateData: (clientId: string, columnId: keyof Client, value: any) => void,
   partners: Employee[],
   allClients: Client[],
   allEmployees: Employee[]
@@ -52,50 +42,24 @@ export const getColumns = (
       ),
       enableSorting: false,
       enableHiding: false,
+      size: 40,
     },
     {
       id: "actions",
-      header: "Actions",
+      header: "Edit",
       cell: ({ row }) => {
         const client = row.original
 
         return (
-          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditSheet(client)}>
                 <Edit className="h-4 w-4" />
                 <span className="sr-only">Edit Client</span>
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => navigator.clipboard.writeText(client.id)}
-                >
-                  Copy client ID
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => openEditSheet(client)}>
-                  Edit Client Details
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => confirmDeleteClient(client)}
-                  className="text-destructive"
-                >
-                  Delete Client
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         )
       },
       enableResizing: false,
       enableHiding: false,
+      size: 50,
     },
     {
       accessorKey: "Name",

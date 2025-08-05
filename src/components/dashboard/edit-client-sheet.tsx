@@ -28,7 +28,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, Check, ChevronsUpDown, XIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, XIcon, Copy, Trash2 } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
@@ -40,10 +40,11 @@ interface EditClientSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (updatedClient: Partial<Client>) => Promise<void>;
+    onDelete: (client: Client) => void;
     allClients?: Client[];
 }
 
-export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = [] }: EditClientSheetProps) {
+export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, allClients = [] }: EditClientSheetProps) {
     const [formData, setFormData] = React.useState<Partial<Client>>({});
     const [partners, setPartners] = React.useState<Employee[]>([]);
     const [countries, setCountries] = React.useState<Country[]>([]);
@@ -195,7 +196,22 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent className="sm:max-w-lg">
                 <SheetHeader>
-                    <SheetTitle>{client && 'id' in client ? 'Edit Client' : 'Add New Client'}</SheetTitle>
+                    <div className="flex items-center justify-between">
+                        <SheetTitle>{client && 'id' in client ? 'Edit Client' : 'Add New Client'}</SheetTitle>
+                        {client && 'id' in client && (
+                             <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(client.id!);
+                                    toast({ title: "Copied!", description: "Client ID copied to clipboard." });
+                                }}
+                            >
+                                <Copy className="mr-2" />
+                                Copy ID
+                            </Button>
+                        )}
+                    </div>
                     <SheetDescription>
                         {client && 'id' in client ? "Update client information and assignment." : "Enter the details for the new client."} Click save when you're done.
                     </SheetDescription>
@@ -395,11 +411,24 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, allClients = 
                     </div>
                 </div>
                 </ScrollArea>
-                <SheetFooter className="pt-4 border-t">
-                    <SheetClose asChild>
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                    </SheetClose>
-                    <Button type="submit" onClick={handleSave}>Save changes</Button>
+                <SheetFooter className="pt-4 border-t flex justify-between">
+                    <div>
+                        {client && 'id' in client && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => onDelete(client as Client)}
+                            >
+                                <Trash2 className="mr-2" />
+                                Delete Client
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <SheetClose asChild>
+                            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                        </SheetClose>
+                        <Button type="submit" onClick={handleSave}>Save changes</Button>
+                    </div>
                 </SheetFooter>
             </SheetContent>
         </Sheet>
