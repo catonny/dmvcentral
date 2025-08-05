@@ -31,11 +31,13 @@ import type { ReportsEngagement } from "@/app/(app)/reports/page"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  onRowClick: (engagementId: string) => void;
 }
 
 export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
   columns,
   data,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -101,7 +103,8 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
                     <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="border-white/10"
+                    className="border-white/10 cursor-pointer"
+                    onClick={() => onRowClick(row.original.id)}
                     >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>

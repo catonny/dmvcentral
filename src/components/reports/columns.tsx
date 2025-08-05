@@ -28,28 +28,6 @@ export const getReportsColumns = (
   openEditSheet: (engagement: ReportsEngagement) => void
 ): ColumnDef<ReportsEngagement>[] => [
   {
-    id: "actions",
-    cell: ({ row }) => {
-      const engagement = row.original;
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openEditSheet(engagement)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Engagement
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-  {
     accessorKey: "clientName",
     header: ({ column }) => (
       <Button
@@ -87,49 +65,48 @@ export const getReportsColumns = (
     header: "Remarks",
     cell: ({ row }) => <div className="px-4 truncate max-w-xs">{row.original.remarks}</div>,
   },
-  {
-    accessorKey: "dueDate",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Due Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-        try {
-            return <div className="px-4">{format(new Date(row.original.dueDate), "dd/MM/yyyy")}</div>;
-        } catch (e) {
-            return <div className="px-4 text-destructive">Invalid Date</div>
-        }
-    },
-  },
-  {
-    accessorKey: "status",
+   {
+    accessorKey: "partnerId",
     header: ({ column }) => (
         <div className="flex items-center space-x-2">
-             <Button
+            <Button
                 variant="ghost"
                 onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
                 className="p-1 h-auto"
             >
-                Status
+                Partner
                 <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
-            <DataTableColumnFilter column={column} title="Status" options={engagementStatuses} />
+            <DataTableColumnFilter column={column} title="Partner" options={Array.from(employeeMap.values()).map(e => e.name)} />
         </div>
     ),
-    cell: ({ row }) => (
-        <div className="px-4">
-            <Badge className={`${statusColors[row.original.status] || ''} hover:${statusColors[row.original.status] || ''}`}>
-                {row.original.status}
-            </Badge>
-        </div>
-    ),
+    cell: ({ row }) => <div className="px-4">{employeeMap.get(row.original.partnerId!)?.name || "N/A"}</div>,
     filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
+        const partnerName = employeeMap.get(row.getValue(id) as string)?.name;
+        if (!partnerName) return false;
+        return value.includes(partnerName);
+    },
+  },
+  {
+    accessorKey: "reportedTo",
+    header: ({ column }) => (
+        <div className="flex items-center space-x-2">
+            <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                className="p-1 h-auto"
+            >
+                Manager
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+             <DataTableColumnFilter column={column} title="Manager" options={Array.from(employeeMap.values()).map(e => e.name)} />
+        </div>
+    ),
+    cell: ({ row }) => <div className="px-4">{employeeMap.get(row.original.reportedTo)?.name || "N/A"}</div>,
+    filterFn: (row, id, value) => {
+        const managerName = employeeMap.get(row.getValue(id) as string)?.name;
+        if (!managerName) return false;
+        return value.includes(managerName);
     },
   },
   {
@@ -185,6 +162,71 @@ export const getReportsColumns = (
         return value.some((v: string) => assignedNames.includes(v))
     },
   },
+  {
+    accessorKey: "dueDate",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Due Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+        try {
+            return <div className="px-4">{format(new Date(row.original.dueDate), "dd/MM/yyyy")}</div>;
+        } catch (e) {
+            return <div className="px-4 text-destructive">Invalid Date</div>
+        }
+    },
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => (
+        <div className="flex items-center space-x-2">
+             <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                className="p-1 h-auto"
+            >
+                Status
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+            <DataTableColumnFilter column={column} title="Status" options={engagementStatuses} />
+        </div>
+    ),
+    cell: ({ row }) => (
+        <div className="px-4">
+            <Badge className={`${statusColors[row.original.status] || ''} hover:${statusColors[row.original.status] || ''}`}>
+                {row.original.status}
+            </Badge>
+        </div>
+    ),
+    filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const engagement = row.original;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditSheet(engagement); }}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Engagement
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+  },
 ]
-
-    

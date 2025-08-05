@@ -14,11 +14,13 @@ import { getReportsColumns } from "@/components/reports/columns";
 import { EngagementSummaryTable } from "@/components/reports/engagement-summary";
 import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import GridLayout from "react-grid-layout";
+import { useRouter } from "next/navigation";
 
 
 export interface ReportsEngagement extends Engagement {
     clientName: string;
     engagementTypeName: string;
+    partnerId?: string; // Add partnerId for the new column
 }
 
 interface Widget {
@@ -30,6 +32,7 @@ interface Widget {
 
 export default function ReportsPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
     const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
@@ -63,8 +66,9 @@ export default function ReportsPage() {
 
     React.useEffect(() => {
         if (!hasAccess) return;
-
-        const engagementsQuery = query(collection(db, "engagements"));
+        
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
 
         const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
             let employeeMapInternal: Map<string, Employee> = new Map();
@@ -97,6 +101,7 @@ export default function ReportsPage() {
                         ...eng,
                         clientName: client?.Name || 'N/A',
                         engagementTypeName: engagementType?.name || 'N/A',
+                        partnerId: client?.partnerId,
                     };
                 });
                 
@@ -156,6 +161,10 @@ export default function ReportsPage() {
         setLayout(newLayout);
         localStorage.setItem('reportsLayout', JSON.stringify(newLayout));
     };
+    
+    const handleRowClick = (engagementId: string) => {
+        router.push(`/workflow/${engagementId}`);
+    };
 
     if (loading) {
         return (
@@ -189,7 +198,7 @@ export default function ReportsPage() {
             case 'summary-table':
                 return { engagements: tableData, engagementTypes: engagementTypes };
             case 'data-table':
-                return { columns: columns, data: tableData };
+                return { columns: columns, data: tableData, onRowClick: handleRowClick };
             default:
                 return {};
         }
