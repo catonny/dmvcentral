@@ -29,7 +29,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
-  const clientId = React.use(params).clientId;
+  const clientId = params.clientId;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
