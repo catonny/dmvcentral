@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { format, differenceInBusinessDays, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, X } from "lucide-react";
+import { handleLeaveRequest } from "@/ai/flows/handle-leave-request-flow";
 
 export default function LeaveManagementPage() {
     const { user } = useAuth();
@@ -101,6 +102,10 @@ export default function LeaveManagementPage() {
                     }
                 }
                 // Here you would trigger the AI agent flow
+                console.log(`Triggering AI agent for leave request ID: ${requestId}`);
+                toast({ title: "Processing...", description: "AI is analyzing calendar conflicts." });
+                await handleLeaveRequest({ leaveRequestId: requestId });
+                toast({ title: "AI Agent Complete", description: "Conflict analysis finished. Check server console for plan." });
             }
 
             toast({ title: "Success", description: `Leave request has been ${status.toLowerCase()}.` });
