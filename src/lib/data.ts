@@ -76,7 +76,8 @@ export interface Engagement {
   id: string;
   clientId: string;
   remarks: string;
-  type: string; // Corresponds to EngagementType.id
+  type: string; // Corresponds to EngagementType.id OR AuditTemplate.id for internal audits
+  engagementCategory: 'External' | 'Internal Audit'; // New field to distinguish
   assignedTo: string[]; // Corresponds to Employee.id - Team members on the engagement
   reportedTo: string; // Corresponds to Employee.id (Manager or Partner)
   dueDate: string; // ISO 8601
@@ -215,6 +216,14 @@ export interface Communication {
 export interface Country {
     name: string;
     code: string;
+}
+
+export interface AuditTemplate {
+    id: string;
+    name: string;
+    part: 'A' | 'B';
+    description: string;
+    // We can store the detailed checklist items here in the future
 }
 
 export const indianStatesAndUTs: string[] = [
@@ -645,7 +654,7 @@ export const engagementTypes: EngagementType[] = [
 const getDueDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 const getPastDate = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-export const engagements: Omit<Engagement, 'id'>[] = [
+export const engagements: Omit<Engagement, 'id' | 'engagementCategory'>[] = [
     // PENDING (10)
     { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S003"], reportedTo: "S002", dueDate: getDueDate(10), status: "Pending", fees: 5000, firm: "Firm A" },
     { clientId: "client3_id_placeholder", remarks: "GST Filing for June 2024", type: "ET02", assignedTo: ["S004"], reportedTo: "S002", dueDate: getDueDate(5), status: "Pending", fees: 8000, firm: "Firm A" },

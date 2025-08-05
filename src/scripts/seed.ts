@@ -14,7 +14,7 @@ import {
   timesheets,
   engagementIdMapForTimesheet,
 } from '@/lib/data';
-import type { Task } from '@/lib/data';
+import type { Task, AuditTemplate } from '@/lib/data';
 
 
 // This will be automatically populated by the Firebase environment in production,
@@ -40,6 +40,43 @@ if (!getApps().length) {
 
 const db = getFirestore(app);
 
+const auditTemplates: Omit<AuditTemplate, 'id'>[] = [
+    // Part A
+    { name: "Audit Planning", part: "A", description: "Covers the objectives, scope, and planning process." },
+    { name: "Entity Level Controls", part: "A", description: "Reviews ethics, governance, and board oversight." },
+    { name: "Business Controls Diagnostic", part: "A", description: "Identifies process risks and control effectiveness." },
+    { name: "Financial Statement Closure Process", part: "A", description: "Ensures accuracy in financial closing." },
+    { name: "Annual Operating Plan", part: "A", description: "Audits the budgeting and planning process." },
+    { name: "Management Information System", part: "A", description: "Checks the reliability of management reporting." },
+    { name: "IT Internal Controls", part: "A", description: "A deep dive into technology security, access, and operations." },
+    { name: "Standards on Internal Audit (SIAs) Compliances", part: "A", description: "Ensures adherence to professional standards." },
+    { name: "Legal and Statutory Compliances", part: "A", description: "Verifies compliance with applicable laws." },
+    { name: "Operational and Administrative Expenses", part: "A", description: "Audits general business expenditures." },
+    { name: "Government Grants", part: "A", description: "Covers the receipt and utilization of grants." },
+    { name: "Patents and Copyright", part: "A", description: "Manages intellectual property risks." },
+    { name: "Business Continuity Plan", part: "A", description: "Assesses disaster recovery and continuity planning." },
+    { name: "Related Party Transactions", part: "A", description: "Reviews transactions with related entities for compliance." },
+    { name: "Audit Conclusion", part: "A", description: "The final wrap-up and reporting checklist." },
+    // Part B
+    { name: "Order to Cash – Manufacturing", part: "B", description: "The complete sales cycle for goods." },
+    { name: "Order to Cash – Services", part: "B", description: "The sales cycle for service-based businesses." },
+    { name: "Purchase to Pay – Direct Material", part: "B", description: "Procurement process for raw materials." },
+    { name: "Purchase to Pay – Indirect Material and Services", part: "B", description: "Procurement for operational supplies and services." },
+    { name: "Purchase to Pay – Capital Items", part: "B", description: "The process for acquiring large capital assets." },
+    { name: "Fixed Assets and Capex", part: "B", description: "Management of fixed assets and capital expenditures." },
+    { name: "Project Management", part: "B", description: "Oversight for large-scale internal projects." },
+    { name: "Inventory Management", part: "B", description: "Covers warehousing, stock levels, and verification." },
+    { name: "Cash and Bank", part: "B", description: "Management of cash transactions and bank reconciliations." },
+    { name: "Treasury Management", part: "B", description: "Audits investments, hedging, and fund management." },
+    { name: "Borrowings", part: "B", description: "Covers loans and debt management." },
+    { name: "Direct and Indirect Taxation & GST", part: "B", description: "Tax compliance for all major areas." },
+    { name: "Corporate Social Responsibility", part: "B", description: "Audits CSR committee functions and expenditures." },
+    { name: "Human Resources – Hire to Retire", part: "B", description: "The complete employee lifecycle." },
+    { name: "Human Resources – Payroll Management", part: "B", description: "Focuses on payroll processing and compliance." },
+    { name: "Foreign Currency Transactions", part: "B", description: "Manages risks related to forex." },
+];
+
+
 const seedDatabase = async () => {
   console.log('Starting database seed...');
   try {
@@ -58,7 +95,8 @@ const seedDatabase = async () => {
         'timesheets',
         'chatMessages',
         'communications',
-        'leaveRequests'
+        'leaveRequests',
+        'auditTemplates',
     ];
 
     console.log('Deleting existing data...');
@@ -94,6 +132,12 @@ const seedDatabase = async () => {
       const docRef = db.collection('engagementTypes').doc(type.id);
       batch.set(docRef, type);
     });
+    
+    console.log('Seeding audit templates...');
+    auditTemplates.forEach((template) => {
+        const docRef = db.collection('auditTemplates').doc();
+        batch.set(docRef, { ...template, id: docRef.id });
+    });
 
     console.log('Seeding client categories...');
     clientCategories.forEach((category) => {
@@ -118,7 +162,7 @@ const seedDatabase = async () => {
         const clientRefData = clientRefs[engagement.clientId];
         if (clientRefData) {
           const engagementDocRef = db.collection('engagements').doc();
-          const newEngagementData = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
+          const newEngagementData = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id, engagementCategory: 'External' as const };
           batch.set(engagementDocRef, newEngagementData);
 
           const timesheetPlaceholder = Object.keys(engagementIdMapForTimesheet).find(
