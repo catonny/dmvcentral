@@ -12,10 +12,10 @@ interface DepartmentColumnProps {
     clientMap: Map<string, Client>;
     employeeMap: Map<string, Employee>;
     onRemoveUser: (engagementId: string, userIdToRemove: string) => void;
-    onLogTime: (engagement: Engagement) => void;
+    onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function DepartmentColumn({ department, employees, engagements, clientMap, employeeMap, onRemoveUser, onLogTime }: DepartmentColumnProps) {
+export function DepartmentColumn({ department, employees, engagements, clientMap, employeeMap, onRemoveUser, onScheduleMeeting }: DepartmentColumnProps) {
     // Sort employees within the department, if needed
     const sortedEmployees = employees.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -34,7 +34,7 @@ export function DepartmentColumn({ department, employees, engagements, clientMap
                         clientMap={clientMap}
                         employeeMap={employeeMap}
                         onRemoveUser={onRemoveUser}
-                        onLogTime={onLogTime}
+                        onScheduleMeeting={onScheduleMeeting}
                     />
                 ))}
             </div>

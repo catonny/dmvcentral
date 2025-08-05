@@ -1,16 +1,17 @@
+
 "use client";
 
 import * as React from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Engagement, Employee, Department, Client, Task } from "@/lib/data";
+import { Engagement, Employee, Department, Client, Task, CalendarEvent } from "@/lib/data";
 import { DepartmentColumn } from "./department-column";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { EngagementCard } from "./engagement-card";
-import { doc, updateDoc, writeBatch, collection } from "firebase/firestore";
+import { doc, updateDoc, writeBatch, collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { LogTimeDialog } from "./log-time-dialog";
+import { EventDialog } from "../calendar/event-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +36,8 @@ interface WorkspaceBoardProps {
 export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, clientMap, currentUser }: WorkspaceBoardProps) {
     const { toast } = useToast();
     const [activeEngagement, setActiveEngagement] = React.useState<Engagement | null>(null);
-    const [isLogTimeDialogOpen, setIsLogTimeDialogOpen] = React.useState(false);
-    const [engagementToLog, setEngagementToLog] = React.useState<Engagement | null>(null);
+    const [isEventDialogOpen, setIsEventDialogOpen] = React.useState(false);
+    const [eventDialogInfo, setEventDialogInfo] = React.useState<any>(null);
     
     const [isPromptOpen, setIsPromptOpen] = React.useState(false);
     const activityTimer = React.useRef<NodeJS.Timeout | null>(null);
@@ -159,10 +160,40 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         }
     };
 
-    const handleOpenLogTimeDialog = (engagement: Engagement) => {
-        setEngagementToLog(engagement);
-        setIsLogTimeDialogOpen(true);
-    }
+    const handleOpenScheduleDialog = (engagement: Engagement) => {
+        const now = new Date();
+        setEventDialogInfo({
+            title: `Meeting: ${engagement.remarks}`,
+            startStr: now.toISOString(),
+            endStr: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour later
+            allDay: false,
+            attendees: engagement.assignedTo,
+            engagementId: engagement.id,
+        });
+        setIsEventDialogOpen(true);
+    };
+
+    const handleSaveEvent = async (eventData: Partial<CalendarEvent>) => {
+        if (!currentUser) {
+            toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+            return;
+        }
+        try {
+            if (eventData.id) {
+                // Not supporting edits from here for now
+            } else {
+                await addDoc(collection(db, "events"), {
+                    ...eventData,
+                    createdBy: currentUser.id,
+                });
+                toast({ title: "Success", description: "Meeting scheduled on the team calendar." });
+            }
+            setIsEventDialogOpen(false);
+        } catch (error) {
+            console.error("Error saving event:", error);
+            toast({ title: "Error", description: "Failed to schedule meeting.", variant: "destructive" });
+        }
+    };
     
     const handleClosePrompt = () => {
         setIsPromptOpen(false);
@@ -192,7 +223,7 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                             clientMap={clientMap}
                             employeeMap={employeeMap}
                             onRemoveUser={handleRemoveUser}
-                            onLogTime={handleOpenLogTimeDialog}
+                            onScheduleMeeting={handleOpenScheduleDialog}
                         />
                     ))}
                 </div>
@@ -205,14 +236,17 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                         client={clientMap.get(activeEngagement.clientId)}
                         employeeMap={employeeMap}
                         onRemoveUser={() => {}} // No action during drag
-                        onLogTime={() => {}}
+                        onScheduleMeeting={() => {}}
                     />
                 ) : null}
             </DragOverlay>
-            <LogTimeDialog
-                isOpen={isLogTimeDialogOpen}
-                onClose={() => setIsLogTimeDialogOpen(false)}
-                engagement={engagementToLog}
+            <EventDialog
+                isOpen={isEventDialogOpen}
+                onClose={() => setIsEventDialogOpen(false)}
+                onSave={handleSaveEvent}
+                onDelete={() => {}} // Not implemented from here
+                eventInfo={eventDialogInfo}
+                employees={allEmployees}
                 currentUser={currentUser}
             />
             <AlertDialog open={isPromptOpen} onOpenChange={setIsPromptOpen}>

@@ -48,6 +48,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         allDay: eventInfo.allDay || false,
         description: eventInfo.description || "",
         attendees: eventInfo.attendees || (isNew && currentUser ? [currentUser.uid] : []),
+        location: eventInfo.location || "",
+        engagementId: eventInfo.engagementId || undefined,
       });
     }
   }, [eventInfo, currentUser]);
@@ -102,6 +104,16 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              disabled={!canEdit}
+            />
+          </div>
+           <div className="grid gap-2">
+            <Label htmlFor="location">Location / Link</Label>
+            <Input
+              id="location"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="e.g., Google Meet link or room number"
               disabled={!canEdit}
             />
           </div>

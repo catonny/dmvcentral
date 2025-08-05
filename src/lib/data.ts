@@ -139,6 +139,8 @@ export interface CalendarEvent {
   createdBy: string; // Employee ID
   description?: string;
   attendees?: string[]; // Array of Employee IDs
+  location?: string; // For meeting links
+  engagementId?: string; // To link back to an engagement
 }
 
 export type FeatureName = 
