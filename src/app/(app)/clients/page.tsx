@@ -81,7 +81,7 @@ export default function ClientsPage() {
             title: "Client Management",
             description: "View, add, and manage all your firm's clients.",
             component: ClientManager,
-            defaultLayout: { x: 0, y: 0, w: 12, h: 16 }
+            defaultLayout: { x: 0, y: 0, w: 12, h: 18 } // Increased height
         },
     ];
 
@@ -141,13 +141,11 @@ export default function ClientsPage() {
                     <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-colors widget-drag-handle">
                         <GripVertical className="h-5 w-5" />
                     </div>
-                    <div className="p-4 flex-grow flex flex-col">
-                        <div className="flex items-center justify-between space-y-2 mb-4">
-                            <div>
-                                <h2 className="text-3xl font-bold tracking-tight font-headline">{widget.title}</h2>
-                                <p className="text-muted-foreground">{widget.description}</p>
-                            </div>
-                        </div>
+                    <div className="p-4 pb-0 flex-shrink-0">
+                      <h2 className="text-3xl font-bold tracking-tight font-headline">{widget.title}</h2>
+                      <p className="text-muted-foreground">{widget.description}</p>
+                    </div>
+                    <div className="p-4 flex-grow flex flex-col min-h-0">
                         <widget.component {...getWidgetProps(widget.id)} />
                     </div>
                      <div className="react-resizable-handle absolute bottom-0 right-0 cursor-se-resize w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -200,8 +200,8 @@ export function DataTable<TData extends Client, TValue>({
 
   return (
     <DndProvider backend={HTML5Backend}>
-    <Card className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between py-4">
         <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -258,8 +258,8 @@ export function DataTable<TData extends Client, TValue>({
           Add Client
         </Button>
       </div>
-      <CardContent className="p-0 flex-grow">
-        <ScrollArea className="w-full whitespace-nowrap h-[calc(100vh-28rem)]">
+      <div className="rounded-md border flex-grow overflow-hidden relative">
+        <ScrollArea className="w-full h-full">
             <Table style={{width: table.getCenterTotalSize()}}>
             <TableHeader className="sticky top-0 bg-muted z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -294,11 +294,10 @@ export function DataTable<TData extends Client, TValue>({
                 )}
             </TableBody>
             </Table>
-            <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
-      </CardContent>
-      <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
+      </div>
+      <div className="flex items-center justify-between space-x-2 py-4 flex-shrink-0">
         <div className="flex-1 text-sm text-muted-foreground">
            {selectedRowCount > 0 ? (
                `${selectedRowCount} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
@@ -345,7 +344,7 @@ export function DataTable<TData extends Client, TValue>({
             </Button>
         </div>
       </div>
-    </Card>
+    </div>
     </DndProvider>
   )
 }
