@@ -198,6 +198,7 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                         ))}
                         </TableBody>
                     </Table>
+                    <ScrollBar orientation="vertical" />
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>

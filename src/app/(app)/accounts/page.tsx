@@ -198,6 +198,7 @@ export default function AccountsPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <ScrollBar orientation="vertical" />
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>

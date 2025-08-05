@@ -119,6 +119,7 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
                 )}
             </TableBody>
             </Table>
+            <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </CardContent>
@@ -168,5 +169,3 @@ export function ReportsDataTable<TData extends ReportsEngagement, TValue>({
     </Card>
   )
 }
-
-    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -108,6 +109,7 @@ export function ViewMasterData({ onBack }: { onBack: () => void }) {
                         ))}
                         </TableBody>
                     </Table>
+                    <ScrollBar orientation="vertical" />
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>

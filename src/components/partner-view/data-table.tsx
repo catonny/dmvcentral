@@ -119,6 +119,7 @@ export function PartnerViewDataTable<TData extends PartnerViewEngagement, TValue
                 )}
             </TableBody>
             </Table>
+            <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </CardContent>

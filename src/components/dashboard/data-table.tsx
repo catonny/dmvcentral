@@ -294,6 +294,7 @@ export function DataTable<TData extends Client, TValue>({
                 )}
             </TableBody>
             </Table>
+            <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </CardContent>
