@@ -174,9 +174,9 @@ function LoginPageContent() {
           DMV Central
         </div>
         <div className="space-y-4">
-            <h1 className="text-4xl font-bold font-headline">Davis Martin & Varghese</h1>
+            <h1 className="text-4xl font-bold font-headline">Davis Martin & Varghese Chartered Accountants</h1>
         </div>
-        <p className="text-sm text-primary-foreground/60">&copy; 2024 Davis Martin & Varghese Chartered Accountants. All Rights Reserved.</p>
+        <p className="text-sm text-primary-foreground/60">&copy; {new Date().getFullYear()} Davis Martin & Varghese Chartered Accountants. All Rights Reserved.</p>
       </div>
       <div className="flex items-center justify-center p-4">
         <Card className="w-full max-w-sm">
