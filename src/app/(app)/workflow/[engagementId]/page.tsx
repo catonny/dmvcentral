@@ -174,7 +174,6 @@ export default function EngagementWorkflowPage() {
         setEngagement({ id: doc.id, ...doc.data() } as Engagement);
       } else {
         setEngagement(null);
-        notFound();
       }
     }, (error) => {
       console.error("Error fetching engagement:", error);
@@ -205,7 +204,9 @@ export default function EngagementWorkflowPage() {
           });
           return () => clientUnsub();
       } else if (engagement === null) {
-          setLoading(false); // Handle case where engagement is not found
+          // This case handles when the engagement doc listener returns null.
+          // We set loading to false to trigger the notFound() call below.
+          setLoading(false);
       }
   }, [engagement]);
 
