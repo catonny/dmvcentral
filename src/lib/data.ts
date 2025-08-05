@@ -119,6 +119,17 @@ export interface Task {
     assignedTo: string; // Corresponds to Employee.id
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string; // ISO8601 string
+  end: string; // ISO8601 string
+  allDay: boolean;
+  createdBy: string; // Employee ID
+  description?: string;
+  attendees?: string[]; // Array of Employee IDs
+}
+
 export type FeatureName = 
     | "reports" 
     | "accounts" 
@@ -128,12 +139,14 @@ export type FeatureName =
     | "workflow-editor" 
     | "settings-data-management" 
     | "settings-access-control"
-    | "timesheet";
+    | "timesheet"
+    | "calendar";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
     { id: "accounts", name: "Accounts", description: "Access the billing and collections dashboard." },
     { id: "timesheet", name: "Timesheet", description: "Access to view and manage timesheets" },
+    { id: "calendar", name: "Calendar", description: "Access the shared team calendar." },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
     { id: "employee-management", name: "Employee Management", description: "Manage employee roles and departments." },
