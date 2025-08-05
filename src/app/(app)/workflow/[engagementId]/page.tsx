@@ -5,7 +5,7 @@ import * as React from "react";
 import { doc, getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, ChatMessage } from "@/lib/data";
 import { db } from "@/lib/firebase";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckSquare, MessageSquare, Send } from "lucide-react";
@@ -154,8 +154,9 @@ function EngagementChat({ engagementId }: { engagementId: string }) {
     );
 }
 
-export default function EngagementWorkflowPage({ params }: { params: { engagementId: string } }) {
-  const engagementId = params.engagementId;
+export default function EngagementWorkflowPage() {
+  const params = useParams();
+  const engagementId = params.engagementId as string;
   const [engagement, setEngagement] = React.useState<Engagement | null>(null);
   const [client, setClient] = React.useState<Client | null>(null);
   const [tasks, setTasks] = React.useState<Task[]>([]);

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail, Phone, History } from "lucide-react";
@@ -28,8 +28,9 @@ const statusColors: { [key: string]: string } = {
   "Cancelled": "bg-red-200 text-red-800",
 };
 
-export default function ClientWorkspacePage({ params }: { params: { clientId: string } }) {
-  const clientId = params.clientId;
+export default function ClientWorkspacePage() {
+  const params = useParams();
+  const clientId = params.clientId as string;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
