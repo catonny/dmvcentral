@@ -16,6 +16,10 @@ export interface Employee {
   designation?: string;
   avatar: string;
   role: EmployeeRole[];
+  // New fields for profile
+  linkedin?: string;
+  emergencyContact?: string;
+  bloodGroup?: string;
 }
 
 export interface Client {
@@ -200,7 +204,7 @@ export const indianStatesAndUTs: string[] = [
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
 export const employees: Employee[] = [
-  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"] },
+  { id: "S001", name: "Tonny Varghese", email: "ca.tonnyvarghese@gmail.com", designation: "Founder & CEO", avatar: "https://placehold.co/40x40.png", role: ["Admin", "Partner"], linkedin: "https://linkedin.com/in/tonnyv", emergencyContact: "+919876543210", bloodGroup: "O+" },
   { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager"] },
   { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"] },
   { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"] },

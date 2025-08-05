@@ -3,7 +3,7 @@
 
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
-import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer } from "lucide-react";
+import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
@@ -168,6 +168,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'accounts', href: '/accounts', icon: Receipt, tooltip: 'Accounts', label: 'Accounts', condition: checkPermission('accounts') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
+        { id: 'profile', href: '/profile', icon: UserIcon, tooltip: 'My Profile', label: 'My Profile', condition: true },
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
         { id: 'bulk-import', href: '/bulk-import', icon: UploadCloud, tooltip: 'Bulk Import', label: 'Bulk Import', condition: checkPermission('bulk-import') },
         { id: 'settings', href: '/settings', icon: Settings, tooltip: 'Settings', label: 'Settings', condition: checkPermission('settings-data-management') || checkPermission('settings-access-control') }

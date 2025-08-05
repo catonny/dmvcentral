@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import type { Employee } from "@/lib/data";
+import Link from "next/link";
 
 
 export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | null }) {
@@ -63,9 +64,11 @@ export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | nul
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <DropdownMenuItem asChild>
+            <Link href="/profile">
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
