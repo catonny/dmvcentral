@@ -3,7 +3,7 @@
 
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
-import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer, User as UserIcon, Calendar } from "lucide-react";
+import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer, User as UserIcon, Calendar, Search } from "lucide-react";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
@@ -12,12 +12,14 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarMenu, SidebarMenuItem,
 import { ClockWidget } from "@/components/clock-widget";
 import { collection, query, where, getDocs, onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Employee, Permission, FeatureName } from "@/lib/data";
+import type { Employee, Permission, FeatureName, Client, Engagement, EngagementType } from "@/lib/data";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ClientOnly } from "./client-only";
+import { Button } from "./ui/button";
+import { UniversalSearch } from "./universal-search";
 
 interface NavItem {
   id: string;
@@ -64,6 +66,10 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isPinned, setIsPinned] = useState(true);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allEngagements, setAllEngagements] = useState<Engagement[]>([]);
+  const [allEngagementTypes, setAllEngagementTypes] = useState<EngagementType[]>([]);
+
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = useState<Employee | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -72,6 +78,8 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   
   const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null);
   
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+
   // Super admin status depends on role selected at login
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -90,52 +98,60 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   
   // Effect to fetch all employees for impersonation dropdown
   useEffect(() => {
-    if (isSuperAdmin) {
-        const unsub = onSnapshot(collection(db, "employees"), (snapshot) => {
-            setAllEmployees(snapshot.docs.map(d => ({id: d.id, ...d.data()} as Employee)));
-        });
-        return () => unsub();
-    }
-  }, [isSuperAdmin]);
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+        setAllEmployees(snapshot.docs.map(d => ({id: d.id, ...d.data()} as Employee)));
+    });
+    
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+        setAllClients(snapshot.docs.map(d => ({id: d.id, ...d.data()} as Client)));
+    });
+    
+    const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
+        setAllEngagements(snapshot.docs.map(d => ({id: d.id, ...d.data()} as Engagement)));
+    });
+
+    const unsubEngagementTypes = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
+        setAllEngagementTypes(snapshot.docs.map(d => ({id: d.id, ...d.data()} as EngagementType)));
+    });
+
+    return () => {
+      unsubEmployees();
+      unsubClients();
+      unsubEngagements();
+      unsubEngagementTypes();
+    };
+  }, []);
 
 
   useEffect(() => {
     if (user) {
-      const fetchEmployeeProfile = async () => {
-        setProfileLoading(true);
+      setProfileLoading(true);
 
-        const targetEmail = impersonatedUserId 
-            ? allEmployees.find(e => e.id === impersonatedUserId)?.email
-            : user.email;
+      const targetEmail = impersonatedUserId 
+          ? allEmployees.find(e => e.id === impersonatedUserId)?.email
+          : user.email;
 
-        // If Developer mode is active, don't fetch a profile for the developer themselves
-        // unless they are impersonating someone.
-        if (isSuperAdmin && !impersonatedUserId) {
-            setCurrentUserEmployeeProfile({
-                id: 'super-admin',
-                name: 'Developer',
-                email: user.email!,
-                role: ['Admin'], // Give all permissions
-                avatar: ''
-            });
-        } else if (targetEmail) {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", targetEmail));
-            const employeeSnapshot = await getDocs(employeeQuery);
+      if (isSuperAdmin && !impersonatedUserId) {
+          setCurrentUserEmployeeProfile({
+              id: 'super-admin',
+              name: 'Developer',
+              email: user.email!,
+              role: ['Admin'],
+              avatar: ''
+          });
+      } else if (targetEmail) {
+          const employeeQuery = query(collection(db, "employees"), where("email", "==", targetEmail));
+          getDocs(employeeQuery).then(employeeSnapshot => {
             if (!employeeSnapshot.empty) {
               const userEmployeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
               setCurrentUserEmployeeProfile(userEmployeeProfile);
             } else {
                  setCurrentUserEmployeeProfile(null);
             }
-        }
-        
-        setProfileLoading(false);
-      };
-      
-      // We need allEmployees list to be ready before we can impersonate
-      if (!isSuperAdmin || (isSuperAdmin && allEmployees.length > 0)) {
-          fetchEmployeeProfile();
+          });
       }
+      
+      setProfileLoading(false);
       
       const permissionsUnsub = onSnapshot(collection(db, "permissions"), (snapshot) => {
           const permsData = snapshot.docs.map(doc => ({ ...doc.data() } as Permission));
@@ -229,6 +245,18 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   const currentDisplayName = impersonatedUserId 
     ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
     : user?.displayName?.split(' ')[0] || 'there';
+
+  // Universal Search Keyboard Shortcut
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setIsSearchOpen((open) => !open)
+      }
+    }
+    document.addEventListener("keydown", down)
+    return () => document.removeEventListener("keydown", down)
+  }, [])
   
   return (
       <SidebarProvider isPinned={isPinned}>
@@ -260,15 +288,24 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
           </Sidebar>
           <SidebarInset>
             <header className="flex items-center justify-between gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
-                <div className="flex flex-col">
-                     <h2 className="text-2xl font-bold tracking-tight text-white">
-                        Hi, {currentDisplayName}!
-                    </h2>
-                    <p className="text-muted-foreground text-sm">
-                      {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
-                    </p>
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                        <h2 className="text-2xl font-bold tracking-tight text-white">
+                            Hi, {currentDisplayName}!
+                        </h2>
+                        <p className="text-muted-foreground text-sm">
+                        {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-4">
+                   <Button variant="outline" className="gap-2" onClick={() => setIsSearchOpen(true)}>
+                        <Search className="h-4 w-4" />
+                        Search...
+                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                           <span className="text-xs">⌘</span>K
+                        </kbd>
+                   </Button>
                   {isSuperAdmin && (
                       <div className="flex items-center gap-2 text-white">
                           <UserCog className="h-5 w-5" />
@@ -292,6 +329,15 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
             <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
                 {children}
             </main>
+             <UniversalSearch 
+                open={isSearchOpen}
+                onOpenChange={setIsSearchOpen}
+                clients={allClients}
+                engagements={allEngagements}
+                engagementTypes={allEngagementTypes}
+                employees={allEmployees}
+                currentUser={currentUserEmployeeProfile}
+             />
           </SidebarInset>
     </SidebarProvider>
   );
