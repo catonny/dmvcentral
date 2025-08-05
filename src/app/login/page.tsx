@@ -2,18 +2,16 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth, db } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DatabaseZap, HardHat, Briefcase, Loader2 } from "lucide-react";
+import { Loader2, Building } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { ClientOnly } from "@/components/client-only";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -35,12 +33,12 @@ function RoleSelectionDialog({ onSelectRole }: { onSelectRole: (role: 'developer
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex justify-around py-4">
-                    <Button variant="outline" className="flex flex-col h-24 w-32 gap-2" onClick={() => onSelectRole('developer')}>
-                        <HardHat className="h-8 w-8" />
+                     <Button variant="outline" className="flex flex-col h-24 w-32 gap-2" onClick={() => onSelectRole('developer')}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                         <span>Developer</span>
                     </Button>
                     <Button variant="outline" className="flex flex-col h-24 w-32 gap-2" onClick={() => onSelectRole('employee')}>
-                        <Briefcase className="h-8 w-8" />
+                        <Building className="h-8 w-8" />
                         <span>Partner</span>
                     </Button>
                 </div>
@@ -59,19 +57,16 @@ function LoginPageContent() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // If role is already selected, proceed
                 if (sessionStorage.getItem('userRole')) {
                     router.push('/dashboard');
                     return;
                 }
                 
-                // If it's the special user and no role is selected, wait for dialog
                 if (user.email === 'ca.tonnyvarghese@gmail.com') {
-                    setLoading(false); // Stop loading to allow dialog to show
+                    setLoading(false);
                     return;
                 }
 
-                // Final check for other users
                 const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
                 const employeeSnapshot = await getDocs(employeeQuery);
                 if (employeeSnapshot.empty) {
@@ -101,7 +96,6 @@ function LoginPageContent() {
             
             if (user.email === 'ca.tonnyvarghese@gmail.com') {
                 setShowRoleDialog(true);
-                // Don't redirect yet, wait for role selection
                 return;
             }
 
@@ -115,8 +109,6 @@ function LoginPageContent() {
                     description: "You are not authorized to access this application.",
                     variant: "destructive",
                 });
-            } else {
-                // The onAuthStateChanged listener will handle the redirect for regular employees
             }
             
         } catch (error) {
@@ -138,7 +130,11 @@ function LoginPageContent() {
     };
 
     if (loading) {
-        return <div className="flex h-screen w-full items-center justify-center bg-gray-900">Loading...</div>;
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
     }
     
     if (showRoleDialog) {
@@ -146,42 +142,73 @@ function LoginPageContent() {
     }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4 items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">DMV Central</h1>
-          </div>
-          <CardTitle className="text-2xl font-headline text-white">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to access your dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningIn}>
-                {isSigningIn ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifying...
-                    </>
-                ) : (
-                    <>
-                        <GoogleIcon />
-                         Sign in with Google
-                    </>
-                )}
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-2">
+      <div className="hidden lg:flex flex-col items-start justify-between bg-primary p-12 text-primary-foreground">
+        <div className="flex items-center gap-2 text-xl font-bold">
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 36 36"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect
+              width="36"
+              height="36"
+              rx="8"
+              fill="white"
+            />
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="middle"
+              textAnchor="middle"
+              fill="hsl(var(--primary))"
+              fontSize="14"
+              fontWeight="bold"
+              fontFamily="sans-serif"
+            >
+              DMV
+            </text>
+          </svg>
+          DMV Central
+        </div>
+        <div className="space-y-4">
+            <h1 className="text-4xl font-bold font-headline">Your Partner in Financial Excellence.</h1>
+            <p className="text-primary-foreground/80">
+                This is the internal workspace for the DMV & Associates team. Log in to manage clients, track engagements, and collaborate seamlessly.
+            </p>
+        </div>
+        <p className="text-sm text-primary-foreground/60">&copy; 2024 DMV & Associates. All Rights Reserved.</p>
+      </div>
+      <div className="flex items-center justify-center p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
+            <CardDescription>
+              Sign in with your official Google account to access the dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningIn}>
+              {isSigningIn ? (
+                  <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                  </>
+              ) : (
+                  <>
+                      <GoogleIcon />
+                       Sign in with Google
+                  </>
+              )}
             </Button>
-        </CardContent>
-        <CardFooter className="flex-col gap-4">
-          <p className="w-full text-center text-sm text-muted-foreground">
-            &copy; 2024 DMV Central. All rights reserved.
-          </p>
-        </CardFooter>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
-
 
 export default function LoginPage() {
     return (
@@ -190,3 +217,5 @@ export default function LoginPage() {
         </ClientOnly>
     )
 }
+
+    
