@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import type { Client, Engagement, EngagementType, Employee, Department, Task, TaskStatus } from "@/lib/data";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { doc, updateDoc, collection, getDocs, query, addDoc, where, writeBatch, serverTimestamp, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";

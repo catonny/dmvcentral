@@ -242,7 +242,7 @@ export default function EngagementWorkflowPage({ params }: { params: { engagemen
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Button asChild variant="outline" size="sm">
-            <Link href="/workflow">
+            <Link href="/workspace">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to My Engagements
             </Link>

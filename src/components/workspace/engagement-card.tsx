@@ -33,58 +33,50 @@ export function EngagementCard({ engagement, client, employeeMap, onRemoveUser, 
     };
 
     return (
-        <Card ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none bg-background hover:shadow-md flex flex-col">
-            <CardHeader className="p-3 pb-2">
-                <CardTitle className="text-sm font-semibold leading-tight">{engagement.remarks}</CardTitle>
-                 <CardDescription className="text-xs">
-                    Client: 
-                     <Button variant="link" asChild className="p-0 h-auto font-normal text-xs ml-1">
-                        <Link href={`/workspace/${engagement.clientId}`}>
-                            {client?.Name || "..."}
-                        </Link>
-                    </Button>
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 pt-0 flex-grow">
-                 <div className="flex items-center -space-x-2">
-                    <TooltipProvider>
-                        {engagement.assignedTo.map(id => {
-                            const employee = employeeMap.get(id);
-                            if (!employee) return null;
-                            return (
-                                <Tooltip key={id}>
-                                    <TooltipTrigger asChild>
-                                         <div className="relative group">
-                                            <Avatar className="h-7 w-7 border-2 border-background">
-                                                <AvatarImage src={employee.avatar} alt={employee.name} />
-                                                <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // prevent dnd listeners from firing
-                                                    onRemoveUser(engagement.id, id);
-                                                }}
-                                                className="absolute -top-1 -right-1 z-10 h-4 w-4 bg-muted-foreground text-background rounded-full items-center justify-center opacity-0 group-hover:opacity-100 hidden group-hover:flex transition-opacity"
-                                            >
-                                                <XIcon className="h-3 w-3" />
-                                            </button>
-                                         </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{employee.name}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            )
-                        })}
-                    </TooltipProvider>
-                </div>
-            </CardContent>
-            <CardFooter className="p-3 pt-0">
-                <Button variant="outline" size="sm" className="w-full" onClick={() => onLogTime(engagement)}>
-                    <Clock className="mr-2 h-3 w-3" />
-                    Log Time
-                </Button>
-            </CardFooter>
-        </Card>
+         <Link href={`/workflow/${engagement.id}`} ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <Card className="touch-none bg-background hover:shadow-md flex flex-col hover:border-primary/80">
+                <CardHeader className="p-3 pb-2">
+                    <CardTitle className="text-sm font-semibold leading-tight">{engagement.remarks}</CardTitle>
+                     <CardDescription className="text-xs">
+                        {client?.Name || "..."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-3 pt-0 flex-grow">
+                     <div className="flex items-center -space-x-2">
+                        <TooltipProvider>
+                            {engagement.assignedTo.map(id => {
+                                const employee = employeeMap.get(id);
+                                if (!employee) return null;
+                                return (
+                                    <Tooltip key={id}>
+                                        <TooltipTrigger asChild>
+                                             <div className="relative group">
+                                                <Avatar className="h-7 w-7 border-2 border-background">
+                                                    <AvatarImage src={employee.avatar} alt={employee.name} />
+                                                    <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation(); // prevent dnd listeners from firing
+                                                        onRemoveUser(engagement.id, id);
+                                                    }}
+                                                    className="absolute -top-1 -right-1 z-10 h-4 w-4 bg-muted-foreground text-background rounded-full items-center justify-center opacity-0 group-hover:opacity-100 hidden group-hover:flex transition-opacity"
+                                                >
+                                                    <XIcon className="h-3 w-3" />
+                                                </button>
+                                             </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{employee.name}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )
+                            })}
+                        </TooltipProvider>
+                    </div>
+                </CardContent>
+            </Card>
+        </Link>
     );
 }
