@@ -64,8 +64,7 @@ export default function ReportsPage() {
     React.useEffect(() => {
         if (!hasAccess) return;
 
-        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
-        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
+        const engagementsQuery = query(collection(db, "engagements"));
 
         const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
             let employeeMapInternal: Map<string, Employee> = new Map();
