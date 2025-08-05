@@ -119,6 +119,17 @@ export interface Task {
     assignedTo: string; // Corresponds to Employee.id
 }
 
+export interface ChatMessage {
+  id: string;
+  engagementId: string;
+  senderId: string; // Employee ID
+  senderName: string;
+  senderAvatar: string;
+  text: string;
+  timestamp: string; // ISO 8601
+}
+
+
 export interface CalendarEvent {
   id: string;
   title: string;

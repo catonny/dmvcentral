@@ -2,13 +2,13 @@
 "use client";
 
 import * as React from "react";
-import { doc, getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc } from "firebase/firestore";
-import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus } from "@/lib/data";
+import { doc, getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, ChatMessage } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckSquare, MessageSquare } from "lucide-react";
+import { ArrowLeft, CheckSquare, MessageSquare, Send } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -16,6 +16,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 
 function EngagementNotes({ engagement, onNotesChange }: { engagement: Engagement, onNotesChange: (notes: string) => void }) {
     const [notes, setNotes] = React.useState(engagement.notes || "");
@@ -38,6 +42,115 @@ function EngagementNotes({ engagement, onNotesChange }: { engagement: Engagement
             onChange={(e) => setNotes(e.target.value)}
             className="mt-2 min-h-[150px]"
         />
+    );
+}
+
+function EngagementChat({ engagementId }: { engagementId: string }) {
+    const { user } = useAuth();
+    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+    const [newMessage, setNewMessage] = React.useState("");
+    const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
+    const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (user) {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            getDocs(employeeQuery).then(snapshot => {
+                if (!snapshot.empty) {
+                    setCurrentUserEmployee({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee);
+                }
+            });
+        }
+    }, [user]);
+
+    React.useEffect(() => {
+        const q = query(collection(db, "chatMessages"), where("engagementId", "==", engagementId), orderBy("timestamp", "asc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setMessages(snapshot.docs.map(doc => doc.data() as ChatMessage));
+        });
+        return () => unsubscribe();
+    }, [engagementId]);
+    
+    React.useEffect(() => {
+        // Auto-scroll to bottom
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !currentUserEmployee) return;
+
+        const messageData: Omit<ChatMessage, 'id'> = {
+            engagementId,
+            senderId: currentUserEmployee.id,
+            senderName: currentUserEmployee.name,
+            senderAvatar: currentUserEmployee.avatar,
+            text: newMessage.trim(),
+            timestamp: new Date().toISOString(),
+        };
+
+        try {
+            const docRef = doc(collection(db, "chatMessages"));
+            await addDoc(collection(db, "chatMessages"), {...messageData, id: docRef.id});
+            setNewMessage("");
+        } catch (error) {
+            console.error("Error sending message:", error);
+        }
+    };
+
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Team Chat
+                </CardTitle>
+                <CardDescription>Real-time discussion about this engagement.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow overflow-hidden">
+                <ScrollArea className="h-[400px] pr-4" ref={scrollAreaRef}>
+                    <div className="space-y-4">
+                        {messages.map(msg => (
+                            <div key={msg.id} className={cn("flex items-start gap-3", msg.senderId === currentUserEmployee?.id && "justify-end")}>
+                                {msg.senderId !== currentUserEmployee?.id && (
+                                     <Avatar className="h-8 w-8">
+                                        <AvatarImage src={msg.senderAvatar} />
+                                        <AvatarFallback>{msg.senderName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                )}
+                                <div className={cn("max-w-xs rounded-lg p-3 text-sm", msg.senderId === currentUserEmployee?.id ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                                     <p className="font-bold text-xs mb-1">{msg.senderName}</p>
+                                    <p>{msg.text}</p>
+                                    <p className="text-xs opacity-70 mt-2 text-right">{format(parseISO(msg.timestamp), 'p')}</p>
+                                </div>
+                                 {msg.senderId === currentUserEmployee?.id && (
+                                     <Avatar className="h-8 w-8">
+                                        <AvatarImage src={msg.senderAvatar} />
+                                        <AvatarFallback>{msg.senderName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+             <CardFooter className="pt-4 border-t">
+                <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
+                    <Input
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        autoComplete="off"
+                    />
+                    <Button type="submit" size="icon" disabled={!newMessage.trim()}>
+                        <Send className="h-4 w-4" />
+                        <span className="sr-only">Send</span>
+                    </Button>
+                </form>
+            </CardFooter>
+        </Card>
     );
 }
 
@@ -145,8 +258,8 @@ export default function EngagementWorkflowPage({ params }: { params: { engagemen
         </CardHeader>
       </Card>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-1">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <CheckSquare className="h-5 w-5 text-primary" />
@@ -177,18 +290,9 @@ export default function EngagementWorkflowPage({ params }: { params: { engagemen
                 </div>
             </CardContent>
           </Card>
-          <Card>
-             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Engagement Notes
-                </CardTitle>
-                <CardDescription>Add and view notes for this engagement.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <EngagementNotes engagement={engagement} onNotesChange={handleNotesChange} />
-            </CardContent>
-          </Card>
+           <div className="lg:col-span-2 space-y-6">
+             <EngagementChat engagementId={engagementId} />
+           </div>
       </div>
     </div>
   );
