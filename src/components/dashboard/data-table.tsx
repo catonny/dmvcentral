@@ -200,7 +200,7 @@ export function DataTable<TData extends Client, TValue>({
 
   return (
     <DndProvider backend={HTML5Backend}>
-    <Card>
+    <Card className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -258,10 +258,10 @@ export function DataTable<TData extends Client, TValue>({
           Add Client
         </Button>
       </div>
-      <CardContent className="p-0">
-        <ScrollArea className="w-full whitespace-nowrap">
+      <CardContent className="p-0 flex-grow">
+        <ScrollArea className="w-full whitespace-nowrap h-[calc(100vh-28rem)]">
             <Table style={{width: table.getCenterTotalSize()}}>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-muted z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="border-white/10">
                     {headerGroup.headers.map((header) => (
