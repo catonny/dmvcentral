@@ -3,7 +3,7 @@
 "use client";
 
 import * as React from "react";
-import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, doc } from "firebase/firestore";
+import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, ChatMessage } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
