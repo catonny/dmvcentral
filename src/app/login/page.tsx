@@ -174,12 +174,9 @@ function LoginPageContent() {
           DMV Central
         </div>
         <div className="space-y-4">
-            <h1 className="text-4xl font-bold font-headline">Your Partner in Financial Excellence.</h1>
-            <p className="text-primary-foreground/80">
-                This is the internal workspace for the DMV & Associates team. Log in to manage clients, track engagements, and collaborate seamlessly.
-            </p>
+            <h1 className="text-4xl font-bold font-headline">Davis Martin & Varghese</h1>
         </div>
-        <p className="text-sm text-primary-foreground/60">&copy; 2024 DMV & Associates. All Rights Reserved.</p>
+        <p className="text-sm text-primary-foreground/60">&copy; 2024 Davis Martin & Varghese Chartered Accountants. All Rights Reserved.</p>
       </div>
       <div className="flex items-center justify-center p-4">
         <Card className="w-full max-w-sm">
@@ -217,5 +214,3 @@ export default function LoginPage() {
         </ClientOnly>
     )
 }
-
-    
