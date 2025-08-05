@@ -81,7 +81,10 @@ const seedDatabase = async () => {
     console.log('Seeding clients...');
     clients.forEach((client, index) => {
       const docRef = db.collection('clients').doc();
-      batch.set(docRef, { ...client, id: docRef.id, lastUpdated: new Date().toISOString() });
+      const now = new Date();
+      // Go back 1 to 3 years for creation date
+      const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
+      batch.set(docRef, { ...client, id: docRef.id, createdAt: createdAt, lastUpdated: new Date().toISOString() });
       clientRefs[`client${index + 1}_id_placeholder`] = {id: docRef.id, partnerId: client.partnerId};
     });
 

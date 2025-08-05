@@ -44,6 +44,7 @@ export interface Client {
   'Contact Person Designation'?: string;
   
   // System managed
+  createdAt: string; // ISO 8601 string
   lastUpdated: string;
 }
 
@@ -153,7 +154,8 @@ export type FeatureName =
     | "settings-access-control"
     | "timesheet"
     | "calendar"
-    | "inbox";
+    | "inbox"
+    | "firm-analytics";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
@@ -161,6 +163,7 @@ export const ALL_FEATURES: { id: FeatureName, name: string, description: string 
     { id: "timesheet", name: "Timesheet", description: "Access to view and manage timesheets" },
     { id: "calendar", name: "Calendar", description: "Access the shared team calendar." },
     { id: "inbox", name: "Inbox", description: "View and manage AI-processed client communications." },
+    { id: "firm-analytics", name: "Firm Analytics", description: "View key performance indicators for the firm." },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
     { id: "employee-management", name: "Employee Management", description: "Manage employee roles and departments." },
@@ -501,7 +504,7 @@ export const countries: Country[] = [
     { name: "Zimbabwe", code: "ZW" }
 ];
 
-export const clients: Omit<Client, 'id' | 'lastUpdated'>[] = [
+export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
     {
         Name: "Innovate Inc.",
         PAN: "AABCI1234F",
