@@ -81,7 +81,7 @@ export default function ClientsPage() {
             title: "Client Management",
             description: "View, add, and manage all your firm's clients.",
             component: ClientManager,
-            defaultLayout: { x: 0, y: 0, w: 12, h: 18 } // Increased height
+            defaultLayout: { x: 0, y: 0, w: 12, h: 20 }
         },
     ];
 
