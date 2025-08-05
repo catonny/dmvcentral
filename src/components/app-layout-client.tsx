@@ -178,10 +178,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
 
     const defaultItems: NavItem[] = [
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
-        { id: 'workspace', href: '/workspace', icon: Briefcase, tooltip: 'Workspace', label: 'Workspace', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
-        { id: 'inbox', href: '/inbox', icon: Mail, tooltip: 'Inbox', label: 'Inbox', condition: checkPermission('inbox') },
-        { id: 'calendar', href: '/calendar', icon: Calendar, tooltip: 'Calendar', label: 'Calendar', condition: checkPermission('calendar') },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'accounts', href: '/accounts', icon: Receipt, tooltip: 'Accounts', label: 'Accounts', condition: checkPermission('accounts') },
@@ -259,6 +256,14 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
     : user?.displayName?.split(' ')[0] || 'there';
   
+  const checkPermission = (feature: FeatureName) => {
+    if (isSuperAdmin) return true;
+    const userRoles = currentUserEmployeeProfile?.role || [];
+    const permission = permissions.find(p => p.feature === feature);
+    if (!permission) return false;
+    return userRoles.some(role => permission.departments.includes(role));
+  }
+  
   return (
       <SidebarProvider isPinned={isPinned}>
           <Sidebar>
@@ -299,7 +304,23 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                        <Link href="/workspace"><Briefcase />Workspace</Link>
+                    </Button>
+                    {checkPermission('inbox') && (
+                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                            <Link href="/inbox"><Mail />Inbox</Link>
+                        </Button>
+                    )}
+                    {checkPermission('calendar') && (
+                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                            <Link href="/calendar"><Calendar />Calendar</Link>
+                        </Button>
+                    )}
+
+                    <div className="h-6 w-px bg-white/20 mx-2"></div>
+                    
                    <Button variant="outline" className="gap-2" onClick={() => setIsSearchOpen(true)}>
                         <Search className="h-4 w-4" />
                         Search...
