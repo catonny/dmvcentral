@@ -46,7 +46,7 @@ export const getColumns = (
     },
     {
       id: "actions",
-      header: "Edit",
+      header: "",
       cell: ({ row }) => {
         const client = row.original
 
