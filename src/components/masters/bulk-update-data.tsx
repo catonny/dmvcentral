@@ -179,11 +179,11 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                     onDragLeave={(e: any) => e.preventDefault()}
                     config={{ header: true, skipEmptyLines: true, comments: "#" }}
                 >
-                    {({ getRootProps, acceptedFile, ProgressBar, getRemoveFileProps, Remove }: any) => {
+                    {({ getRootProps, acceptedFile, ProgressBar, getRemoveFileProps }: any) => {
                         const removeFile = (e?: React.MouseEvent<HTMLButtonElement>) => {
                             if (e) e.stopPropagation();
                             setParsedData([]);
-                            (Remove as any)();
+                            (getRemoveFileProps() as any).onClick(e);
                         }
                         
                         const handleDialogClose = (open: boolean) => {
