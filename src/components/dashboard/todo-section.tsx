@@ -11,20 +11,23 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { TodoDetailsDialog } from "./todo-details-dialog";
 
-type TodoItemType = "missing-reporter" | "unassigned";
+type TodoItemType = "missing-reporter" | "unassigned" | "incomplete-client-data";
 
 export function TodoSection() {
     const [engagementsWithMissingReporter, setEngagementsWithMissingReporter] = React.useState<Engagement[]>([]);
     const [unassignedEngagements, setUnassignedEngagements] = React.useState<Engagement[]>([]);
+    const [incompleteClients, setIncompleteClients] = React.useState<Client[]>([]);
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
     
     const [isDetailDialogOpen, setIsDetailDialogOpen] = React.useState(false);
-    const [detailDialogData, setDetailDialogData] = React.useState<{ title: string, engagements: Engagement[] } | null>(null);
+    const [detailDialogData, setDetailDialogData] = React.useState<{ title: string, engagements?: Engagement[], clients?: Client[] } | null>(null);
 
     React.useEffect(() => {
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
         const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
+        const incompleteClientQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
+
 
         const unsubReporter = onSnapshot(reporterQuery, (querySnapshot) => {
             setEngagementsWithMissingReporter(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Engagement) ));
@@ -39,10 +42,15 @@ export function TodoSection() {
             console.error("Error fetching unassigned engagements: ", error);
             toast({ title: "Error", description: "Could not fetch to-do list for assignments.", variant: "destructive" });
         });
+        
+        const unsubIncompleteClients = onSnapshot(incompleteClientQuery, (snapshot) => {
+            setIncompleteClients(snapshot.docs.map(doc => doc.data() as Client));
+        });
 
         return () => {
             unsubReporter();
             unsubUnassigned();
+            unsubIncompleteClients();
         };
     }, [toast]);
     
@@ -56,6 +64,11 @@ export function TodoSection() {
             setDetailDialogData({
                 title: "Unassigned Engagements",
                 engagements: unassignedEngagements
+            });
+        } else if (type === "incomplete-client-data") {
+            setDetailDialogData({
+                title: "Clients with Incomplete Data",
+                clients: incompleteClients
             });
         }
         setIsDetailDialogOpen(true);
@@ -81,9 +94,18 @@ export function TodoSection() {
                 action: () => openDetails("unassigned")
             });
         }
+        
+        if (incompleteClients.length > 0) {
+            todoList.push({
+                id: "incomplete-client-data",
+                field: "Clients with Missing Mandatory Data",
+                count: incompleteClients.length,
+                action: () => openDetails("incomplete-client-data")
+            });
+        }
 
         return todoList;
-    }, [engagementsWithMissingReporter, unassignedEngagements]);
+    }, [engagementsWithMissingReporter, unassignedEngagements, incompleteClients]);
 
     if (todos.length === 0) {
         return (
@@ -140,7 +162,8 @@ export function TodoSection() {
                 isOpen={isDetailDialogOpen}
                 onClose={() => setIsDetailDialogOpen(false)}
                 title={detailDialogData?.title || ""}
-                engagements={detailDialogData?.engagements || []}
+                engagements={detailDialogData?.engagements}
+                clients={detailDialogData?.clients}
             />
         </>
     )

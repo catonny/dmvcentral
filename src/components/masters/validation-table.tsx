@@ -70,11 +70,10 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     setValidationResult(null);
 
     try {
-        // Fetch existing clients to check for duplicates
         const clientsQuery = query(collection(db, "clients"));
         const clientsSnapshot = await getDocs(clientsQuery);
         const existingClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        const panToIdMap = new Map(existingClients.map(c => [c.PAN, c.id]));
+        const panToIdMap = new Map(existingClients.map(c => [c.pan, c.id]));
 
         const result: ValidationResult = {
             rows: [],
@@ -85,42 +84,42 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
             const rowErrors: { [key: string]: string } = {};
             let action: RowAction = "CREATE";
             let existingClientId: string | undefined = undefined;
+            let isUpdate = false;
 
-            // Rule 1: PAN is the key. If present, check for existing client.
-            if (row['PAN'] && String(row['PAN']).trim() !== '') {
+            if (row['PAN'] && String(row['PAN']).trim() !== '' && row['PAN'] !== 'PANNOTAVLBL') {
                 if (panToIdMap.has(row['PAN'])) {
                     action = "UPDATE";
+                    isUpdate = true;
                     existingClientId = panToIdMap.get(row['PAN']);
                 }
             }
             
-            // Rule 2: 'Name' is a fatal error. If missing, ignore the row.
             if (!row['Name'] || String(row['Name']).trim() === '') {
                 rowErrors['Name'] = "Name is a mandatory field and cannot be empty. This row will be ignored.";
                 action = "IGNORE";
             } else {
-                 // Check other mandatory fields
                 MANDATORY_CLIENT_HEADERS.forEach(header => {
                     if (header !== 'Name' && (!row[header] || String(row[header]).trim() === '')) {
-                        rowErrors[header] = `Mandatory field '${header}' is missing. It will be set to a default value.`;
+                        rowErrors[header] = `Mandatory field '${header}' is missing. It will be set to a default placeholder value.`;
                     }
                 });
 
-                // Check email format
                 if (row['Mail ID'] && !emailRegex.test(row['Mail ID'])) {
-                    rowErrors['Mail ID'] = 'Invalid email format. It will be set to "unassigned".';
+                    rowErrors['Mail ID'] = 'Invalid email format. It will be set to "mail@notavailable.com".';
+                }
+
+                if (!row['PAN'] && !isUpdate) { // Only error on missing PAN for new clients
+                    rowErrors['PAN'] = 'PAN is missing. It will be set to "PANNOTAVLBL" for now. Please update it later.';
                 }
             }
 
-            // Determine final action based on errors and existing status
             if (action !== "IGNORE" && Object.keys(rowErrors).length > 0) {
-                action = action === "UPDATE" ? "FIX_AND_UPDATE" : "FIX_AND_CREATE";
+                action = isUpdate ? "FIX_AND_UPDATE" : "FIX_AND_CREATE";
             }
             
             result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId });
         });
 
-        // Calculate summary
         result.summary.creates = result.rows.filter(r => r.action === "CREATE" || r.action === "FIX_AND_CREATE").length;
         result.summary.updates = result.rows.filter(r => r.action === "UPDATE" || r.action === "FIX_AND_UPDATE").length;
         result.summary.ignores = result.rows.filter(r => r.action === "IGNORE").length;
@@ -168,18 +167,20 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
 
             const clientData: Partial<Client> = {
                 ...row,
-                'Mail ID': (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'unassigned' : row['Mail ID'],
-                'Mobile Number': !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
-                'Category': !row['Category'] ? 'unassigned' : row['Category'],
-                'Partner': !row['Partner'] ? 'unassigned' : row['Partner'],
+                name: row.Name, // Ensure name is always present
+                mailId: (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'mail@notavailable.com' : row['Mail ID'],
+                mobileNumber: !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
+                pan: !row['PAN'] && !isUpdate ? 'PANNOTAVLBL' : row['PAN'],
+                category: !row['Category'] ? 'unassigned' : row['Category'],
+                partnerId: !row['Partner'] ? 'unassigned' : row['Partner'],
                 linkedClientIds: row.linkedClientIds ? String(row.linkedClientIds).split(',').map(id => id.trim()) : [],
                 lastUpdated: new Date().toISOString()
             };
-
+            
             if (isUpdate) {
                  batch.update(clientRef, clientData);
             } else {
-                 batch.set(clientRef, { ...clientData, id: clientRef.id });
+                 batch.set(clientRef, { ...clientData, id: clientRef.id, createdAt: new Date().toISOString() });
             }
         });
 
@@ -266,6 +267,8 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                                         } else {
                                            if (cellAction === "UPDATE" || cellAction === "FIX_AND_UPDATE") {
                                                cellClassName = cn(cellClassName, "bg-blue-500/10");
+                                           } else if (cellAction === "CREATE" || cellAction === "FIX_AND_CREATE") {
+                                               cellClassName = cn(cellClassName, "bg-green-500/10");
                                            }
                                         }
 

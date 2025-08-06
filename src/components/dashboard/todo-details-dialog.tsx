@@ -17,15 +17,18 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format, parseISO } from "date-fns";
 import type { Engagement, Client, EngagementType, Employee } from "@/lib/data";
+import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 interface TodoDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  engagements: Engagement[];
+  engagements?: Engagement[];
+  clients?: Client[];
 }
 
-export function TodoDetailsDialog({ isOpen, onClose, title, engagements }: TodoDetailsDialogProps) {
+export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients: incompleteClients }: TodoDetailsDialogProps) {
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
@@ -49,6 +52,75 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements }: TodoD
             employeeUnsub();
         }
     }, [isOpen]);
+    
+    const renderEngagementContent = () => (
+         <Table>
+            <TableHeader className="sticky top-0 bg-muted">
+                <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Assignment</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Reporter</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {engagements && engagements.length > 0 ? engagements.slice(0, 10).map(engagement => {
+                    const client = clients.get(engagement.clientId);
+                    const engagementType = engagementTypes.get(engagement.type);
+                    const reporter = employees.get(engagement.reportedTo);
+                    return (
+                        <TableRow key={engagement.id}>
+                            <TableCell>{client?.Name || 'Loading...'}</TableCell>
+                            <TableCell>{engagement.remarks || engagementType?.name || 'Loading...'}</TableCell>
+                            <TableCell>{format(parseISO(engagement.dueDate), 'dd MMM yyyy')}</TableCell>
+                            <TableCell>{engagement.status}</TableCell>
+                            <TableCell>{reporter?.name || 'Not Assigned'}</TableCell>
+                        </TableRow>
+                    )
+                }) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24">No engagements to display.</TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    );
+
+    const renderClientContent = () => (
+         <Table>
+            <TableHeader className="sticky top-0 bg-muted">
+                <TableRow>
+                    <TableHead>Client Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Mobile</TableHead>
+                    <TableHead>PAN</TableHead>
+                    <TableHead>Action</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {incompleteClients && incompleteClients.length > 0 ? incompleteClients.map(client => {
+                    return (
+                        <TableRow key={client.id}>
+                            <TableCell>{client.name}</TableCell>
+                            <TableCell>{client.mailId}</TableCell>
+                            <TableCell>{client.mobileNumber}</TableCell>
+                            <TableCell>{client.pan || "N/A"}</TableCell>
+                             <TableCell>
+                                <Button variant="link" asChild size="sm">
+                                    <Link href="/clients">Go to Client Manager</Link>
+                                </Button>
+                             </TableCell>
+                        </TableRow>
+                    )
+                }) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24">No clients to display.</TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    );
 
 
     return (
@@ -57,42 +129,13 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements }: TodoD
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
-                        Here is a list of all engagements that require your attention.
+                        Here is a list of items that require your attention.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow overflow-hidden border rounded-md">
                     <ScrollArea className="h-full">
-                        <Table>
-                            <TableHeader className="sticky top-0 bg-muted">
-                                <TableRow>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Assignment</TableHead>
-                                    <TableHead>Due Date</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Reporter</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {engagements.length > 0 ? engagements.slice(0, 10).map(engagement => {
-                                    const client = clients.get(engagement.clientId);
-                                    const engagementType = engagementTypes.get(engagement.type);
-                                    const reporter = employees.get(engagement.reportedTo);
-                                    return (
-                                        <TableRow key={engagement.id}>
-                                            <TableCell>{client?.Name || 'Loading...'}</TableCell>
-                                            <TableCell>{engagement.remarks || engagementType?.name || 'Loading...'}</TableCell>
-                                            <TableCell>{format(parseISO(engagement.dueDate), 'dd MMM yyyy')}</TableCell>
-                                            <TableCell>{engagement.status}</TableCell>
-                                            <TableCell>{reporter?.name || 'Not Assigned'}</TableCell>
-                                        </TableRow>
-                                    )
-                                }) : (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center h-24">No engagements to display.</TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                       {engagements && renderEngagementContent()}
+                       {incompleteClients && renderClientContent()}
                         <ScrollBar orientation="vertical" />
                          <ScrollBar orientation="horizontal" />
                     </ScrollArea>
