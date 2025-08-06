@@ -91,14 +91,14 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
             "Engagement Type*": "ITR Filing",
             "Client Name*": "Innovate Inc.",
             "Due Date*": "31/07/2024",
-            "Allotted User*": "Priya Sharma",
+            "Allotted User*": "Dojo Davis",
             "Remarks": "ITR for Innovate Inc. for Assessment Year 2024-25"
         },
         {
             "Engagement Type*": "GST Filing",
             "Client Name*": "GreenFuture LLP",
             "Due Date*": "20/07/2024",
-            "Allotted User*": "Ben Carter",
+            "Allotted User*": "Dojo Davis",
             "Remarks": "Monthly GST returns for June 2024"
         }
     ];

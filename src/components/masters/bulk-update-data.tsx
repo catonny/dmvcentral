@@ -78,10 +78,10 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                 "Mail ID*": "contact@examplecorp.com",
                 "Mobile Number*": "9876543210",
                 "Category*": "Corporate",
-                "Partner*": "Tonny Varghese", // Use name for readability
+                "Partner*": "Dojo Davis",
                 "Phone Number": "0484-2345678",
                 "Date of Birth": "",
-                "linkedClientIds": "ABCDE1234F,ZYXWV9876G", // Example PANs or Client IDs
+                "linkedClientIds": "",
                 "PAN": "AABCE1234F",
                 "GSTN": "22AABCE1234F1Z5",
                 "Billing Address Line 1": "123 Business Ave",
@@ -154,11 +154,6 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
   
   return (
     <div className="space-y-6">
-      {/* The back button can be hidden if this component is always top-level in a tab */}
-      {/* <Button variant="outline" size="sm" onClick={onBack} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Actions
-      </Button> */}
       <Card>
         <CardHeader>
           <CardTitle>Bulk Update Clients</CardTitle>
