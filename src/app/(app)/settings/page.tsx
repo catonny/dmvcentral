@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2 } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
@@ -28,7 +28,8 @@ import Link from 'next/link';
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [loadingDelete, setLoadingDelete] = React.useState(false);
+  const [loadingDeleteTransactional, setLoadingDeleteTransactional] = React.useState(false);
+  const [loadingDeleteMaster, setLoadingDeleteMaster] = React.useState(false);
   const [loadingBackup, setLoadingBackup] = React.useState(false);
   const [loadingRestore, setLoadingRestore] = React.useState(false);
   const [loadingExport, setLoadingExport] = React.useState<string | null>(null);
@@ -94,7 +95,6 @@ export default function SettingsPage() {
         backupDate: new Date().toISOString(),
       };
 
-      // Create a minified JSON for smaller file size
       const jsonString = JSON.stringify(backupData);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -144,20 +144,17 @@ export default function SettingsPage() {
         const fileContent = await backupFile.text();
         const backupData = JSON.parse(fileContent);
 
-        // Basic validation of the backup file structure
         if (!backupData.clients || !backupData.engagements || !Array.isArray(backupData.clients) || !Array.isArray(backupData.engagements)) {
             throw new Error("Invalid backup file structure.");
         }
 
         const batch = writeBatch(db);
 
-        // Clear existing transactional data
         const existingClients = await getDocs(query(collection(db, 'clients')));
         existingClients.forEach(doc => batch.delete(doc.ref));
         const existingEngagements = await getDocs(query(collection(db, 'engagements')));
         existingEngagements.forEach(doc => batch.delete(doc.ref));
 
-        // Set new data from backup
         backupData.clients.forEach((client: Client) => {
             const docRef = doc(db, 'clients', client.id);
             batch.set(docRef, client);
@@ -185,11 +182,11 @@ export default function SettingsPage() {
   }
 
   const handleDeleteTransactionalData = async () => {
-    setLoadingDelete(true);
+    setLoadingDeleteTransactional(true);
     try {
       const batch = writeBatch(db);
       
-      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices'];
+      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events'];
       
       for (const collectionName of collectionsToDelete) {
           const snapshot = await getDocs(query(collection(db, collectionName)));
@@ -200,7 +197,7 @@ export default function SettingsPage() {
 
       toast({
         title: 'Success',
-        description: 'All clients, engagements, tasks, and pending invoices have been deleted.',
+        description: 'All transactional data has been deleted.',
       });
     } catch (error) {
       console.error('Error deleting transactional data:', error);
@@ -210,7 +207,44 @@ export default function SettingsPage() {
         variant: 'destructive',
       });
     } finally {
-      setLoadingDelete(false);
+      setLoadingDeleteTransactional(false);
+    }
+  };
+
+  const handleDeleteMasterData = async () => {
+    setLoadingDeleteMaster(true);
+    try {
+        const batch = writeBatch(db);
+        
+        // Keep employees collection but delete all documents except the developer's
+        const employeesSnapshot = await getDocs(query(collection(db, "employees")));
+        employeesSnapshot.forEach(doc => {
+            if (doc.data().email !== 'ca.tonnyvarghese@gmail.com') {
+                batch.delete(doc.ref);
+            }
+        });
+
+        const otherMasterCollections = ['departments', 'engagementTypes', 'clientCategories', 'countries'];
+        for (const collectionName of otherMasterCollections) {
+            const snapshot = await getDocs(query(collection(db, collectionName)));
+            snapshot.forEach((doc) => batch.delete(doc.ref));
+        }
+
+        await batch.commit();
+        toast({
+            title: 'Success',
+            description: 'All master data (except the developer employee) has been deleted.',
+        });
+
+    } catch (error) {
+         console.error('Error deleting master data:', error);
+        toast({
+            title: 'Error',
+            description: 'Failed to delete master data. Check the console for details.',
+            variant: 'destructive',
+        });
+    } finally {
+        setLoadingDeleteMaster(false);
     }
   };
 
@@ -259,13 +293,12 @@ export default function SettingsPage() {
             <CardHeader>
             <CardTitle>Data Management</CardTitle>
             <CardDescription>
-                Use these options to manage the data in your application. These actions are irreversible and should be used with caution.
+                Use these options to manage the data in your application.
             </CardDescription>
             </CardHeader>
             <CardContent>
             <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Export Buttons */}
                     <div className="rounded-lg border border-border p-4 flex flex-col gap-4">
                         <h3 className="font-semibold text-lg border-b pb-2">Export Data to CSV</h3>
                         <div className="flex items-center justify-between">
@@ -291,7 +324,6 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* Backup and Restore */}
                     <div className="rounded-lg border border-border p-4 flex flex-col gap-4">
                         <h3 className="font-semibold text-lg border-b pb-2">Backup & Restore</h3>
                         <div className="flex items-center justify-between">
@@ -346,36 +378,74 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-                
-                <div className="flex items-center justify-between rounded-lg border border-destructive p-4 mt-4">
-                <div>
-                    <h3 className="font-semibold">Delete Transactional Data</h3>
-                    <p className="text-sm text-muted-foreground">
-                    This will permanently delete all **clients, engagements, tasks, and pending invoices**. Master data will not be affected.
-                    </p>
-                </div>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={loadingDelete}>
-                        {loadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Delete Data
-                    </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete all transactional data (clients, engagements, tasks, and pending invoices). Master data will NOT be deleted.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteTransactionalData}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-                </div>
             </div>
+            </CardContent>
+        </Card>
+
+        <Card className="border-destructive">
+             <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap /> Danger Zone</CardTitle>
+                <CardDescription>
+                    These are destructive actions that permanently delete data. Use them with extreme caution.
+                </CardDescription>
+            </CardHeader>
+             <CardContent className="space-y-4">
+                 <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+                    <div>
+                        <h3 className="font-semibold">Delete Transactional Data</h3>
+                        <p className="text-sm text-muted-foreground">
+                        Permanently delete all **clients, engagements, tasks, and communications**. Master data will not be affected.
+                        </p>
+                    </div>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={loadingDeleteTransactional}>
+                            {loadingDeleteTransactional ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete Transactional Data
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all transactional data. Master data will NOT be deleted.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteTransactionalData} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+                 <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+                    <div>
+                        <h3 className="font-semibold">Delete Master Data</h3>
+                        <p className="text-sm text-muted-foreground">
+                        Permanently delete all **employees, departments, and engagement types**. This will reset the app's core configuration.
+                        </p>
+                    </div>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={loadingDeleteMaster}>
+                            {loadingDeleteMaster ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete Master Data
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all master data (employees, departments, etc.). The app may not function correctly for other users until you re-seed the database.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMasterData} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </CardContent>
         </Card>
       </div>

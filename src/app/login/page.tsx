@@ -63,6 +63,11 @@ function LoginPageContent() {
                 }
                 
                 if (user.email === 'ca.tonnyvarghese@gmail.com') {
+                    // Check if employees collection is empty
+                    const employeesSnapshot = await getDocs(query(collection(db, "employees")));
+                    if (employeesSnapshot.empty) {
+                        setShowRoleDialog(true);
+                    }
                     setLoading(false);
                     return;
                 }
