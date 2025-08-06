@@ -3,13 +3,13 @@
 "use client";
 
 import * as React from "react";
-import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc } from "firebase/firestore";
-import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, ChatMessage } from "@/lib/data";
+import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc, setDoc } from "firebase/firestore";
+import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, EngagementNote } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckSquare, MessageSquare, Send } from "lucide-react";
+import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -21,37 +21,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function EngagementNotes({ engagement, onNotesChange }: { engagement: Engagement, onNotesChange: (notes: string) => void }) {
-    const [notes, setNotes] = React.useState(engagement.notes || "");
-    const debouncedNotes = useDebounce(notes, 500);
 
-    React.useEffect(() => {
-        setNotes(engagement.notes || "");
-    }, [engagement.notes]);
-
-    React.useEffect(() => {
-        if (debouncedNotes !== (engagement.notes || "")) {
-            onNotesChange(debouncedNotes);
-        }
-    }, [debouncedNotes, engagement.notes, onNotesChange]);
-
-    return (
-        <Textarea
-            placeholder="Add detailed notes for this engagement..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="mt-2 min-h-[150px]"
-        />
-    );
-}
-
-function EngagementChat({ engagementId }: { engagementId: string }) {
+function EngagementNotes({ engagement, client, allEmployees }: { engagement: Engagement; client: Client, allEmployees: Employee[] }) {
     const { user } = useAuth();
-    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
-    const [newMessage, setNewMessage] = React.useState("");
+    const [notes, setNotes] = React.useState<EngagementNote[]>([]);
+    const [newNote, setNewNote] = React.useState("");
+    const [activeTab, setActiveTab] = React.useState<EngagementNote['category']>("Note");
     const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
-    const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         if (user) {
@@ -65,91 +43,92 @@ function EngagementChat({ engagementId }: { engagementId: string }) {
     }, [user]);
 
     React.useEffect(() => {
-        const q = query(collection(db, "chatMessages"), where("engagementId", "==", engagementId), orderBy("timestamp", "asc"));
+        const q = query(
+            collection(db, "engagementNotes"), 
+            where("engagementId", "==", engagement.id),
+            orderBy("createdAt", "desc")
+        );
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            setMessages(snapshot.docs.map(doc => doc.data() as ChatMessage));
+            setNotes(snapshot.docs.map(doc => doc.data() as EngagementNote));
         });
         return () => unsubscribe();
-    }, [engagementId]);
-    
-    React.useEffect(() => {
-        // Auto-scroll to bottom
-        if (scrollAreaRef.current) {
-            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-        }
-    }, [messages]);
+    }, [engagement.id]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !currentUserEmployee) return;
+    const handleAddNote = async () => {
+        if (!newNote.trim() || !currentUserEmployee) return;
 
-        const messageData: Omit<ChatMessage, 'id'> = {
-            engagementId,
-            senderId: currentUserEmployee.id,
-            senderName: currentUserEmployee.name,
-            senderAvatar: currentUserEmployee.avatar,
-            text: newMessage.trim(),
-            timestamp: new Date().toISOString(),
+        const mentions = newNote.match(/@(\w+)/g)?.map(m => m.substring(1)) || [];
+        const mentionedIds = allEmployees
+            .filter(e => mentions.some(m => e.name.toLowerCase().includes(m.toLowerCase())))
+            .map(e => e.id);
+
+        const newNoteData: Omit<EngagementNote, 'id'> = {
+            engagementId: engagement.id,
+            clientId: engagement.clientId,
+            text: newNote.trim(),
+            category: activeTab,
+            createdBy: currentUserEmployee.id,
+            createdAt: new Date().toISOString(),
+            mentions: mentionedIds
         };
-
+        
         try {
-            const docRef = doc(collection(db, "chatMessages"));
-            await addDoc(collection(db, "chatMessages"), {...messageData, id: docRef.id});
-            setNewMessage("");
+            const docRef = doc(collection(db, "engagementNotes"));
+            await setDoc(docRef, {...newNoteData, id: docRef.id});
+            setNewNote("");
         } catch (error) {
-            console.error("Error sending message:", error);
+            console.error("Error adding note:", error);
         }
     };
+    
+    const filteredNotes = notes.filter(n => n.category === activeTab);
 
     return (
         <Card className="h-full flex flex-col">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Team Chat
-                </CardTitle>
-                <CardDescription>Real-time discussion about this engagement.</CardDescription>
+                <CardTitle>Engagement Notes</CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden">
-                <ScrollArea className="h-[400px] pr-4" ref={scrollAreaRef}>
-                    <div className="space-y-4">
-                        {messages.map(msg => (
-                            <div key={msg.id} className={cn("flex items-start gap-3", msg.senderId === currentUserEmployee?.id && "justify-end")}>
-                                {msg.senderId !== currentUserEmployee?.id && (
-                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage src={msg.senderAvatar} />
-                                        <AvatarFallback>{msg.senderName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                )}
-                                <div className={cn("max-w-xs rounded-lg p-3 text-sm", msg.senderId === currentUserEmployee?.id ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                                     <p className="font-bold text-xs mb-1">{msg.senderName}</p>
-                                    <p>{msg.text}</p>
-                                    <p className="text-xs opacity-70 mt-2 text-right">{format(parseISO(msg.timestamp), 'p')}</p>
+            <CardContent className="flex-grow flex flex-col gap-4">
+                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="Note"><StickyNote className="mr-2"/>Notes</TabsTrigger>
+                        <TabsTrigger value="Current File"><FileText className="mr-2"/>Current File</TabsTrigger>
+                        <TabsTrigger value="Permanent File"><Book className="mr-2"/>Permanent File</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                <ScrollArea className="flex-grow h-[300px] pr-4">
+                     <div className="space-y-4">
+                        {filteredNotes.length > 0 ? filteredNotes.map(note => (
+                             <div key={note.id} className="flex items-start gap-3">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={allEmployees.find(e=>e.id === note.createdBy)?.avatar} />
+                                    <AvatarFallback>{allEmployees.find(e=>e.id === note.createdBy)?.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="bg-muted p-3 rounded-lg text-sm flex-grow">
+                                     <p className="font-bold text-xs mb-1">{allEmployees.find(e=>e.id === note.createdBy)?.name}</p>
+                                    <p className="whitespace-pre-wrap">{note.text}</p>
+                                    <p className="text-xs opacity-70 mt-2 text-right">{formatDistanceToNow(parseISO(note.createdAt), {addSuffix: true})}</p>
                                 </div>
-                                 {msg.senderId === currentUserEmployee?.id && (
-                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage src={msg.senderAvatar} />
-                                        <AvatarFallback>{msg.senderName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                )}
                             </div>
-                        ))}
+                        )) : (
+                            <div className="text-center text-muted-foreground pt-10">No notes in this category yet.</div>
+                        )}
                     </div>
                 </ScrollArea>
             </CardContent>
              <CardFooter className="pt-4 border-t">
-                <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
-                    <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        autoComplete="off"
+                 <div className="flex w-full items-center gap-2">
+                    <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder={`Add to ${activeTab}...`}
+                        className="min-h-0"
                     />
-                    <Button type="submit" size="icon" disabled={!newMessage.trim()}>
+                    <Button onClick={handleAddNote} size="icon" disabled={!newNote.trim()}>
                         <Send className="h-4 w-4" />
-                        <span className="sr-only">Send</span>
+                        <span className="sr-only">Add Note</span>
                     </Button>
-                </form>
+                </div>
             </CardFooter>
         </Card>
     );
@@ -161,6 +140,7 @@ export default function EngagementWorkflowPage() {
   const [engagement, setEngagement] = React.useState<Engagement | null>(null);
   const [client, setClient] = React.useState<Client | null>(null);
   const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
   const [loading, setLoading] = React.useState(true);
   const { toast } = useToast();
   const router = useRouter();
@@ -173,18 +153,21 @@ export default function EngagementWorkflowPage() {
 
     setLoading(true);
 
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+        setAllEmployees(snapshot.docs.map(doc => doc.data() as Employee));
+    });
+
     const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), (docSnap) => {
       if (docSnap.exists()) {
         const engData = { id: docSnap.id, ...docSnap.data() } as Engagement;
         setEngagement(engData);
-        // Fetch client after getting engagement data
         const clientUnsub = onSnapshot(doc(db, "clients", engData.clientId), (clientDoc) => {
           if (clientDoc.exists()) {
             setClient({ id: clientDoc.id, ...clientDoc.data() } as Client);
           } else {
             setClient(null);
           }
-          setLoading(false); // Set loading to false after client is fetched
+          setLoading(false);
         });
         return () => clientUnsub();
       } else {
@@ -206,6 +189,7 @@ export default function EngagementWorkflowPage() {
     });
 
     return () => {
+      unsubEmployees();
       engagementUnsub();
       tasksUnsub();
     };
@@ -215,22 +199,12 @@ export default function EngagementWorkflowPage() {
     const taskRef = doc(db, "tasks", taskId);
     try {
         await updateDoc(taskRef, { status: newStatus });
-        // The onSnapshot listener will update the state automatically
     } catch (error) {
          console.error(`Error updating task status:`, error);
         toast({ title: "Error", description: `Failed to update task status.`, variant: "destructive" });
     }
   };
 
-  const handleNotesChange = async (notes: string) => {
-    try {
-        await updateDoc(doc(db, "engagements", engagementId), { notes });
-        toast({ title: "Note Saved", description: "Your notes have been automatically saved." });
-    } catch (error) {
-        console.error("Error saving notes:", error);
-        toast({ title: "Error", description: "Failed to save notes.", variant: "destructive" });
-    }
-  }
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center">Loading Engagement Workflow...</div>;
@@ -294,7 +268,7 @@ export default function EngagementWorkflowPage() {
             </CardContent>
           </Card>
            <div className="lg:col-span-2 space-y-6">
-             <EngagementChat engagementId={engagementId} />
+             <EngagementNotes engagement={engagement} client={client} allEmployees={allEmployees} />
            </div>
       </div>
     </div>

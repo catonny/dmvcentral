@@ -103,7 +103,6 @@ export interface Engagement {
   reportedTo: string; // Corresponds to Employee.id (Manager or Partner)
   dueDate: string; // ISO 8601
   status: EngagementStatus;
-  notes?: string; // New field for rich text notes
   // Billing fields
   billStatus?: BillStatus;
   billSubmissionDate?: string; // ISO 8601 format
@@ -122,20 +121,22 @@ export interface RecurringEngagement {
   lastGeneratedDate?: string;
 }
 
+export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK';
+
 export interface Todo {
     id: string;
-    type: 'FEE_REVISION_APPROVAL';
-    userId: string; // The partner this is assigned to
-    clientId: string;
-    relatedData: {
-        recurringEngagementId: string;
-        oldFee: number;
-        newFee: number;
-        clientName: string;
-        engagementTypeName: string;
+    type: TodoType;
+    text: string; // The main text of the to-do item
+    createdBy: string; // Employee ID of the creator
+    assignedTo: string[]; // Employee IDs of assignees
+    relatedEntity?: {
+        type: 'client' | 'engagement';
+        id: string;
     };
-    status: 'Pending' | 'Completed';
+    isCompleted: boolean;
     createdAt: string; // ISO String
+    completedAt?: string; // ISO String
+    completedBy?: string; // Employee ID
 }
 
 
@@ -173,12 +174,39 @@ export interface Task {
     assignedTo: string; // Corresponds to Employee.id
 }
 
+export interface EngagementNote {
+    id: string;
+    engagementId: string;
+    clientId: string;
+    text: string;
+    category: "Permanent File" | "Current File" | "Note";
+    financialYear?: string; // e.g., "2023-24", only for "Current File"
+    createdBy: string; // Employee ID
+    createdAt: string; // ISO 8601
+    mentions: string[]; // Array of mentioned employee IDs
+}
+
+export interface ChatThread {
+    id: string;
+    participants: string[]; // Array of Employee IDs
+    lastMessage: {
+        text: string;
+        timestamp: string; // ISO 8601
+        senderId: string;
+    };
+    participantDetails: {
+        [userId: string]: {
+            name: string;
+            avatar: string;
+        }
+    };
+    updatedAt: string; // ISO 8601, for sorting threads
+}
+
 export interface ChatMessage {
   id: string;
-  engagementId: string;
+  threadId: string;
   senderId: string; // Employee ID
-  senderName: string;
-  senderAvatar: string;
   text: string;
   timestamp: string; // ISO 8601
 }

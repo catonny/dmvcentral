@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Task, Client, Engagement, EngagementStatus } from "@/lib/data";
+import type { Task, Client, Engagement, EngagementStatus, Employee } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,50 +21,59 @@ export default function WorkflowPage() {
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
 
         const fetchInitialData = async () => {
-             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-             const employeeSnapshot = await getDocs(employeeQuery);
+             try {
+                const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+                const employeeSnapshot = await getDocs(employeeQuery);
 
-             if (employeeSnapshot.empty) {
-                 setLoading(false);
-                 return;
-             }
-             const currentUser = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-             
-             const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
-                setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
-             });
+                if (employeeSnapshot.empty) {
+                    setLoading(false);
+                    return;
+                }
+                const currentUser = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+                
+                const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
+                   setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
+                });
 
-             const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
-             const engagementsQuery = query(
-                collection(db, "engagements"), 
-                where("assignedTo", "array-contains", currentUser.id), 
-                where("status", "in", activeStatuses)
-            );
-             const unsubEngagements = onSnapshot(engagementsQuery, (engagementsSnapshot) => {
-                 const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-                 setEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+                const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+                const engagementsQuery = query(
+                   collection(db, "engagements"), 
+                   where("assignedTo", "array-contains", currentUser.id), 
+                   where("status", "in", activeStatuses)
+               );
+                const unsubEngagements = onSnapshot(engagementsQuery, (engagementsSnapshot) => {
+                    const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+                    setEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
 
-                 if (userEngagements.length > 0) {
-                     const engagementIds = userEngagements.map(e => e.id);
-                     const tasksQuery = query(collection(db, "tasks"), where("engagementId", "in", engagementIds));
-                     const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
-                         setTasks(tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
-                         setLoading(false);
-                     }, () => setLoading(false));
-                     return () => unsubTasks();
-                 } else {
-                     setTasks([]);
-                     setLoading(false);
-                 }
-             }, () => setLoading(false));
-             
-             return () => {
-                 unsubEngagements();
-                 clientsUnsub();
+                    if (userEngagements.length > 0) {
+                        const engagementIds = userEngagements.map(e => e.id);
+                        const tasksQuery = query(collection(db, "tasks"), where("engagementId", "in", engagementIds));
+                        const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
+                            setTasks(tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
+                            setLoading(false);
+                        }, () => setLoading(false));
+                        return () => unsubTasks();
+                    } else {
+                        setTasks([]);
+                        setLoading(false);
+                    }
+                }, () => setLoading(false));
+                
+                return () => {
+                    unsubEngagements();
+                    clientsUnsub();
+                }
+
+             } catch(error) {
+                 console.error("Error fetching workflow data:", error)
+                 setLoading(false)
              }
         }
         

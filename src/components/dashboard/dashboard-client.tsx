@@ -32,7 +32,7 @@ export function DashboardClient() {
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
-  const [loadingData, setLoadingData] = React.useState(true);
+  const [loading, setLoading] = React.useState(true);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
@@ -42,57 +42,71 @@ export function DashboardClient() {
   React.useEffect(() => {
     if (!user) return;
 
-    setLoadingData(true);
-    const fetchProfileAndData = async () => {
-        try {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
+    setLoading(true);
 
-            if (!employeeSnapshot.empty) {
-                const profile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-                setCurrentUserEmployeeProfile(profile);
-            }
+    let profileFetched = false;
+    let clientsFetched = false;
+    let engagementsFetched = false;
+    let employeesFetched = false;
+    let tasksFetched = false;
 
-        } catch (error) {
-            handleError(error as Error, 'employee profile');
+    const checkAllDataFetched = () => {
+        if (profileFetched && clientsFetched && engagementsFetched && employeesFetched && tasksFetched) {
+            setLoading(false);
         }
-
-        const unsubClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
-            setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-        }, (error) => handleError(error, "clients"));
-
-        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
-        const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
-            setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
-        }, (error) => handleError(error, "engagements"));
-
-        const unsubEmployees = onSnapshot(query(collection(db, "employees")), (snapshot) => {
-            setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
-        }, (error) => handleError(error, "employees"));
-        
-        const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snapshot) => {
-            setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-            setLoadingData(false); // Set loading to false after the last fetch
-        }, (error) => {
-            handleError(error, "tasks");
-            setLoadingData(false);
-        });
-        
-        return () => {
-            unsubClients();
-            unsubEngagements();
-            unsubEmployees();
-            unsubTasks();
-        };
-    };
+    }
 
     const handleError = (error: Error, type: string) => {
         console.error(`Error fetching real-time ${type}:`, error);
         toast({ title: "Real-time Update Error", description: `Could not sync ${type}.`, variant: "destructive" });
     }
 
-    fetchProfileAndData();
+    const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+    const unsubProfile = onSnapshot(employeeQuery, (snapshot) => {
+        if (!snapshot.empty) {
+            const profile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee;
+            setCurrentUserEmployeeProfile(profile);
+        }
+        profileFetched = true;
+        checkAllDataFetched();
+    }, (error) => handleError(error, 'employee profile'));
+
+
+    const unsubClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
+        setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+        clientsFetched = true;
+        checkAllDataFetched();
+    }, (error) => handleError(error, "clients"));
+
+    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+    const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
+    const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
+        setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+        engagementsFetched = true;
+        checkAllDataFetched();
+    }, (error) => handleError(error, "engagements"));
+
+    const unsubEmployees = onSnapshot(query(collection(db, "employees")), (snapshot) => {
+        setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+        employeesFetched = true;
+        checkAllDataFetched();
+    }, (error) => handleError(error, "employees"));
+    
+    const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snapshot) => {
+        setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
+        tasksFetched = true;
+        checkAllDataFetched();
+    }, (error) => {
+        handleError(error, "tasks");
+    });
+    
+    return () => {
+        unsubProfile();
+        unsubClients();
+        unsubEngagements();
+        unsubEmployees();
+        unsubTasks();
+    };
   }, [user, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
@@ -155,7 +169,7 @@ export function DashboardClient() {
         }
     };
 
-  }, [currentUserEmployeeProfile, allClients, engagements, tasks, allEmployees]);
+  }, [currentUserEmployeeProfile, allClients, engagements, tasks]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
@@ -189,7 +203,7 @@ export function DashboardClient() {
     localStorage.setItem('dashboardLayout', JSON.stringify(newLayout));
   };
 
-  if (loadingData) {
+  if (loading) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
@@ -200,7 +214,7 @@ export function DashboardClient() {
           case 'workload-distribution':
               return { engagements: engagements, employees: allEmployees };
           case 'todo-section':
-              return { currentUser: currentUserEmployeeProfile };
+              return { currentUser: currentUserEmployeeProfile, allClients, allEmployees };
           default:
               return {};
       }
