@@ -216,15 +216,7 @@ export default function SettingsPage() {
     try {
         const batch = writeBatch(db);
         
-        // Keep employees collection but delete all documents except the developer's
-        const employeesSnapshot = await getDocs(query(collection(db, "employees")));
-        employeesSnapshot.forEach(doc => {
-            if (doc.data().email !== 'ca.tonnyvarghese@gmail.com') {
-                batch.delete(doc.ref);
-            }
-        });
-
-        const otherMasterCollections = ['departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions'];
+        const otherMasterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions'];
         for (const collectionName of otherMasterCollections) {
             const snapshot = await getDocs(query(collection(db, collectionName)));
             snapshot.forEach((doc) => batch.delete(doc.ref));
@@ -233,7 +225,7 @@ export default function SettingsPage() {
         await batch.commit();
         toast({
             title: 'Success',
-            description: 'All master data (except the developer employee) has been deleted.',
+            description: 'All master data has been deleted.',
         });
 
     } catch (error) {

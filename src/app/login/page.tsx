@@ -63,15 +63,23 @@ function LoginPageContent() {
                 }
                 
                 if (user.email === 'ca.tonnyvarghese@gmail.com') {
-                    // Check if employees collection is empty
-                    const employeesSnapshot = await getDocs(query(collection(db, "employees")));
-                    if (employeesSnapshot.empty) {
+                    // Check if an employee record exists for the developer
+                    const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+                    const employeeSnapshot = await getDocs(employeeQuery);
+
+                    if (employeeSnapshot.empty) {
+                        // No employee record, log in as developer by default
+                        sessionStorage.setItem('userRole', 'developer');
+                        router.push('/dashboard');
+                    } else {
+                        // Employee record exists, show role selection
                         setShowRoleDialog(true);
                     }
                     setLoading(false);
                     return;
                 }
 
+                // Standard employee login check
                 const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
                 const employeeSnapshot = await getDocs(employeeQuery);
                 if (employeeSnapshot.empty) {
@@ -99,22 +107,8 @@ function LoginPageContent() {
                 throw new Error("Could not retrieve email from Google account.");
             }
             
-            if (user.email === 'ca.tonnyvarghese@gmail.com') {
-                setShowRoleDialog(true);
-                return;
-            }
-
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
-
-            if (employeeSnapshot.empty) {
-                await auth.signOut();
-                toast({
-                    title: "Access Denied",
-                    description: "You are not authorized to access this application.",
-                    variant: "destructive",
-                });
-            }
+            // The onAuthStateChanged listener will handle all redirection and role logic.
+            // We just need to trigger the sign-in.
             
         } catch (error) {
             console.error("Error signing in with Google: ", error);
