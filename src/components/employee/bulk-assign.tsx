@@ -218,10 +218,12 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         
         let parsedDate;
         try {
-            const dateStr = row["Due Date"];
+            let dateStr = row["Due Date"];
             if (!dateStr) {
                 throw new Error("Date is missing");
             }
+            // Normalize the date string to handle different separators
+            dateStr = dateStr.replace(/[-.]/g, '/');
             parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
             if (!isValid(parsedDate)) {
                 throw new Error("Invalid date found");
