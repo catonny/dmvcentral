@@ -26,7 +26,11 @@ export function TodoSection() {
     React.useEffect(() => {
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
         const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
-        const incompleteClientQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
+        
+        // Setup queries for all incomplete data conditions
+        const panQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
+        const mobileQuery = query(collection(db, "clients"), where("mobileNumber", "==", "1111111111"));
+        const mailQuery = query(collection(db, "clients"), where("mailId", "==", "mail@notavailable.com"));
 
 
         const unsubReporter = onSnapshot(reporterQuery, (querySnapshot) => {
@@ -43,14 +47,42 @@ export function TodoSection() {
             toast({ title: "Error", description: "Could not fetch to-do list for assignments.", variant: "destructive" });
         });
         
-        const unsubIncompleteClients = onSnapshot(incompleteClientQuery, (snapshot) => {
-            setIncompleteClients(snapshot.docs.map(doc => doc.data() as Client));
+        const combineIncompleteClients = (snapshots: any[]) => {
+            const allIncomplete = new Map<string, Client>();
+            snapshots.forEach(snapshot => {
+                snapshot.docs.forEach((doc: any) => {
+                    const client = doc.data() as Client;
+                    if (!allIncomplete.has(client.id)) {
+                        allIncomplete.set(client.id, client);
+                    }
+                });
+            });
+            setIncompleteClients(Array.from(allIncomplete.values()));
+        };
+        
+        let panResults: any[] = [];
+        let mobileResults: any[] = [];
+        let mailResults: any[] = [];
+
+        const unsubPan = onSnapshot(panQuery, (snapshot) => {
+            panResults = snapshot.docs;
+            combineIncompleteClients([panResults, mobileResults, mailResults]);
+        });
+        const unsubMobile = onSnapshot(mobileQuery, (snapshot) => {
+            mobileResults = snapshot.docs;
+            combineIncompleteClients([panResults, mobileResults, mailResults]);
+        });
+        const unsubMail = onSnapshot(mailQuery, (snapshot) => {
+            mailResults = snapshot.docs;
+            combineIncompleteClients([panResults, mobileResults, mailResults]);
         });
 
         return () => {
             unsubReporter();
             unsubUnassigned();
-            unsubIncompleteClients();
+            unsubPan();
+            unsubMobile();
+            unsubMail();
         };
     }, [toast]);
     
