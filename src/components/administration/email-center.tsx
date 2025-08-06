@@ -17,8 +17,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GenerateEmailInput, generateEmail } from "@/ai/flows/generate-email-flow";
+import { generateEmail } from "@/ai/flows/generate-email-flow";
+import type { GenerateEmailInput } from "@/ai/flows/generate-email-flow";
 import { sendEmail } from "@/ai/flows/send-email-flow";
+import { Input } from "../ui/input";
 
 const EMAIL_TEMPLATES: GenerateEmailInput['templateName'][] = [
     "New Client Onboarding",
