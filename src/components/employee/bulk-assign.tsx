@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format, parse } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { engagementStatuses } from "../reports/engagement-statuses";
 
 const ASSIGNMENT_HEADERS = ["Engagement Type", "Client Name", "Due Date", "Allotted User", "Reported To", "Status", "Fees", "Remarks"];
@@ -218,8 +218,14 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         
         let parsedDate;
         try {
-            parsedDate = parse(row["Due Date"], 'dd/MM/yyyy', new Date());
-            if (isNaN(parsedDate.getTime())) throw new Error();
+            const dateStr = row["Due Date"];
+            if (!dateStr) {
+                throw new Error("Date is missing");
+            }
+            parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
+            if (!isValid(parsedDate)) {
+                throw new Error("Invalid date found");
+            }
         } catch {
             errors["Due Date"] = "Invalid date format. Use DD/MM/YYYY.";
         }
