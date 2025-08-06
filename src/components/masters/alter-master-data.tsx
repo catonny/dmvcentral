@@ -31,14 +31,15 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type AlterableMasterType = "Departments" | "Client Categories";
 const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Departments", "Client Categories"];
 
 export function AlterMasterData({ onBack }: { onBack: () => void }) {
-  const [selectedMaster, setSelectedMaster] = React.useState<AlterableMasterType | null>(null);
+  const [selectedMaster, setSelectedMaster] = React.useState<AlterableMasterType>("Departments");
   const [data, setData] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [recordToDelete, setRecordToDelete] = React.useState<any>(null);
@@ -46,12 +47,12 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
   const [editFormData, setEditFormData] = React.useState<any>({});
   
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [hasAccess, setHasAccess] = React.useState(false);
-  const [authLoading, setAuthLoading] = React.useState(true);
 
 
    React.useEffect(() => {
+    if (authLoading) return;
     if (user) {
         const checkUserRole = async () => {
             const q = query(collection(db, "employees"), where("email", "==", user.email));
@@ -63,13 +64,10 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                     setHasAccess(true);
                 }
             }
-            setAuthLoading(false);
         };
         checkUserRole();
-    } else {
-        setAuthLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchMasterData = async (masterType: AlterableMasterType) => {
     setLoading(true);
@@ -93,10 +91,10 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
   };
 
   React.useEffect(() => {
-    if (selectedMaster) {
+    if (hasAccess) {
       fetchMasterData(selectedMaster);
     }
-  }, [selectedMaster]);
+  }, [selectedMaster, hasAccess]);
   
   React.useEffect(() => {
     setEditFormData(recordToEdit || {});
@@ -107,12 +105,7 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
   };
 
   const handleBack = () => {
-    if (selectedMaster) {
-      setSelectedMaster(null);
-      setData([]);
-    } else {
-      onBack();
-    }
+    onBack();
   };
   
   const confirmDelete = (record: any) => {
@@ -172,7 +165,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
 
   const renderTable = () => {
     if (loading) return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    if (!selectedMaster) return null;
     if (data.length === 0) return <div>No data found for {selectedMaster}.</div>;
 
     const headers = Object.keys(data[0]).filter(key => key !== 'id' && key !== 'subTaskTitles');
@@ -248,33 +240,26 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      <Button variant="outline" size="sm" onClick={handleBack} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
-      
-      {!selectedMaster ? (
-        <div className="space-y-4">
-            <CardHeader className="p-0">
-                <CardTitle>Alter Master Data</CardTitle>
-                <CardDescription>Select the type of master data you want to edit or delete.</CardDescription>
-            </CardHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {ALTERABLE_MASTER_TYPES.map(type => (
-                <Card 
-                    key={type} 
-                    onClick={() => handleSelectMaster(type)}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors group"
-                >
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{type}</CardTitle>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </CardHeader>
-                </Card>
-            ))}
-            </div>
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" size="sm" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <div className="w-64">
+           <Select value={selectedMaster} onValueChange={(value) => handleSelectMaster(value as AlterableMasterType)}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Select a master type" />
+                </SelectTrigger>
+                <SelectContent>
+                    {ALTERABLE_MASTER_TYPES.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
-      ) : renderTable() }
+      </div>
+      
+      {renderTable()}
 
        <AlertDialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
             <AlertDialogContent>
