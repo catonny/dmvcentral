@@ -81,7 +81,11 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         
         const minOrder = Math.min(...userDeptOrders);
 
-        return allDepartments.filter(dept => dept.order >= minOrder);
+        // Deduplicate departments to prevent key errors
+        const depts = allDepartments.filter(dept => dept.order >= minOrder);
+        const uniqueDepts = Array.from(new Map(depts.map(item => [item['id'], item])).values());
+        return uniqueDepts;
+        
     }, [currentUser, allDepartments]);
 
     const handleDragStart = (event: DragStartEvent) => {
