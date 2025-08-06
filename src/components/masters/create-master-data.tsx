@@ -48,8 +48,8 @@ export function CreateMasterData({ onBack }: { onBack: () => void }) {
           break;
       }
       
-      const docRef = await addDoc(collection(db, collectionName), data);
-      await addDoc(collection(db, collectionName), { ...data, id: docRef.id });
+      const docRef = await addDoc(collection(db, collectionName), {});
+      await updateDoc(docRef, { ...data, id: docRef.id });
 
 
       toast({ title: "Success", description: `${selectedMaster.slice(0, -1)} '${name}' created successfully.` });
