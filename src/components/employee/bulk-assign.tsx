@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Button } from "../ui/button";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, AlertTriangle, DatabaseBackup, SkipForward } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -324,6 +324,31 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
     }
   }
 
+  const handleDownloadInvalid = () => {
+    if (!validationResult) return;
+
+    const invalidRows = validationResult.rows
+      .filter(r => r.action === 'IGNORE' || r.action === 'DUPLICATE')
+      .map(r => {
+        const errorReason = r.duplicateReason || Object.values(r.errors).join('; ');
+        return { ...r.row, 'Error Reason': errorReason };
+      });
+
+    if (invalidRows.length === 0) {
+      toast({ title: "No Invalid Rows", description: "There are no rows with errors or duplicates to download." });
+      return;
+    }
+
+    const csv = Papa.unparse(invalidRows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'invalid_engagement_rows.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const headers = ASSIGNMENT_HEADERS;
   const displayedData = isFiltered && validationResult
     ? parsedData.filter((_, rowIndex) => validationResult.rows.some(r => r.originalIndex === rowIndex && r.action !== "CREATE"))
@@ -458,7 +483,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                             </Table>
                                         </ScrollArea>
                                     </div>
-                                    <DialogFooter className="pt-4 flex-shrink-0">
+                                    <DialogFooter className="pt-4 flex-shrink-0 flex-wrap gap-2">
                                          <div className="text-sm text-muted-foreground mr-auto flex items-center">
                                             {validationResult !== null ? (
                                                 isFiltered && totalIssueRows > 0 ? (
@@ -469,38 +494,46 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                                 ) : `Showing all ${parsedData.length} records.`
                                             ) : `Showing all ${parsedData.length} records.`}
                                         </div>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
-                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button disabled={!validationResult || isImporting}>
-                                                    {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
+                                        <div className="flex gap-2">
+                                            {validationResult && totalIssueRows > 0 && (
+                                                <Button variant="secondary" onClick={handleDownloadInvalid}>
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Download Invalid Rows
                                                 </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Confirm Import</AlertDialogTitle>
-                                                     <div className="text-sm text-muted-foreground py-4">
-                                                        <ul className="list-disc pl-5 mt-2 space-y-1">
-                                                            <li><b>{validationResult?.summary.creates || 0}</b> new engagements will be created.</li>
-                                                            <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates found.</li>
-                                                            <li><b>{validationResult?.summary.ignores || 0}</b> rows with errors will be ignored.</li>
-                                                        </ul>
-                                                    </div>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    {(validationResult?.summary.duplicates || 0) > 0 ? (
-                                                        <>
-                                                            <Button variant="destructive" onClick={() => handleImport(false)}>Overwrite Duplicates</Button>
-                                                            <AlertDialogAction onClick={() => handleImport(true)}>Skip Duplicates</AlertDialogAction>
-                                                        </>
-                                                    ) : (
-                                                        <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
-                                                    )}
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                            )}
+                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                            <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button disabled={!validationResult || isImporting}>
+                                                        {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Confirm Import</AlertDialogTitle>
+                                                        <div className="text-sm text-muted-foreground py-4">
+                                                            <ul className="list-disc pl-5 mt-2 space-y-1">
+                                                                <li><b>{validationResult?.summary.creates || 0}</b> new engagements will be created.</li>
+                                                                <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates found.</li>
+                                                                <li><b>{validationResult?.summary.ignores || 0}</b> rows with errors will be ignored.</li>
+                                                            </ul>
+                                                        </div>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        {(validationResult?.summary.duplicates || 0) > 0 ? (
+                                                            <>
+                                                                <Button variant="destructive" onClick={() => handleImport(false)}>Overwrite Duplicates</Button>
+                                                                <AlertDialogAction onClick={() => handleImport(true)}>Skip Duplicates</AlertDialogAction>
+                                                            </>
+                                                        ) : (
+                                                            <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
+                                                        )}
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
                                     </DialogFooter>
                                 </TooltipProvider>
                             </DialogContent>

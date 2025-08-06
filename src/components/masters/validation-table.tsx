@@ -9,7 +9,7 @@ import { DialogFooter, DialogClose, Dialog, DialogContent, DialogHeader, DialogT
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MANDATORY_CLIENT_HEADERS } from "./bulk-update-data";
-import { Loader2, AlertTriangle, DatabaseBackup, SkipForward } from "lucide-react";
+import { Loader2, AlertTriangle, DatabaseBackup, SkipForward, Download } from "lucide-react";
 import { writeBatch, collection, doc, getDocs, query, where, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Client } from "@/lib/data";
+import Papa from "papaparse";
 
 interface ValidationTableProps {
   data: any[];
@@ -255,6 +256,31 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     }
   };
 
+  const handleDownloadInvalid = () => {
+    if (!validationResult) return;
+
+    const invalidRows = validationResult.rows
+      .filter(r => r.action === 'IGNORE' || r.action === 'DUPLICATE')
+      .map(r => {
+        const errorReason = r.duplicateReason || Object.values(r.errors).join('; ');
+        return { ...r.row, 'Error Reason': errorReason };
+      });
+
+    if (invalidRows.length === 0) {
+      toast({ title: "No Invalid Rows", description: "There are no rows with errors or duplicates to download." });
+      return;
+    }
+
+    const csv = Papa.unparse(invalidRows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'invalid_client_rows.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getCellAction = (rowIndex: number): RowAction | null => {
     const resultRow = validationResult?.rows.find(r => r.originalIndex === rowIndex);
     return resultRow ? resultRow.action : null;
@@ -347,7 +373,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 </Table>
                 <ScrollBar orientation="horizontal" />
             </ScrollArea>
-            <DialogFooter className="pt-4 flex-shrink-0 items-center">
+            <DialogFooter className="pt-4 flex-shrink-0 items-center flex-wrap gap-2">
                  <div className="text-sm text-muted-foreground mr-auto flex items-center">
                     {validationResult !== null ? (
                          isFiltered && issueRowsCount > 0 ? (
@@ -358,47 +384,49 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                          ) : `Showing all ${data.length} records.`
                     ) : `Showing all ${data.length} records.`}
                 </div>
-                <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleValidate} disabled={isValidating}>
-                    {isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}
-                </Button>
-                {validationResult && validationResult.summary.duplicates > 0 && (
-                     <Button variant="secondary" onClick={() => setIsInspectDialogOpen(true)}>
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Inspect Duplicates ({validationResult.summary.duplicates})
-                    </Button>
-                )}
-                 {validationResult && validationResult.summary.duplicates > 0 ? (
-                    <div className="flex gap-2">
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive"><DatabaseBackup className="mr-2 h-4 w-4" /> Overwrite ({validationResult.summary.duplicates})</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Overwrite</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will overwrite {validationResult.summary.duplicates} existing records with the data from your CSV file. This action cannot be undone. Are you sure you want to proceed?
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleImport('overwrite')}>Yes, Overwrite</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        <Button onClick={() => handleImport('skip')} variant="outline">
-                            <SkipForward className="mr-2 h-4 w-4" />
-                            Skip Duplicates & Import Rest
+                <div className="flex gap-2">
+                    {validationResult && issueRowsCount > 0 && (
+                        <Button variant="secondary" onClick={handleDownloadInvalid}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Invalid Rows ({issueRowsCount})
                         </Button>
-                    </div>
-                 ) : (
-                     <Button onClick={() => handleImport(null)} disabled={!validationResult || isImporting}>
-                        {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
+                    )}
+                    <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleValidate} disabled={isValidating}>
+                        {isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}
                     </Button>
-                 )}
+                    {validationResult && validationResult.summary.duplicates > 0 ? (
+                        <div className="flex gap-2">
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive"><DatabaseBackup className="mr-2 h-4 w-4" /> Overwrite ({validationResult.summary.duplicates})</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Confirm Overwrite</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will overwrite {validationResult.summary.duplicates} existing records with the data from your CSV file. This action cannot be undone. Are you sure you want to proceed?
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleImport('overwrite')}>Yes, Overwrite</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            <Button onClick={() => handleImport('skip')} variant="outline">
+                                <SkipForward className="mr-2 h-4 w-4" />
+                                Skip Duplicates & Import Rest
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button onClick={() => handleImport(null)} disabled={!validationResult || isImporting}>
+                            {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
+                        </Button>
+                    )}
+                </div>
             </DialogFooter>
              <Dialog open={isInspectDialogOpen} onOpenChange={setIsInspectDialogOpen}>
                 <DialogContent className="max-w-4xl">
