@@ -13,7 +13,7 @@ import { TodoDetailsDialog } from "./todo-details-dialog";
 
 type TodoItemType = "missing-reporter" | "unassigned" | "incomplete-client-data";
 
-export function TodoSection() {
+export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
     const [engagementsWithMissingReporter, setEngagementsWithMissingReporter] = React.useState<Engagement[]>([]);
     const [unassignedEngagements, setUnassignedEngagements] = React.useState<Engagement[]>([]);
     const [incompleteClients, setIncompleteClients] = React.useState<Client[]>([]);
@@ -24,15 +24,15 @@ export function TodoSection() {
     const [detailDialogData, setDetailDialogData] = React.useState<{ title: string, engagements?: Engagement[], clients?: Client[] } | null>(null);
 
     React.useEffect(() => {
+        if (!currentUser) return;
+
+        const isAdmin = currentUser.role.includes("Admin");
+        const isPartner = currentUser.role.includes("Partner");
+
+        // These queries are global for Admins
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
         const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
         
-        // Setup queries for all incomplete data conditions
-        const panQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
-        const mobileQuery = query(collection(db, "clients"), where("mobileNumber", "==", "1111111111"));
-        const mailQuery = query(collection(db, "clients"), where("mailId", "==", "mail@notavailable.com"));
-
-
         const unsubReporter = onSnapshot(reporterQuery, (querySnapshot) => {
             setEngagementsWithMissingReporter(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Engagement) ));
         }, (error) => {
@@ -47,38 +47,40 @@ export function TodoSection() {
             toast({ title: "Error", description: "Could not fetch to-do list for assignments.", variant: "destructive" });
         });
         
+        // Queries for incomplete client data
+        const panQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
+        const mobileQuery = query(collection(db, "clients"), where("mobileNumber", "==", "1111111111"));
+        const mailQuery = query(collection(db, "clients"), where("mailId", "==", "mail@notavailable.com"));
+
         const combineIncompleteClients = (snapshots: (any | undefined)[]) => {
-            const allIncomplete = new Map<string, Client>();
+            const allIncompleteMap = new Map<string, Client>();
             snapshots.forEach(snapshot => {
                 if (snapshot && snapshot.docs) {
                     snapshot.docs.forEach((doc: any) => {
-                        const clientData = doc.data() as Client;
-                        // Ensure clientData and its id are valid before setting
-                        if (clientData && clientData.id && !allIncomplete.has(clientData.id)) {
-                            allIncomplete.set(clientData.id, clientData);
+                        const clientData = {id: doc.id, ...doc.data()} as Client;
+                        if (clientData && clientData.id && !allIncompleteMap.has(clientData.id)) {
+                             allIncompleteMap.set(clientData.id, clientData);
                         }
                     });
                 }
             });
-            setIncompleteClients(Array.from(allIncomplete.values()));
+            
+            let allIncomplete = Array.from(allIncompleteMap.values());
+
+            // Filter for partners if they are not admin
+            if (isPartner && !isAdmin) {
+                allIncomplete = allIncomplete.filter(c => c.partnerId === currentUser.id);
+            }
+
+            setIncompleteClients(allIncomplete);
         };
         
-        let panSnapshot: any;
-        let mobileSnapshot: any;
-        let mailSnapshot: any;
+        let panSnapshot: any, mobileSnapshot: any, mailSnapshot: any;
 
-        const unsubPan = onSnapshot(panQuery, (snapshot) => {
-            panSnapshot = snapshot;
-            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
-        });
-        const unsubMobile = onSnapshot(mobileQuery, (snapshot) => {
-            mobileSnapshot = snapshot;
-            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
-        });
-        const unsubMail = onSnapshot(mailQuery, (snapshot) => {
-            mailSnapshot = snapshot;
-            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
-        });
+        const unsubPan = onSnapshot(panQuery, (snapshot) => { panSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+        const unsubMobile = onSnapshot(mobileQuery, (snapshot) => { mobileSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+        const unsubMail = onSnapshot(mailQuery, (snapshot) => { mailSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+
 
         return () => {
             unsubReporter();
@@ -87,7 +89,7 @@ export function TodoSection() {
             unsubMobile();
             unsubMail();
         };
-    }, [toast]);
+    }, [toast, currentUser]);
     
     const openDetails = (type: TodoItemType) => {
         if (type === "missing-reporter") {
@@ -110,9 +112,14 @@ export function TodoSection() {
     };
     
     const todos = React.useMemo(() => {
+        if (!currentUser) return [];
+
+        const isAdmin = currentUser.role.includes("Admin");
+        const isPartner = currentUser.role.includes("Partner");
+
         const todoList: { id: TodoItemType; field: string; count: number; action?: () => void; }[] = [];
         
-        if (engagementsWithMissingReporter.length > 0) {
+        if (isAdmin && engagementsWithMissingReporter.length > 0) {
             todoList.push({
                 id: "missing-reporter",
                 field: "Engagement Reporter Not Assigned",
@@ -121,7 +128,7 @@ export function TodoSection() {
             });
         }
         
-        if (unassignedEngagements.length > 0) {
+        if (isAdmin && unassignedEngagements.length > 0) {
             todoList.push({
                 id: "unassigned",
                 field: "Engagements Not Assigned to Employee",
@@ -130,17 +137,17 @@ export function TodoSection() {
             });
         }
         
-        if (incompleteClients.length > 0) {
+        if ((isAdmin || isPartner) && incompleteClients.length > 0) {
             todoList.push({
                 id: "incomplete-client-data",
-                field: "Clients with Missing Mandatory Data",
+                field: `Clients with Missing Mandatory Data ${isPartner && !isAdmin ? "(Yours)" : ""}`,
                 count: incompleteClients.length,
                 action: () => openDetails("incomplete-client-data")
             });
         }
 
         return todoList;
-    }, [engagementsWithMissingReporter, unassignedEngagements, incompleteClients]);
+    }, [currentUser, engagementsWithMissingReporter, unassignedEngagements, incompleteClients]);
 
     if (todos.length === 0) {
         return (

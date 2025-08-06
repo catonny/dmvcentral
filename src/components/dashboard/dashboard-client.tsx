@@ -165,7 +165,7 @@ export function DashboardClient() {
           case 'workload-distribution':
               return { engagements: engagements, employees: allEmployees };
           case 'todo-section':
-              return {};
+              return { currentUser: currentUserEmployeeProfile };
           default:
               return {};
       }
