@@ -8,7 +8,6 @@ const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 let serviceAccount: any;
 if (serviceAccountString) {
     try {
-        // The string is already a valid JSON string, so we parse it.
         serviceAccount = JSON.parse(serviceAccountString);
     } catch (e) {
         console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
