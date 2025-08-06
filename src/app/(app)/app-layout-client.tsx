@@ -17,10 +17,10 @@ import type { Employee, Permission, FeatureName, Client, Engagement, EngagementT
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { ClientOnly } from "./client-only";
-import { Button } from "./ui/button";
-import { UniversalSearch } from "./universal-search";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClientOnly } from "@/components/client-only";
+import { Button } from "@/components/ui/button";
+import { UniversalSearch } from "@/components/universal-search";
 
 interface NavItem {
   id: string;
@@ -375,3 +375,5 @@ export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
     </AuthProvider>
   )
 }
+
+    
