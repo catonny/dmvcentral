@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -8,6 +7,7 @@ import { Employee, Engagement, Client } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { EngagementCard } from "./engagement-card";
 import { cn } from "@/lib/utils";
+import { EngagementListItem } from "./engagement-list-item";
 
 interface EmployeeLaneProps {
     employee: Employee;
@@ -27,11 +27,11 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
         <div 
             ref={setNodeRef} 
             className={cn(
-                "flex flex-col gap-4 p-4 rounded-lg bg-muted/30 transition-colors",
+                "flex flex-col gap-3 p-3 rounded-lg bg-muted/30 transition-colors h-full",
                 isOver && "bg-primary/10"
             )}
         >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0">
                 <Avatar>
                     <AvatarImage src={employee.avatar} alt={employee.name} />
                     <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
@@ -41,16 +41,13 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
                     <p className="text-xs text-muted-foreground">{engagements.length} active engagement(s)</p>
                 </div>
             </div>
-            <div className="space-y-3 min-h-[100px]">
+             <div className="space-y-2 min-h-[80px] flex-grow">
                 <SortableContext items={engagements.map(e => e.id)} strategy={verticalListSortingStrategy}>
                     {engagements.map(engagement => (
-                        <EngagementCard
+                        <EngagementListItem
                             key={engagement.id}
                             engagement={engagement}
                             client={clientMap.get(engagement.clientId)}
-                            employeeMap={employeeMap}
-                            onRemoveUser={onRemoveUser}
-                            onScheduleMeeting={onScheduleMeeting}
                         />
                     ))}
                 </SortableContext>

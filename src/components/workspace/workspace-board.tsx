@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -22,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EngagementListItem } from "./engagement-list-item";
 
 const ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
@@ -67,7 +67,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         };
     }, [resetActivityTimer]);
 
-    // Determine which departments the current user can see
     const visibleDepartments = React.useMemo(() => {
         const userRoles = currentUser.role;
         if (userRoles.includes("Admin")) {
@@ -80,11 +79,11 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         });
         
         const minOrder = Math.min(...userDeptOrders);
-
-        // Deduplicate departments to prevent key errors
         const depts = allDepartments.filter(dept => dept.order >= minOrder);
-        const uniqueDepts = Array.from(new Map(depts.map(item => [item['id'], item])).values());
-        return uniqueDepts;
+        const uniqueDeptMap = new Map();
+        depts.forEach(item => uniqueDeptMap.set(item.id, item));
+
+        return Array.from(uniqueDeptMap.values());
         
     }, [currentUser, allDepartments]);
 
@@ -108,7 +107,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         const engagement = allEngagements.find(e => e.id === engagementId);
         if (!engagement) return;
 
-        // If dropping on the same user or if the user is already assigned, do nothing
         if (engagement.assignedTo.includes(targetEmployeeId)) return;
         
         const newAssignedTo = [...engagement.assignedTo, targetEmployeeId];
@@ -169,7 +167,7 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         setEventDialogInfo({
             title: `Meeting: ${engagement.remarks}`,
             startStr: now.toISOString(),
-            endStr: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour later
+            endStr: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
             allDay: false,
             attendees: engagement.assignedTo,
             engagementId: engagement.id,
@@ -235,12 +233,9 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
             </ScrollArea>
              <DragOverlay>
                 {activeEngagement ? (
-                    <EngagementCard 
-                        engagement={activeEngagement} 
+                    <EngagementListItem
+                        engagement={activeEngagement}
                         client={clientMap.get(activeEngagement.clientId)}
-                        employeeMap={employeeMap}
-                        onRemoveUser={() => {}} // No action during drag
-                        onScheduleMeeting={() => {}}
                     />
                 ) : null}
             </DragOverlay>
