@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -8,11 +7,14 @@ import { useAuth } from "@/hooks/use-auth";
 import type { RecurringEngagement, Employee, Client, EngagementType } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { RecurringEngagementsTable } from "@/components/recurring/data-table";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export default function RecurringEngagementsPage() {
     const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
     const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
@@ -117,6 +119,10 @@ export default function RecurringEngagementsPage() {
 
     return (
         <div className="space-y-6">
+            <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Administration
+            </Button>
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight font-headline">Recurring Engagements</h2>
