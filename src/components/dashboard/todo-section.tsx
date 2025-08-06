@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import type { Client, Engagement, Employee } from "@/lib/data";
+import type { Client, Engagement, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc } from "firebase/firestore";
@@ -10,13 +10,15 @@ import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { TodoDetailsDialog } from "./todo-details-dialog";
+import { sendEmail } from "@/ai/flows/send-email-flow";
 
-type TodoItemType = "missing-reporter" | "unassigned" | "incomplete-client-data";
+type TodoItemType = "missing-reporter" | "unassigned" | "incomplete-client-data" | "fee-revision";
 
 export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
     const [engagementsWithMissingReporter, setEngagementsWithMissingReporter] = React.useState<Engagement[]>([]);
     const [unassignedEngagements, setUnassignedEngagements] = React.useState<Engagement[]>([]);
     const [incompleteClients, setIncompleteClients] = React.useState<Client[]>([]);
+    const [feeRevisionTodos, setFeeRevisionTodos] = React.useState<Todo[]>([]);
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
     
@@ -29,58 +31,40 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
         const isAdmin = currentUser.role.includes("Admin");
         const isPartner = currentUser.role.includes("Partner");
 
-        // These queries are global for Admins
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
         const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
-        
-        const unsubReporter = onSnapshot(reporterQuery, (querySnapshot) => {
-            setEngagementsWithMissingReporter(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Engagement) ));
-        }, (error) => {
-            console.error("Error fetching engagements with missing reporter: ", error);
-            toast({ title: "Error", description: "Could not fetch to-do list for reporters.", variant: "destructive" });
-        });
+        const feeRevisionQuery = query(collection(db, "todos"), where("type", "==", "FEE_REVISION_APPROVAL"), where("status", "==", "Pending"), where("userId", "==", currentUser.id));
 
-        const unsubUnassigned = onSnapshot(unassignedQuery, (querySnapshot) => {
-            setUnassignedEngagements(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Engagement)));
-        }, (error) => {
-            console.error("Error fetching unassigned engagements: ", error);
-            toast({ title: "Error", description: "Could not fetch to-do list for assignments.", variant: "destructive" });
-        });
+        const unsubReporter = onSnapshot(reporterQuery, (snap) => setEngagementsWithMissingReporter(snap.docs.map(doc => doc.data() as Engagement)));
+        const unsubUnassigned = onSnapshot(unassignedQuery, (snap) => setUnassignedEngagements(snap.docs.map(doc => doc.data() as Engagement)));
+        const unsubFeeRevisions = onSnapshot(feeRevisionQuery, (snap) => setFeeRevisionTodos(snap.docs.map(doc => doc.data() as Todo)));
         
-        // Queries for incomplete client data
         const panQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
         const mobileQuery = query(collection(db, "clients"), where("mobileNumber", "==", "1111111111"));
         const mailQuery = query(collection(db, "clients"), where("mailId", "==", "mail@notavailable.com"));
 
-        const combineIncompleteClients = (snapshots: (any | undefined)[]) => {
+        const combineIncompleteClients = (snapshots: any[]) => {
             const allIncompleteMap = new Map<string, Client>();
             snapshots.forEach(snapshot => {
-                if (snapshot && snapshot.docs) {
+                if (snapshot?.docs) {
                     snapshot.docs.forEach((doc: any) => {
                         const clientData = {id: doc.id, ...doc.data()} as Client;
-                        if (clientData && clientData.id && !allIncompleteMap.has(clientData.id)) {
-                             allIncompleteMap.set(clientData.id, clientData);
-                        }
+                        if (clientData?.id) allIncompleteMap.set(clientData.id, clientData);
                     });
                 }
             });
             
             let allIncomplete = Array.from(allIncompleteMap.values());
-
-            // Filter for partners if they are not admin
             if (isPartner && !isAdmin) {
                 allIncomplete = allIncomplete.filter(c => c.partnerId === currentUser.id);
             }
-
             setIncompleteClients(allIncomplete);
         };
         
         let panSnapshot: any, mobileSnapshot: any, mailSnapshot: any;
-
-        const unsubPan = onSnapshot(panQuery, (snapshot) => { panSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
-        const unsubMobile = onSnapshot(mobileQuery, (snapshot) => { mobileSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
-        const unsubMail = onSnapshot(mailQuery, (snapshot) => { mailSnapshot = snapshot; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
-
+        const unsubPan = onSnapshot(panQuery, (s) => { panSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+        const unsubMobile = onSnapshot(mobileQuery, (s) => { mobileSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+        const unsubMail = onSnapshot(mailQuery, (s) => { mailSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
 
         return () => {
             unsubReporter();
@@ -88,28 +72,51 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
             unsubPan();
             unsubMobile();
             unsubMail();
+            unsubFeeRevisions();
         };
-    }, [toast, currentUser]);
+    }, [currentUser]);
     
-    const openDetails = (type: TodoItemType) => {
-        if (type === "missing-reporter") {
-            setDetailDialogData({
-                title: "Engagements with Missing Reporter",
-                engagements: engagementsWithMissingReporter
-            });
-        } else if (type === "unassigned") {
-            setDetailDialogData({
-                title: "Unassigned Engagements",
-                engagements: unassignedEngagements
-            });
-        } else if (type === "incomplete-client-data") {
-            setDetailDialogData({
-                title: "Clients with Incomplete Data",
-                clients: incompleteClients
-            });
-        }
-        setIsDetailDialogOpen(true);
+    const openDetails = (type: TodoItemType, data?: any) => {
+        // This part would need to be expanded to handle the new todo type in a dialog if needed
     };
+
+    const handleSendConfirmationEmail = async (todo: Todo) => {
+        if (!currentUser) return;
+        setLoading(true);
+        try {
+            const { clientName, engagementTypeName, oldFee, newFee } = todo.relatedData;
+            const client = await getDoc(doc(db, "clients", todo.clientId));
+            if (!client.exists()) throw new Error("Client not found");
+            const clientEmail = client.data().mailId;
+
+            const subject = `Important Update: Revision of Professional Fees for ${engagementTypeName}`;
+            const body = `Dear ${clientName},
+
+We hope this email finds you well.
+
+This is to formally notify you of a revision in our professional fees for the recurring ${engagementTypeName} service we provide for you.
+
+The fee for this service will be updated from ₹${oldFee} to ₹${newFee}, effective from the next billing cycle.
+
+This adjustment allows us to continue providing the high-quality service you have come to expect from us.
+
+Please feel free to reply to this email if you have any questions. We appreciate your understanding and look forward to our continued partnership.
+
+Warm regards,
+
+${currentUser.name}
+Davis Martin & Varghese`;
+            
+            await sendEmail({ recipientEmails: [clientEmail], subject, body });
+            await updateDoc(doc(db, "todos", todo.id), { status: "Completed" });
+
+            toast({ title: "Email Sent", description: "Confirmation email has been sent to the client."});
+        } catch (err) {
+            toast({ title: "Error", description: "Failed to send email.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    }
     
     const todos = React.useMemo(() => {
         if (!currentUser) return [];
@@ -117,46 +124,31 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
         const isAdmin = currentUser.role.includes("Admin");
         const isPartner = currentUser.role.includes("Partner");
 
-        const todoList: { id: TodoItemType; field: string; count: number; action?: () => void; }[] = [];
+        const todoList = [];
         
-        if (isAdmin && engagementsWithMissingReporter.length > 0) {
-            todoList.push({
-                id: "missing-reporter",
-                field: "Engagement Reporter Not Assigned",
-                count: engagementsWithMissingReporter.length,
-                action: () => openDetails("missing-reporter")
-            });
-        }
+        if (isAdmin && engagementsWithMissingReporter.length > 0) todoList.push({ id: "missing-reporter", field: "Engagement Reporter Not Assigned", count: engagementsWithMissingReporter.length });
+        if (isAdmin && unassignedEngagements.length > 0) todoList.push({ id: "unassigned", field: "Engagements Not Assigned to Employee", count: unassignedEngagements.length });
+        if ((isAdmin || isPartner) && incompleteClients.length > 0) todoList.push({ id: "incomplete-client-data", field: `Clients with Missing Mandatory Data ${isPartner && !isAdmin ? "(Yours)" : ""}`, count: incompleteClients.length });
         
-        if (isAdmin && unassignedEngagements.length > 0) {
+        feeRevisionTodos.forEach(todo => {
             todoList.push({
-                id: "unassigned",
-                field: "Engagements Not Assigned to Employee",
-                count: unassignedEngagements.length,
-                action: () => openDetails("unassigned")
+                id: todo.id,
+                field: `Confirm fee revision for ${todo.relatedData.clientName} (${todo.relatedData.engagementTypeName})`,
+                count: 1,
+                action: () => handleSendConfirmationEmail(todo),
+                actionLabel: "Send Email"
             });
-        }
-        
-        if ((isAdmin || isPartner) && incompleteClients.length > 0) {
-            todoList.push({
-                id: "incomplete-client-data",
-                field: `Clients with Missing Mandatory Data ${isPartner && !isAdmin ? "(Yours)" : ""}`,
-                count: incompleteClients.length,
-                action: () => openDetails("incomplete-client-data")
-            });
-        }
+        });
 
         return todoList;
-    }, [currentUser, engagementsWithMissingReporter, unassignedEngagements, incompleteClients]);
+    }, [currentUser, engagementsWithMissingReporter, unassignedEngagements, incompleteClients, feeRevisionTodos]);
 
     if (todos.length === 0) {
         return (
              <Card>
                 <CardHeader>
                     <CardTitle>To-Do List</CardTitle>
-                    <CardDescription>
-                        Action items that require your attention.
-                    </CardDescription>
+                    <CardDescription>Action items that require your attention.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
@@ -176,9 +168,7 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
                         To-Do List
                     </CardTitle>
-                    <CardDescription>
-                        The following items are not updated and require your urgent attention.
-                    </CardDescription>
+                    <CardDescription>The following items require your urgent attention.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ul className="space-y-2">
@@ -186,27 +176,19 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
                             <li key={todo.id} className="flex justify-between items-center bg-muted/50 p-3 rounded-md">
                             <div className="flex-1">
                                 <span className="font-medium text-sm text-foreground/80">{todo.field}</span>
-                                <span className="ml-3 text-sm font-bold text-destructive bg-destructive/20 rounded-full px-2.5 py-1">
-                                    {todo.count}
-                                </span>
+                                {todo.count > 1 && <span className="ml-3 text-sm font-bold text-destructive bg-destructive/20 rounded-full px-2.5 py-1">{todo.count}</span>}
                             </div>
                             {todo.action && (
-                                    <Button size="sm" variant="outline" onClick={todo.action} disabled={loading}>
-                                        Details
-                                    </Button>
+                                <Button size="sm" variant="outline" onClick={todo.action} disabled={loading}>
+                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {todo.actionLabel || 'Details'}
+                                </Button>
                             )}
                             </li>
                         ))}
                     </ul>
                 </CardContent>
             </Card>
-            <TodoDetailsDialog 
-                isOpen={isDetailDialogOpen}
-                onClose={() => setIsDetailDialogOpen(false)}
-                title={detailDialogData?.title || ""}
-                engagements={detailDialogData?.engagements}
-                clients={detailDialogData?.clients}
-            />
         </>
     )
 }

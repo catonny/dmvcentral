@@ -82,6 +82,7 @@ export interface EngagementType {
   // a 'Task' document will be created for each of these titles.
   subTaskTitles: string[]; 
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
+  recurrence?: 'Monthly' | 'Quarterly' | 'Yearly';
 }
 
 export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "On Hold" | "Completed" | "Cancelled";
@@ -107,7 +108,36 @@ export interface Engagement {
   billStatus?: BillStatus;
   billSubmissionDate?: string; // ISO 8601 format
   fees?: number;
+  recurringEngagementId?: string;
 }
+
+export interface RecurringEngagement {
+  id: string;
+  clientId: string;
+  engagementTypeId: string;
+  fees: number;
+  isActive: boolean;
+  assignedTo: string[];
+  reportedTo: string;
+  lastGeneratedDate?: string;
+}
+
+export interface Todo {
+    id: string;
+    type: 'FEE_REVISION_APPROVAL';
+    userId: string; // The partner this is assigned to
+    clientId: string;
+    relatedData: {
+        recurringEngagementId: string;
+        oldFee: number;
+        newFee: number;
+        clientName: string;
+        engagementTypeName: string;
+    };
+    status: 'Pending' | 'Completed';
+    createdAt: string; // ISO String
+}
+
 
 export interface PendingInvoice {
     id: string; // Firestore document ID
@@ -608,19 +638,22 @@ export const engagementTypes: EngagementType[] = [
         id: "ET01", 
         name: "ITR Filing", 
         description: "Income Tax Return Filing for Individuals and Businesses",
-        subTaskTitles: ["Contact Client", "Collect Documents", "Prepare Computation", "Finalise Computation", "File ITR", "e-Verify ITR", "Send ITR-V to Client", "Bill for Services", "Collect Payment"]
+        subTaskTitles: ["Contact Client", "Collect Documents", "Prepare Computation", "Finalise Computation", "File ITR", "e-Verify ITR", "Send ITR-V to Client", "Bill for Services", "Collect Payment"],
+        recurrence: "Yearly",
     },
     { 
         id: "ET02", 
         name: "GST Filing", 
         description: "Monthly and Quarterly GST Return Filing",
-        subTaskTitles: ["Request Sales Data", "Request Purchase Data", "Reconcile GSTR-2B", "Prepare GSTR-3B", "File GSTR-3B", "File GSTR-1", "Bill for Services", "Collect Payment"]
+        subTaskTitles: ["Request Sales Data", "Request Purchase Data", "Reconcile GSTR-2B", "Prepare GSTR-3B", "File GSTR-3B", "File GSTR-1", "Bill for Services", "Collect Payment"],
+        recurrence: "Monthly",
     },
     {
         id: "ET03",
         name: "TDS Filing",
         description: "Quarterly TDS Return Filing",
-        subTaskTitles: ["Collect TDS Data", "Prepare TDS Return", "Validate TDS Return", "File TDS Return", "Download Form 16/16A", "Issue Certificates", "Bill for Services", "Collect Payment"]
+        subTaskTitles: ["Collect TDS Data", "Prepare TDS Return", "Validate TDS Return", "File TDS Return", "Download Form 16/16A", "Issue Certificates", "Bill for Services", "Collect Payment"],
+        recurrence: "Quarterly",
     },
     { 
         id: "ET04", 

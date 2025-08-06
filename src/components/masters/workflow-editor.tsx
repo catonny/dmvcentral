@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -38,6 +39,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 
 function SortableTaskItem({ id, title, onUpdate, onDelete }: { id: string; title: string; onUpdate: (newTitle: string) => void; onDelete: () => void; }) {
@@ -96,6 +99,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [newTask, setNewTask] = React.useState('');
     const [editingTypeName, setEditingTypeName] = React.useState('');
     const [editingDescription, setEditingDescription] = React.useState('');
+    const [editingRecurrence, setEditingRecurrence] = React.useState<EngagementType['recurrence'] | ''>('');
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -114,10 +118,12 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             setTasks(selectedType.subTaskTitles || []);
             setEditingTypeName(selectedType.name);
             setEditingDescription(selectedType.description || '');
+            setEditingRecurrence(selectedType.recurrence || '');
         } else {
             setTasks([]);
             setEditingTypeName('');
             setEditingDescription('');
+            setEditingRecurrence('');
         }
     }, [selectedType]);
     
@@ -132,7 +138,8 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             await updateDoc(typeRef, { 
                 name: editingTypeName.trim(),
                 description: editingDescription,
-                subTaskTitles: tasks 
+                subTaskTitles: tasks,
+                recurrence: editingRecurrence || null,
             });
             toast({ title: "Success", description: `Workflow for "${editingTypeName}" updated successfully.` });
         } catch (error) {
@@ -291,6 +298,21 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                 <div className="space-y-2">
                                     <Label htmlFor="typeDescription">Description</Label>
                                     <Textarea id="typeDescription" value={editingDescription} onChange={(e) => setEditingDescription(e.target.value)} placeholder="Describe what this engagement type is for." />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="typeRecurrence">Recurrence</Label>
+                                    <Select value={editingRecurrence} onValueChange={(value) => setEditingRecurrence(value as EngagementType['recurrence'])}>
+                                        <SelectTrigger id="typeRecurrence">
+                                            <SelectValue placeholder="No Recurrence" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value=" ">No Recurrence</SelectItem>
+                                            <SelectItem value="Monthly">Monthly</SelectItem>
+                                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                            <SelectItem value="Yearly">Yearly</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 
                                 <h4 className="font-semibold text-foreground pt-4 border-t">Task Checklist</h4>
