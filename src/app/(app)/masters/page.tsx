@@ -4,7 +4,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building } from "lucide-react";
+import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building, UploadCloud } from "lucide-react";
 import { ViewMasterData } from "@/components/masters/view-master-data";
 import { CreateMasterData } from "@/components/masters/create-master-data";
 import { AlterMasterData } from "@/components/masters/alter-master-data";
@@ -14,7 +14,7 @@ import { WorkflowEditor } from "@/components/masters/workflow-editor";
 import { EmployeeManager } from "@/components/masters/employee-manager";
 import { useRouter } from "next/navigation";
 
-type Action = "view" | "create" | "alter" | "workflow" | "employee" | "firms" | null;
+type Action = "view" | "create" | "alter" | "workflow" | "employee" | "firms" | "bulk-import" | null;
 
 export default function MastersPage() {
   const [currentAction, setCurrentAction] = React.useState<Action>(null);
@@ -23,7 +23,10 @@ export default function MastersPage() {
   const handleActionClick = (action: Action) => {
       if (action === 'firms') {
           router.push('/masters/firms');
-      } else {
+      } else if (action === 'bulk-import') {
+          router.push('/bulk-import');
+      }
+      else {
         setCurrentAction(action);
       }
   };
@@ -54,6 +57,12 @@ export default function MastersPage() {
                     description="Add, edit, and manage employee profiles and department assignments."
                     icon={Group}
                     onClick={() => handleActionClick("employee")}
+                />
+                 <ActionCard
+                    title="Bulk Import"
+                    description="Efficiently add or update data using CSV files."
+                    icon={UploadCloud}
+                    onClick={() => handleActionClick("bulk-import")}
                 />
                 <ActionCard
                     title="Edit Engagement Workflows"

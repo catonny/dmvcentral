@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Logo } from "@/components/logo";
@@ -182,11 +183,10 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'leave-management', href: '/leave-management', icon: UserCog, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
-        { id: 'administration', href: '/accounts', icon: Receipt, tooltip: 'Administration', label: 'Administration', condition: checkPermission('administration') },
+        { id: 'administration', href: '/administration', icon: Receipt, tooltip: 'Administration', label: 'Administration', condition: checkPermission('administration') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
         { id: 'profile', href: '/profile', icon: UserIcon, tooltip: 'My Profile', label: 'My Profile', condition: true },
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
-        { id: 'bulk-import', href: '/bulk-import', icon: UploadCloud, tooltip: 'Bulk Import', label: 'Bulk Import', condition: checkPermission('bulk-import') },
         { id: 'settings', href: '/settings', icon: Settings, tooltip: 'Settings', label: 'Settings', condition: checkPermission('settings-data-management') || checkPermission('settings-access-control') }
     ];
     

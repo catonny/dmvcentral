@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmailCenter } from "@/components/administration/email-center";
+import RecurringEngagementsPage from "../recurring/page";
 
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
@@ -263,10 +264,14 @@ export default function AdministrationPage() {
             <Tabs defaultValue="billing" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="billing">Billing Dashboard</TabsTrigger>
+                    <TabsTrigger value="recurring">Recurring Engagements</TabsTrigger>
                     <TabsTrigger value="email">Email Center</TabsTrigger>
                 </TabsList>
                 <TabsContent value="billing" className="space-y-4">
                     <BillingDashboard />
+                </TabsContent>
+                <TabsContent value="recurring">
+                    <RecurringEngagementsPage />
                 </TabsContent>
                 <TabsContent value="email" className="space-y-4">
                     <EmailCenter />
