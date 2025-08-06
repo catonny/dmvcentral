@@ -294,17 +294,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
               </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            <header className="flex items-center justify-between gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex flex-col">
-                        <h2 className="text-2xl font-bold tracking-tight text-white">
-                            Hi, {currentDisplayName}!
-                        </h2>
-                        <p className="text-muted-foreground text-sm">
-                        {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
-                        </p>
-                    </div>
-                </div>
+            <header className="flex items-center justify-end gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
                 <div className="flex items-center gap-2">
                     <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                         <Link href="/workspace"><Briefcase />Workspace</Link>
@@ -349,7 +339,15 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                   <UserNav impersonatedUser={impersonatedUserId ? allEmployees.find(e => e.id === impersonatedUserId) : null} />
                 </div>
             </header>
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+            <div className="px-6 py-4">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
+                    Hi, {currentDisplayName}!
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
+                </p>
+            </div>
+            <main className="flex flex-1 flex-col gap-4 p-4 pt-0 lg:gap-6 lg:p-6 lg:pt-0">
                 {children}
             </main>
              <UniversalSearch 
@@ -375,5 +373,3 @@ export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
     </AuthProvider>
   )
 }
-
-    
