@@ -6,7 +6,7 @@ import { collection, query, onSnapshot, where, getDocs, doc, updateDoc, getDoc, 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loader2, ArrowRight, Receipt, Repeat, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
