@@ -29,7 +29,8 @@ export default function AccessControlPage() {
     React.useEffect(() => {
         const deptsUnsub = onSnapshot(collection(db, "departments"), (snapshot) => {
             const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-            setDepartments(deptsData.sort((a,b) => a.order - b.order));
+            const uniqueDepts = Array.from(new Map(deptsData.map(item => [item.id, item])).values());
+            setDepartments(uniqueDepts.sort((a,b) => a.order - b.order));
         });
 
         const permsUnsub = onSnapshot(collection(db, "permissions"), (snapshot) => {
