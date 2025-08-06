@@ -161,7 +161,7 @@ export interface LeaveRequest {
 
 export type FeatureName = 
     | "reports" 
-    | "accounts" 
+    | "administration" 
     | "masters" 
     | "bulk-import" 
     | "employee-management" 
@@ -176,7 +176,7 @@ export type FeatureName =
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
-    { id: "accounts", name: "Accounts", description: "Access the billing and collections dashboard." },
+    { id: "administration", name: "Administration", description: "Access the billing and collections dashboard." },
     { id: "timesheet", name: "Timesheet", description: "Access to view and manage timesheets" },
     { id: "calendar", name: "Calendar", description: "Access the shared team calendar." },
     { id: "inbox", name: "Inbox", description: "View and manage AI-processed client communications." },
@@ -262,14 +262,14 @@ export const employees: Employee[] = [
   { id: "S002", name: "Alex Smith", email: "alex.smith@example.com", designation: "Audit Manager", avatar: "https://placehold.co/40x40.png", role: ["Manager"], managerId: "S001", leaveAllowance: 18, leavesTaken: 2 },
   { id: "S003", name: "Priya Sharma", email: "priya.sharma@example.com", designation: "Tax Associate", avatar: "https://placehold.co/40x40.png", role: ["Employee"], managerId: "S002", leaveAllowance: 15, leavesTaken: 7 },
   { id: "S004", name: "Ben Carter", email: "ben.carter@example.com", designation: "Junior Accountant", avatar: "https://placehold.co/40x40.png", role: ["Articles"], managerId: "S002", leaveAllowance: 12, leavesTaken: 10 },
-  { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accounts Head", avatar: "https://placehold.co/40x40.png", role: ["Accounts"], managerId: "S001", leaveAllowance: 18, leavesTaken: 4 },
+  { id: "S005", name: "Sunita Williams", email: "sunita.williams@example.com", designation: "Accountant", avatar: "https://placehold.co/40x40.png", role: ["Administration"], managerId: "S001", leaveAllowance: 18, leavesTaken: 4 },
   { id: "S006", name: "Dojo Davis", email: "cadojodavis@gmail.com", designation: "Managing Partner", avatar: "https://placehold.co/40x40.png", role: ["Partner"], managerId: "S001", leaveAllowance: 20, leavesTaken: 1 },
 ];
 
 export const departments: Omit<Department, "id">[] = [
     { name: "Admin", order: 1 },
     { name: "Partner", order: 2 },
-    { name: "Accounts", order: 3 },
+    { name: "Administration", order: 3 },
     { name: "Manager", order: 4 },
     { name: "Employee", order: 5 },
     { name: "Articles", order: 6 },

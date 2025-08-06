@@ -58,7 +58,7 @@ export default function AccountsPage() {
             const employeeSnapshot = await getDocs(employeeQuery);
             if (!employeeSnapshot.empty) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner") || employeeData.role.includes("Accounts")) {
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Administration")) {
                     setHasAccess(true);
                 }
             }
@@ -176,7 +176,7 @@ export default function AccountsPage() {
                                     return (
                                         <TableRow key={engagement.id}>
                                             <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
-                                            <TableCell>{client?.Name || 'Unknown Client'}</TableCell>
+                                            <TableCell>{client?.name || 'Unknown Client'}</TableCell>
                                             <TableCell>{partner?.name || 'N/A'}</TableCell>
                                             <TableCell>{engagementType?.name || 'N/A'}</TableCell>
                                             <TableCell>{assignedToNames || 'N/A'}</TableCell>

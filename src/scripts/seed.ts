@@ -25,7 +25,7 @@ const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 let serviceAccount: any;
 if (serviceAccountString) {
     try {
-        serviceAccount = JSON.parse(serviceAccountString.replace(/'/g, ''));
+        serviceAccount = JSON.parse(serviceAccountString);
     } catch (e) {
         console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
         serviceAccount = undefined;
@@ -34,7 +34,7 @@ if (serviceAccountString) {
 
 
 if (!serviceAccount) {
-    throw new Error('Firebase Admin SDK service account is not defined. Make sure the FIREBASE_SERVICE_ACCOUNT environment variable is set.');
+    throw new Error('Firebase Admin SDK service account is not defined. Make sure the FIREBASE_SERVICE_ACCOUNT environment variable is set correctly.');
 }
 
 let app: App;
@@ -139,10 +139,10 @@ const seedDatabase = async () => {
     console.log('Seeding default permissions...');
     const permissions: Permission[] = [
         { feature: 'reports', departments: ['Admin', 'Partner'] },
-        { feature: 'accounts', departments: ['Admin', 'Partner', 'Accounts'] },
+        { feature: 'administration', departments: ['Admin', 'Partner', 'Administration'] },
         { feature: 'timesheet', departments: ['Admin', 'Partner'] },
-        { feature: 'calendar', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Accounts'] },
-        { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Accounts'] },
+        { feature: 'calendar', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
+        { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
         { feature: 'firm-analytics', departments: ['Admin', 'Partner'] },
         { feature: 'leave-management', departments: ['Admin', 'Partner', 'Manager'] },
         { feature: 'masters', departments: ['Admin'] },
