@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Button } from "../ui/button";
-import { Download, Upload, Loader2 } from "lucide-react";
+import { Download, Upload, Loader2, AlertTriangle, SkipForward, DatabaseBackup } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -20,7 +20,7 @@ import {
 import type { Department, Employee } from "@/lib/data";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
-import { writeBatch, doc, collection, getDocs, query, where } from "firebase/firestore";
+import { writeBatch, doc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ScrollArea } from "../ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -33,18 +33,23 @@ interface BulkCreateEmployeesProps {
     allDepartments: Department[];
 }
 
+type RowAction = "CREATE" | "UPDATE" | "IGNORE" | "DUPLICATE";
+
 interface ValidatedRow {
     row: any;
     errors: { [key: string]: string };
     originalIndex: number;
-    action: "CREATE" | "IGNORE";
+    action: RowAction;
+    existingEmployeeId?: string;
 }
 
 interface ValidationResult {
     rows: ValidatedRow[];
     summary: {
         creates: number;
+        updates: number;
         ignores: number;
+        duplicates: number;
     }
 }
 
@@ -54,6 +59,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
   const [validationResult, setValidationResult] = React.useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [isFiltered, setIsFiltered] = React.useState(false);
   
   const { CSVReader } = useCSVReader();
   const { toast } = useToast();
@@ -122,19 +128,35 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const existingEmployeesSnapshot = await getDocs(query(collection(db, "employees")));
-    const existingEmails = new Set(existingEmployeesSnapshot.docs.map(doc => doc.data().email.toLowerCase()));
+    const existingEmployees = existingEmployeesSnapshot.docs.map(d => d.data() as Employee);
+    const emailToIdMap = new Map(existingEmployees.map(e => [e.email.toLowerCase(), e.id]));
     const validRoles = new Set(allDepartments.map(d => d.name));
 
     const result: ValidationResult = {
         rows: [],
-        summary: { creates: 0, ignores: 0 }
+        summary: { creates: 0, updates: 0, ignores: 0, duplicates: 0 }
     };
+    
+    const processedEmailsInCsv = new Set<string>();
 
     parsedData.forEach((row, rowIndex) => {
         const errors: { [key: string]: string } = {};
-        let action: "CREATE" | "IGNORE" = "CREATE";
+        let action: RowAction = "CREATE";
+        let existingEmployeeId: string | undefined;
 
-        // Check for mandatory fields
+        const email = row["Email"]?.toLowerCase();
+
+        if (email && processedEmailsInCsv.has(email)) {
+            action = "DUPLICATE";
+        } else if (email) {
+            processedEmailsInCsv.add(email);
+            if (emailToIdMap.has(email)) {
+                action = "UPDATE";
+                existingEmployeeId = emailToIdMap.get(email);
+            }
+        }
+
+        // Validate mandatory fields
         MANDATORY_EMPLOYEE_HEADERS.forEach(header => {
             if (!row[header] || String(row[header]).trim() === '') {
                 errors[header] = `Mandatory field is missing.`;
@@ -142,71 +164,87 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
             }
         });
 
-        // Validate email format and uniqueness
-        if (row["Email"]) {
-            if (!emailRegex.test(row["Email"])) {
-                errors["Email"] = `Invalid email format.`;
-                action = "IGNORE";
-            } else if (existingEmails.has(row["Email"].toLowerCase())) {
-                errors["Email"] = `An employee with this email already exists.`;
-                action = "IGNORE";
-            }
+        // Other validations
+        if (row["Email"] && !emailRegex.test(row["Email"])) {
+            errors["Email"] = `Invalid email format.`;
+            action = "IGNORE";
         }
-        
-        // Validate Role
         if (row["Role"] && !validRoles.has(row["Role"])) {
             errors["Role"] = `Role '${row["Role"]}' is not a valid department.`;
             action = "IGNORE";
         }
         
-        result.rows.push({ row, action, errors, originalIndex: rowIndex });
+        result.rows.push({ row, action, errors, originalIndex: rowIndex, existingEmployeeId });
     });
 
-    result.summary.creates = result.rows.filter(r => r.action === "CREATE").length;
-    result.summary.ignores = result.rows.filter(r => r.action === "IGNORE").length;
+    result.summary = result.rows.reduce((acc, r) => {
+        if(r.action === "CREATE") acc.creates++;
+        else if(r.action === "UPDATE") acc.updates++;
+        else if(r.action === "IGNORE") acc.ignores++;
+        else if(r.action === "DUPLICATE") acc.duplicates++;
+        return acc;
+    }, {creates: 0, updates: 0, ignores: 0, duplicates: 0});
 
     setValidationResult(result);
     setIsValidating(false);
 
+    if (result.summary.ignores > 0 || result.summary.duplicates > 0) {
+        setIsFiltered(true);
+    }
      toast({
         title: "Validation Complete",
-        description: `Found ${result.summary.creates} new employees to create and ${result.summary.ignores} rows with errors.`,
+        description: `Found ${result.summary.creates} new, ${result.summary.updates} updates, ${result.summary.duplicates} duplicates, and ${result.summary.ignores} ignored records.`,
      });
   };
 
-  const handleImport = async () => {
+  const handleImport = async (skipDuplicates: boolean) => {
     if (!validationResult) return;
     setIsImporting(true);
 
-    const batch = writeBatch(db);
-    const rowsToCreate = validationResult.rows.filter(r => r.action === "CREATE");
+    const rowsToProcess = validationResult.rows.filter(r => 
+        r.action !== "IGNORE" && (r.action !== "DUPLICATE" || !skipDuplicates)
+    );
+
+    if (rowsToProcess.length === 0) {
+        toast({ title: "No Data to Import", description: "No valid records to import."});
+        setIsImporting(false);
+        return;
+    }
     
-    rowsToCreate.forEach(({ row }) => {
-        const newEmployeeDocRef = doc(collection(db, 'employees'));
-        const newEmployeeData: Omit<Employee, 'id'> = {
+    const batch = writeBatch(db);
+    
+    rowsToProcess.forEach(({ row, action, existingEmployeeId }) => {
+        const employeeData: Omit<Employee, 'id'> = {
             name: row["Name"],
             email: row["Email"],
             designation: row["Designation"] || "",
-            role: [row["Role"]], // Role is stored as an array
+            role: [row["Role"]],
             avatar: `https://placehold.co/40x40.png`,
             leaveAllowance: Number(row["leaveAllowance"]) || 18,
             leavesTaken: 0,
         };
-        batch.set(newEmployeeDocRef, { ...newEmployeeData, id: newEmployeeDocRef.id });
+        
+        if (action === "CREATE" || (action === "DUPLICATE" && !skipDuplicates)) {
+            const newEmployeeDocRef = doc(collection(db, 'employees'));
+            batch.set(newEmployeeDocRef, { ...employeeData, id: newEmployeeDocRef.id });
+        } else if (action === "UPDATE" && existingEmployeeId) {
+            const employeeRef = doc(db, 'employees', existingEmployeeId);
+            batch.update(employeeRef, employeeData);
+        }
     });
 
     try {
         await batch.commit();
         toast({
             title: "Import Complete",
-            description: `${rowsToCreate.length} employees created successfully.`,
+            description: `${rowsToProcess.length} employee records created or updated successfully.`,
         });
         setIsValidationDialogOpen(false);
     } catch (error) {
         console.error("Error during bulk employee import:", error);
         toast({
             title: "Import Failed",
-            description: "Could not create employees.",
+            description: "Could not process employees.",
             variant: "destructive",
         });
     } finally {
@@ -219,10 +257,10 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
         setIsValidationDialogOpen(false);
         setParsedData([]);
         setValidationResult(null);
-    } else {
-        setIsValidationDialogOpen(true);
     }
   };
+
+  const totalIssueRows = validationResult?.rows.filter(r => r.action !== "CREATE" && r.action !== "UPDATE").length || 0;
 
 
   return (
@@ -230,7 +268,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
       <CardHeader>
         <CardTitle>Bulk Create Employees</CardTitle>
         <CardDescription>
-          Upload a CSV to add new employees to the system. Fields with * are mandatory.
+          Upload a CSV to add or update employees in the system. Fields with * are mandatory.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -301,19 +339,27 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                                 <TableBody>
                                                     {parsedData.map((row, index) => {
                                                         const validationRow = validationResult?.rows.find(r => r.originalIndex === index);
+                                                         const rowClass = {
+                                                            "CREATE": "bg-green-500/10",
+                                                            "UPDATE": "bg-blue-500/10",
+                                                            "IGNORE": "bg-red-500/20",
+                                                            "DUPLICATE": "bg-yellow-500/20"
+                                                        }[validationRow?.action || ""] || "";
+                                                        
+                                                        const tooltipText = Object.values(validationRow?.errors || {}).join(' | ');
+
                                                         return (
-                                                            <TableRow key={index} className={cn(validationRow?.action === 'CREATE' && 'bg-green-500/10', validationRow?.action === 'IGNORE' && 'bg-red-500/10')}>
+                                                            <TableRow key={index} className={rowClass}>
                                                                 {EMPLOYEE_HEADERS.map(header => {
-                                                                    const cellError = validationRow?.errors[header];
                                                                     const cellContent = <div className="max-w-[200px] truncate">{String(row[header] ?? '')}</div>;
                                                                     return (
                                                                         <TableCell key={header}>
-                                                                            {cellError ? (
+                                                                            {tooltipText ? (
                                                                                 <Tooltip delayDuration={100}>
                                                                                     <TooltipTrigger asChild>
-                                                                                        <div className={cn("p-2 w-full h-full bg-red-500/20 cursor-help")}>{cellContent}</div>
+                                                                                        <div className={cn("p-2 w-full h-full cursor-help", validationRow?.errors[header] && "bg-red-500/20")}>{cellContent}</div>
                                                                                     </TooltipTrigger>
-                                                                                    <TooltipContent><p className="text-destructive">{cellError}</p></TooltipContent>
+                                                                                    <TooltipContent><p className="text-destructive">{tooltipText}</p></TooltipContent>
                                                                                 </Tooltip>
                                                                             ) : (
                                                                                 <div className="p-2">{cellContent}</div>
@@ -328,7 +374,17 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                             </Table>
                                         </ScrollArea>
                                     </div>
-                                    <DialogFooter>
+                                    <DialogFooter className="pt-4">
+                                         <div className="text-sm text-muted-foreground mr-auto flex items-center">
+                                            {validationResult !== null ? (
+                                                isFiltered && totalIssueRows > 0 ? (
+                                                    <>
+                                                        <span>Showing {totalIssueRows} of {parsedData.length} rows with issues.</span>
+                                                        <Button variant="link" size="sm" onClick={() => setIsFiltered(false)} className="p-1 h-auto">Show all</Button>
+                                                    </>
+                                                ) : `Showing all ${parsedData.length} records.`
+                                            ) : `Showing all ${parsedData.length} records.`}
+                                        </div>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                         <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
                                          <AlertDialog>
@@ -343,14 +399,15 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                                      <div className="text-sm text-muted-foreground py-4">
                                                         <ul className="list-disc pl-5 mt-2 space-y-1">
                                                             <li><b>{validationResult?.summary.creates || 0}</b> new employees will be created.</li>
+                                                            <li><b>{validationResult?.summary.updates || 0}</b> employees will be updated.</li>
+                                                            <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates will be skipped.</li>
                                                             <li><b>{validationResult?.summary.ignores || 0}</b> rows with errors will be ignored.</li>
                                                         </ul>
-                                                        <div className="mt-4">Do you want to proceed?</div>
                                                     </div>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={handleImport}>Yes, Import</AlertDialogAction>
+                                                    <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>

@@ -21,7 +21,7 @@ import type { Engagement, EngagementType, Client, Employee, Task, EngagementStat
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { writeBatch, doc, collection } from "firebase/firestore";
+import { writeBatch, doc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -58,7 +58,8 @@ interface ValidatedRow {
     fees?: number;
     errors: { [key: string]: string };
     originalIndex: number;
-    action: "CREATE" | "IGNORE";
+    action: "CREATE" | "IGNORE" | "DUPLICATE";
+    duplicateReason?: string;
 }
 
 interface ValidationResult {
@@ -66,6 +67,7 @@ interface ValidationResult {
     summary: {
         creates: number;
         ignores: number;
+        duplicates: number;
     }
 }
 
@@ -76,7 +78,6 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
   const [isFiltered, setIsFiltered] = React.useState(false);
   const [isValidating, setIsValidating] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
   
   const { CSVReader } = useCSVReader();
   const { toast } = useToast();
@@ -149,143 +150,146 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
     setIsValidating(true);
     setValidationResult(null);
 
+    // Existing data maps
     const clientNameMap = new Map(allClients.map(c => [c.Name.toLowerCase(), c]));
-    const employeeNameMap = new Map(allEmployees.map(s => [s.name.toLowerCase(), s]));
+    const employeeNameMap = new Map(allEmployees.map(e => [e.name.toLowerCase(), e]));
     const engagementTypeNameMap = new Map(allEngagementTypes.map(et => [et.name.toLowerCase(), et]));
+    
+    // Fetch existing engagements to check for duplicates
+    const engagementsSnapshot = await getDocs(query(collection(db, "engagements"), where("status", "!=", "Completed")));
+    const existingEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement);
+    const existingEngagementKeys = new Set(existingEngagements.map(e => `${e.clientId}_${e.type}_${e.assignedTo.join(',')}`));
 
     const result: ValidationResult = {
         rows: [],
-        summary: { creates: 0, ignores: 0 }
+        summary: { creates: 0, ignores: 0, duplicates: 0 }
     };
+    
+    const processedInCsv = new Set<string>();
 
     parsedData.forEach((row, rowIndex) => {
         const errors: { [key: string]: string } = {};
-        let action: "CREATE" | "IGNORE" = "CREATE";
+        let action: "CREATE" | "IGNORE" | "DUPLICATE" = "CREATE";
+        let duplicateReason = "";
 
-        // Check for mandatory fields first
+        // Mandatory fields check
         MANDATORY_ASSIGNMENT_HEADERS.forEach(header => {
             if (!row[header] || String(row[header]).trim() === '') {
                 errors[header] = `Mandatory field is missing.`;
                 action = "IGNORE";
             }
         });
+        
+        if (action === "IGNORE") {
+             result.rows.push({ row, action, errors, originalIndex: rowIndex, duplicateReason });
+             return;
+        }
 
         const clientName = row["Client Name"]?.toLowerCase();
         const engagementTypeName = row["Engagement Type"]?.toLowerCase();
         const allottedUserName = row["Allotted User"]?.toLowerCase();
-        const reporterName = row["Reported To"]?.toLowerCase();
-        const dueDate = row["Due Date"];
-        const statusValue = row["Status"];
-        const feesValue = row["Fees"];
-
         
         const client = clientName ? clientNameMap.get(clientName) : undefined;
         const engagementType = engagementTypeName ? engagementTypeNameMap.get(engagementTypeName) : undefined;
         const allottedUser = allottedUserName ? employeeNameMap.get(allottedUserName) : undefined;
-        const reporter = reporterName ? employeeNameMap.get(reporterName) : undefined;
         
-        let parsedDate: Date | undefined;
-        if (dueDate) {
-            try {
-                const formatsToTry = ['dd/MM/yyyy', 'dd-MM-yyyy'];
-                let dateParsed = false;
-                for (const formatStr of formatsToTry) {
-                    const date = parse(dueDate, formatStr, new Date());
-                    if (!isNaN(date.getTime())) {
-                        parsedDate = date;
-                        dateParsed = true;
-                        break;
-                    }
-                }
-                if (!dateParsed) throw new Error("Invalid date format");
-            } catch {
-                errors["Due Date"] = `Invalid date format. Use DD/MM/YYYY or DD-MM-YYYY.`;
-                action = "IGNORE";
-            }
-        }
-        
-        let status: EngagementStatus | undefined = "Pending";
-        if (statusValue) {
-            if (engagementStatuses.includes(statusValue)) {
-                status = statusValue;
-            } else {
-                errors["Status"] = `Invalid status. Will default to 'Pending'.`;
-            }
+        // CSV duplicate check
+        const csvKey = `${client?.id}_${engagementType?.id}_${allottedUser?.id}`;
+        if (processedInCsv.has(csvKey)) {
+            action = "DUPLICATE";
+            duplicateReason = "This is a duplicate of another row in the same CSV file.";
+        } else {
+            processedInCsv.add(csvKey);
         }
 
-        let fees: number | undefined;
-        if (feesValue) {
-            const parsedFees = parseFloat(feesValue);
-            if (!isNaN(parsedFees)) {
-                fees = parsedFees;
-            } else {
-                 errors["Fees"] = `Invalid fees format. Must be a number.`;
-                 action = "IGNORE";
-            }
+        // DB duplicate check
+        if (client && engagementType && allottedUser) {
+             const dbKey = `${client.id}_${engagementType.id}_${allottedUser.id}`;
+             if(existingEngagementKeys.has(dbKey)) {
+                 action = "DUPLICATE";
+                 duplicateReason = "An active engagement with this client, type, and user already exists.";
+             }
         }
 
-        if (action !== "IGNORE") {
-            if (!client) {
-                errors["Client Name"] = `Client "${row["Client Name"]}" not found in master data.`;
-            }
-            if (!engagementType) {
-                errors["Engagement Type"] = `Type "${row["Engagement Type"]}" not found in master data.`;
-            }
-            if (!allottedUser) {
-                errors["Allotted User"] = `Employee "${row["Allotted User"]}" not found in master data.`;
-            }
-            if (row["Reported To"] && !reporter) {
-                errors["Reported To"] = `Employee "${row["Reported To"]}" not found.`;
-            }
+        // Data validation
+        if (!client) errors["Client Name"] = `Client "${row["Client Name"]}" not found.`;
+        if (!engagementType) errors["Engagement Type"] = `Type "${row["Engagement Type"]}" not found.`;
+        if (!allottedUser) errors["Allotted User"] = `User "${row["Allotted User"]}" not found.`;
+        
+        let parsedDate;
+        try {
+            parsedDate = parse(row["Due Date"], 'dd/MM/yyyy', new Date());
+            if (isNaN(parsedDate.getTime())) throw new Error();
+        } catch {
+            errors["Due Date"] = "Invalid date format. Use DD/MM/YYYY.";
         }
         
-        if (Object.keys(errors).length > 0 && action === "CREATE") {
-             if (errors["Client Name"] || errors["Engagement Type"] || errors["Allotted User"]) {
-                action = "IGNORE";
-            }
+        if (Object.keys(errors).length > 0) {
+            action = "IGNORE";
         }
-        
-        result.rows.push({ row, action, errors, client, engagementType, allottedUser, reporter, parsedDate, status, fees, originalIndex: rowIndex });
+
+        result.rows.push({
+            row, action, errors, client, engagementType, allottedUser, parsedDate,
+            reporter: row["Reported To"] ? employeeNameMap.get(row["Reported To"].toLowerCase()) : undefined,
+            status: row["Status"] && engagementStatuses.includes(row["Status"]) ? row["Status"] : "Pending",
+            fees: row["Fees"] ? parseFloat(row["Fees"]) : 0,
+            originalIndex: rowIndex,
+            duplicateReason
+        });
     });
 
-    result.summary.creates = result.rows.filter(r => r.action === "CREATE").length;
-    result.summary.ignores = result.rows.filter(r => r.action === "IGNORE").length;
-
+    result.summary = result.rows.reduce((acc, r) => {
+        if(r.action === "CREATE") acc.creates++;
+        else if(r.action === "IGNORE") acc.ignores++;
+        else if(r.action === "DUPLICATE") acc.duplicates++;
+        return acc;
+    }, {creates: 0, ignores: 0, duplicates: 0});
+    
     setValidationResult(result);
     setIsValidating(false);
 
-    if (result.rows.some(r => r.action === "IGNORE")) {
+    if (result.summary.ignores > 0 || result.summary.duplicates > 0) {
         setIsFiltered(true);
     }
      toast({
         title: "Validation Complete",
-        description: `Found ${result.summary.creates} new engagements to create and ${result.summary.ignores} rows with errors.`,
+        description: `Found ${result.summary.creates} new, ${result.summary.duplicates} duplicates, and ${result.summary.ignores} rows with errors.`,
      });
   };
 
-  const handleImport = async () => {
+  const handleImport = async (skipDuplicates: boolean) => {
     if (!validationResult) return;
     setIsImporting(true);
 
+    const rowsToImport = validationResult.rows.filter(r => 
+        r.action === "CREATE" || (r.action === "DUPLICATE" && !skipDuplicates)
+    );
+
+    if (rowsToImport.length === 0) {
+        toast({ title: "No Data to Import", description: "No valid records to import."});
+        setIsImporting(false);
+        return;
+    }
+
     const batch = writeBatch(db);
-    validationResult.rows.forEach(row => {
-        if (row.action === "CREATE" && row.client && row.engagementType && row.allottedUser && row.parsedDate) {
+    rowsToImport.forEach(rowToImport => {
+        const { row, client, engagementType, allottedUser, reporter, parsedDate, status, fees } = rowToImport;
+        if (client && engagementType && allottedUser && parsedDate) {
             const newEngagementDocRef = doc(collection(db, 'engagements'));
             const newEngagementData: Partial<Engagement> = {
                 id: newEngagementDocRef.id,
-                clientId: row.client.id,
-                type: row.engagementType.id,
-                assignedTo: [row.allottedUser.id],
-                remarks: row.row["Remarks"] || row.engagementType.name,
-                dueDate: row.parsedDate.toISOString(),
-                status: row.status || 'Pending',
-                reportedTo: row.reporter ? row.reporter.id : '',
-                fees: row.fees || 0
+                clientId: client.id,
+                type: engagementType.id,
+                assignedTo: [allottedUser.id],
+                remarks: row["Remarks"] || engagementType.name,
+                dueDate: parsedDate.toISOString(),
+                status: status || 'Pending',
+                reportedTo: reporter ? reporter.id : '',
+                fees: fees || 0
             };
             batch.set(newEngagementDocRef, newEngagementData);
 
-            // Create sub-tasks from template
-             const subTaskTitles = row.engagementType.subTaskTitles || ["Task 1", "Task 2"];
+             const subTaskTitles = engagementType.subTaskTitles || ["Task 1", "Task 2"];
              subTaskTitles.forEach((title, index) => {
                 const taskDocRef = doc(collection(db, 'tasks'));
                 const newTask: Task = {
@@ -294,7 +298,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                     title,
                     status: 'Pending',
                     order: index + 1,
-                    assignedTo: row.allottedUser!.id,
+                    assignedTo: allottedUser!.id,
                 };
                 batch.set(taskDocRef, newTask);
             });
@@ -305,7 +309,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         await batch.commit();
         toast({
             title: "Import Complete",
-            description: `${validationResult.summary.creates} engagements and their tasks created successfully.`,
+            description: `${rowsToImport.length} engagements and their tasks created successfully.`,
         });
         setIsValidationDialogOpen(false);
     } catch (error) {
@@ -317,13 +321,12 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         });
     } finally {
         setIsImporting(false);
-        setIsConfirmOpen(false);
     }
   }
 
   const headers = ASSIGNMENT_HEADERS;
   const displayedData = isFiltered && validationResult
-    ? parsedData.filter((_, rowIndex) => validationResult.rows.some(r => r.originalIndex === rowIndex && r.action === "IGNORE"))
+    ? parsedData.filter((_, rowIndex) => validationResult.rows.some(r => r.originalIndex === rowIndex && r.action !== "CREATE"))
     : parsedData;
 
   const getOriginalIndex = (filteredIndex: number) => {
@@ -332,9 +335,15 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
       return parsedData.indexOf(rowData);
   }
   
-  const hasErrors = validationResult && validationResult.summary.ignores > 0;
+  const totalIssueRows = validationResult?.rows.filter(r => r.action !== "CREATE").length || 0;
   
-  const totalErrorRows = validationResult?.rows.filter(r => r.action === "IGNORE").length || 0;
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+        setIsValidationDialogOpen(false);
+        setParsedData([]);
+        setValidationResult(null);
+    }
+  };
 
   return (
     <Card>
@@ -365,15 +374,6 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                     setParsedData([]);
                     setValidationResult(null);
                     (getRemoveFileProps() as any).onClick(e);
-                };
-
-                const handleDialogClose = (open: boolean) => {
-                    if (!open) {
-                        setIsValidationDialogOpen(false);
-                        removeFile();
-                    } else {
-                        setIsValidationDialogOpen(true);
-                    }
                 };
                 
                 return (
@@ -406,7 +406,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                 <DialogHeader>
                                     <DialogTitle>Validate and Create Engagements</DialogTitle>
                                     <DialogDescription>
-                                        Review the data. Click "Validate Data" to check for errors, then import. Rows with errors will be highlighted in red.
+                                        Review the data. Click "Validate Data" to check for errors, then import.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <TooltipProvider>
@@ -423,20 +423,27 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                                     {displayedData.map((row, index) => {
                                                         const originalRowIndex = getOriginalIndex(index);
                                                         const validationRow = validationResult?.rows.find(r => r.originalIndex === originalRowIndex);
+                                                        const rowClass = {
+                                                            "CREATE": "bg-green-500/10",
+                                                            "IGNORE": "bg-red-500/20",
+                                                            "DUPLICATE": "bg-yellow-500/20"
+                                                        }[validationRow?.action || ""] || "";
+                                                        
+                                                        const tooltipText = validationRow?.duplicateReason || Object.values(validationRow?.errors || {}).join(' | ');
+
                                                         return (
-                                                            <TableRow key={originalRowIndex} className={cn(validationRow?.action === 'CREATE' && 'bg-green-500/10', validationRow?.action === 'IGNORE' && 'bg-red-500/10')}>
+                                                            <TableRow key={originalRowIndex} className={rowClass}>
                                                                 <TableCell className="px-4">{originalRowIndex + 1}</TableCell>
                                                                 {headers.map(header => {
-                                                                    const cellError = validationRow?.errors[header];
                                                                     const cellContent = <div className="max-w-[200px] truncate">{String(row[header] ?? '')}</div>;
                                                                     return (
                                                                         <TableCell key={header}>
-                                                                            {cellError ? (
+                                                                            {tooltipText ? (
                                                                                 <Tooltip delayDuration={100}>
                                                                                     <TooltipTrigger asChild>
-                                                                                        <div className={cn("px-4 py-2 w-full h-full bg-red-500/20 cursor-help")}>{cellContent}</div>
+                                                                                        <div className={cn("px-4 py-2 w-full h-full cursor-help", validationRow?.errors[header] && "bg-red-500/20")}>{cellContent}</div>
                                                                                     </TooltipTrigger>
-                                                                                    <TooltipContent><p className="text-destructive">{cellError}</p></TooltipContent>
+                                                                                    <TooltipContent><p className="text-destructive">{tooltipText}</p></TooltipContent>
                                                                                 </Tooltip>
                                                                             ) : (
                                                                                 <div className="px-4 py-2">{cellContent}</div>
@@ -454,9 +461,9 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                     <DialogFooter className="pt-4 flex-shrink-0">
                                          <div className="text-sm text-muted-foreground mr-auto flex items-center">
                                             {validationResult !== null ? (
-                                                isFiltered && totalErrorRows > 0 ? (
+                                                isFiltered && totalIssueRows > 0 ? (
                                                     <>
-                                                        <span>Showing {totalErrorRows} of {parsedData.length} rows with errors.</span>
+                                                        <span>Showing {totalIssueRows} of {parsedData.length} rows with issues.</span>
                                                         <Button variant="link" size="sm" onClick={() => setIsFiltered(false)} className="p-1 h-auto">Show all</Button>
                                                     </>
                                                 ) : `Showing all ${parsedData.length} records.`
@@ -464,9 +471,9 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                         </div>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                         <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
-                                         <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button disabled={!validationResult || isImporting || hasErrors} onClick={() => setIsConfirmOpen(true)}>
+                                                <Button disabled={!validationResult || isImporting}>
                                                     {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
                                                 </Button>
                                             </AlertDialogTrigger>
@@ -476,14 +483,21 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                                      <div className="text-sm text-muted-foreground py-4">
                                                         <ul className="list-disc pl-5 mt-2 space-y-1">
                                                             <li><b>{validationResult?.summary.creates || 0}</b> new engagements will be created.</li>
+                                                            <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates found.</li>
                                                             <li><b>{validationResult?.summary.ignores || 0}</b> rows with errors will be ignored.</li>
                                                         </ul>
-                                                        <div className="mt-4">Do you want to proceed?</div>
                                                     </div>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={handleImport}>Yes, Import</AlertDialogAction>
+                                                    {(validationResult?.summary.duplicates || 0) > 0 ? (
+                                                        <>
+                                                            <Button variant="destructive" onClick={() => handleImport(false)}>Overwrite Duplicates</Button>
+                                                            <AlertDialogAction onClick={() => handleImport(true)}>Skip Duplicates</AlertDialogAction>
+                                                        </>
+                                                    ) : (
+                                                        <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
+                                                    )}
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -500,4 +514,3 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
     </Card>
   );
 }
-
