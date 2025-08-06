@@ -37,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Textarea } from "../ui/textarea";
 
 
 function SortableTaskItem({ id, title, onUpdate, onDelete }: { id: string; title: string; onUpdate: (newTitle: string) => void; onDelete: () => void; }) {
@@ -94,7 +95,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [tasks, setTasks] = React.useState<string[]>([]);
     const [newTask, setNewTask] = React.useState('');
     const [editingTypeName, setEditingTypeName] = React.useState('');
-    const [isEditingName, setIsEditingName] = React.useState(false);
+    const [editingDescription, setEditingDescription] = React.useState('');
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -112,18 +113,28 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
         if (selectedType) {
             setTasks(selectedType.subTaskTitles || []);
             setEditingTypeName(selectedType.name);
+            setEditingDescription(selectedType.description || '');
         } else {
             setTasks([]);
+            setEditingTypeName('');
+            setEditingDescription('');
         }
     }, [selectedType]);
     
-    const handleSaveWorkflow = async () => {
-        if (!selectedType) return;
+    const handleSaveChanges = async () => {
+        if (!selectedType || !editingTypeName.trim()) {
+            toast({ title: "Validation Error", description: "Engagement Type name cannot be empty.", variant: "destructive" });
+            return;
+        }
         
         try {
             const typeRef = doc(db, "engagementTypes", selectedType.id);
-            await updateDoc(typeRef, { subTaskTitles: tasks });
-            toast({ title: "Success", description: `Workflow for "${selectedType.name}" updated successfully.` });
+            await updateDoc(typeRef, { 
+                name: editingTypeName.trim(),
+                description: editingDescription,
+                subTaskTitles: tasks 
+            });
+            toast({ title: "Success", description: `Workflow for "${editingTypeName}" updated successfully.` });
         } catch (error) {
             console.error("Error updating workflow:", error);
             toast({ title: "Error", description: "Failed to save workflow.", variant: "destructive" });
@@ -146,19 +157,6 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             toast({ title: "Error", description: "Could not create new engagement type.", variant: "destructive"});
         }
     };
-    
-    const handleRenameType = async () => {
-        if (!selectedType || !editingTypeName.trim()) return;
-
-        try {
-            await updateDoc(doc(db, "engagementTypes", selectedType.id), { name: editingTypeName.trim() });
-            toast({ title: "Success", description: "Engagement type renamed."});
-            setSelectedType(prev => prev ? { ...prev, name: editingTypeName.trim() } : null);
-            setIsEditingName(false);
-        } catch (error) {
-            toast({ title: "Error", description: "Could not rename engagement type.", variant: "destructive"});
-        }
-    }
     
     const handleDeleteType = async () => {
         if (!typeToDelete) return;
@@ -266,22 +264,11 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                     <CardHeader>
                          <div className="flex justify-between items-start">
                              <div>
-                                {isEditingName && selectedType ? (
-                                    <div className="flex items-center gap-2">
-                                        <Input value={editingTypeName} onChange={(e) => setEditingTypeName(e.target.value)} autoFocus />
-                                        <Button size="icon" variant="ghost" onClick={handleRenameType}><Check className="h-4 w-4 text-green-500" /></Button>
-                                        <Button size="icon" variant="ghost" onClick={() => setIsEditingName(false)}><X className="h-4 w-4 text-destructive" /></Button>
-                                    </div>
-                                ) : (
-                                    <CardTitle className="flex items-center gap-2">
-                                        {selectedType ? selectedType.name : "Select a Workflow"}
-                                        {selectedType && (
-                                            <Button variant="ghost" size="icon" onClick={() => setIsEditingName(true)}><Edit className="h-4 w-4 text-muted-foreground" /></Button>
-                                        )}
-                                    </CardTitle>
-                                )}
+                                <CardTitle className="flex items-center gap-2">
+                                    {selectedType ? "Edit Workflow" : "Select a Workflow"}
+                                </CardTitle>
                                 <CardDescription>
-                                    {selectedType ? "Drag to reorder, double-click to edit, and save your changes." : "Choose an engagement type from the left to begin."}
+                                    {selectedType ? `Editing workflow for "${selectedType.name}"` : "Choose an engagement type from the left to begin."}
                                 </CardDescription>
                              </div>
                              {selectedType && (
@@ -295,6 +282,18 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                     <CardContent>
                         {selectedType && (
                             <div className="space-y-4">
+                                
+                                <div className="space-y-2">
+                                    <Label htmlFor="typeName">Engagement Type Name</Label>
+                                    <Input id="typeName" value={editingTypeName} onChange={(e) => setEditingTypeName(e.target.value)} />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="typeDescription">Description</Label>
+                                    <Textarea id="typeDescription" value={editingDescription} onChange={(e) => setEditingDescription(e.target.value)} placeholder="Describe what this engagement type is for." />
+                                </div>
+                                
+                                <h4 className="font-semibold text-foreground pt-4 border-t">Task Checklist</h4>
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                     <SortableContext items={tasks.map((task, index) => task + index)} strategy={verticalListSortingStrategy}>
                                         <div className="space-y-2">
@@ -324,7 +323,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                 </div>
 
                                 <div className="flex justify-end pt-4">
-                                    <Button onClick={handleSaveWorkflow}>Save Workflow</Button>
+                                    <Button onClick={handleSaveChanges}>Save Changes</Button>
                                 </div>
                             </div>
                         )}
