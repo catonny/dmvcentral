@@ -142,11 +142,11 @@ export function DataTable<TData extends Client, TValue>({
         setColumnVisibility(JSON.parse(storedVisibility));
     } else {
          setColumnVisibility({
-            'Phone Number': false,
-            'Date of Birth': false,
-            'GSTN': false,
+            'phoneNumber': false,
+            'dateOfBirth': false,
+            'gstin': false,
             'linkedClientIds': false,
-            'Contact Person Designation': false,
+            'contactPersonDesignation': false,
         });
     }
     const storedOrder = localStorage.getItem('clientTableColumnOrder');
@@ -207,9 +207,9 @@ export function DataTable<TData extends Client, TValue>({
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                 placeholder="Search clients..."
-                value={(table.getColumn("Name")?.getFilterValue() as string) ?? ""}
+                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
                 onChange={(event) =>
-                    table.getColumn("Name")?.setFilterValue(event.target.value)
+                    table.getColumn("name")?.setFilterValue(event.target.value)
                 }
                 className="pl-8 w-full md:w-[250px] lg:w-[300px]"
                 />
