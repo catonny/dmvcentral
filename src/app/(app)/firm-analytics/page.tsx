@@ -69,7 +69,8 @@ export default function FirmAnalyticsPage() {
             toast({ title: "Error", description: "Could not fetch clients.", variant: "destructive" });
         });
 
-        const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
+        // Only fetch completed engagements for KPI calculations
+        const unsubEngagements = onSnapshot(query(collection(db, "engagements"), where("status", "==", "Completed")), (snapshot) => {
             setEngagements(snapshot.docs.map(doc => doc.data() as Engagement));
             setLoading(false);
         }, (err) => {
@@ -94,7 +95,7 @@ export default function FirmAnalyticsPage() {
             };
         }
 
-        const completedEngagements = engagements.filter(e => e.status === 'Completed' && e.fees);
+        const completedEngagements = engagements.filter(e => e.fees);
         const totalRevenue = completedEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
         const activeClients = new Set(completedEngagements.map(e => e.clientId));
 

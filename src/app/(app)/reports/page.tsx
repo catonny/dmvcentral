@@ -172,7 +172,7 @@ export default function ReportsPage() {
 
                     return {
                         ...eng,
-                        clientName: client?.Name || 'N/A',
+                        clientName: client?.name || 'N/A',
                         engagementTypeName: engagementType?.name || 'N/A',
                         partnerId: client?.partnerId,
                     };
@@ -244,13 +244,12 @@ export default function ReportsPage() {
         try {
             const [clientsSnapshot, engagementsSnapshot] = await Promise.all([
                 getDocs(collection(db, "clients")),
-                getDocs(collection(db, "engagements")),
+                getDocs(query(collection(db, "engagements"), where("status", "==", "Completed"))),
             ]);
 
             const allFetchedClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-            const allFetchedEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement);
+            const completedEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement).filter(e => e.fees);
 
-            const completedEngagements = allFetchedEngagements.filter(e => e.status === 'Completed' && e.fees);
             const totalRevenue = completedEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
             const activeClients = new Set(completedEngagements.map(e => e.clientId));
 
@@ -268,7 +267,11 @@ export default function ReportsPage() {
 
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const clientsWithRecentActivity = new Set(allFetchedEngagements.filter(e => parseISO(e.dueDate) > oneYearAgo).map(e => e.clientId));
+            
+            const allEngagementsSnapshot = await getDocs(collection(db, "engagements"));
+            const allEngagements = allEngagementsSnapshot.docs.map(doc => doc.data() as Engagement);
+
+            const clientsWithRecentActivity = new Set(allEngagements.filter(e => parseISO(e.dueDate) > oneYearAgo).map(e => e.clientId));
             const churnedClients = allFetchedClients.filter(c => !clientsWithRecentActivity.has(c.id)).length;
             const churnRate = allFetchedClients.length > 0 ? (churnedClients / allFetchedClients.length) * 100 : 0;
             

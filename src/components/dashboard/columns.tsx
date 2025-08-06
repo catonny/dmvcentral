@@ -17,7 +17,7 @@ export const getColumns = (
   allEmployees: Employee[]
 ): ColumnDef<Client>[] => {
   
-  const clientNameMap = new Map(allClients.map(c => [c.id, c.Name]));
+  const clientNameMap = new Map(allClients.map(c => [c.id, c.name]));
   const employeeNameMap = new Map(allEmployees.map(e => [e.id, e.name]));
 
   return [
@@ -62,7 +62,7 @@ export const getColumns = (
       size: 50,
     },
     {
-      accessorKey: "Name",
+      accessorKey: "name",
       header: ({ column }) => {
         return (
           <Button
@@ -74,46 +74,46 @@ export const getColumns = (
           </Button>
         )
       },
-      cell: ({ row }) => <div className="font-medium px-3 py-2">{row.original.Name}</div>,
+      cell: ({ row }) => <div className="font-medium px-3 py-2">{row.original.name}</div>,
       enableResizing: true,
       size: 250,
     },
     {
-      accessorKey: "Category",
+      accessorKey: "category",
       header: "Category",
-      cell: ({ row }) => <div className="px-3 py-2 text-sm">{row.original.Category || ''}</div>
+      cell: ({ row }) => <div className="px-3 py-2 text-sm">{row.original.category || ''}</div>
     },
     {
-      accessorKey: "PAN",
+      accessorKey: "pan",
       header: "PAN",
-      cell: ({ row }) => <div className="px-3 py-2">{row.original.PAN}</div>
+      cell: ({ row }) => <div className="px-3 py-2">{row.original.pan}</div>
     },
     {
-        accessorKey: "GSTN",
+        accessorKey: "gstin",
         header: "GSTN",
-        cell: ({ row }) => <div className="px-3 py-2">{row.original.GSTN}</div>
+        cell: ({ row }) => <div className="px-3 py-2">{row.original.gstin}</div>
     },
     {
-      accessorKey: "Mail ID",
+      accessorKey: "mailId",
       header: "Email",
-      cell: ({ row }) => <div className="px-3 py-2 truncate max-w-xs">{row.original['Mail ID']}</div>,
+      cell: ({ row }) => <div className="px-3 py-2 truncate max-w-xs">{row.original.mailId}</div>,
       size: 250,
     },
     {
-        accessorKey: "Mobile Number",
+        accessorKey: "mobileNumber",
         header: "Mobile",
-        cell: ({ row }) => <div className="px-3 py-2">{row.original['Mobile Number']}</div>
+        cell: ({ row }) => <div className="px-3 py-2">{row.original.mobileNumber}</div>
     },
     {
-        accessorKey: "Phone Number",
+        accessorKey: "phoneNumber",
         header: "Phone",
-        cell: ({ row }) => <div className="px-3 py-2">{row.original['Phone Number']}</div>
+        cell: ({ row }) => <div className="px-3 py-2">{row.original.phoneNumber}</div>
     },
     {
-        accessorKey: "Date of Birth",
+        accessorKey: "dateOfBirth",
         header: "Date of Birth",
         cell: ({ row }) => {
-            const dob = row.original['Date of Birth'];
+            const dob = row.original.dateOfBirth;
             if (!dob) return null;
             try {
                  return <div className="px-3 py-2 text-sm">{format(new Date(dob), "dd/MM/yyyy")}</div>;
@@ -143,22 +143,20 @@ export const getColumns = (
         },
     },
     {
-      accessorKey: "Contact Person",
+      accessorKey: "contactPerson",
       header: "Contact Person",
       cell: ({ row }) => {
-        if (row.original.Category === 'Individual') return null;
-        return <div className="px-3 py-2">{row.original['Contact Person']}</div>;
+        if (row.original.category === 'Individual') return null;
+        return <div className="px-3 py-2">{row.original.contactPerson}</div>;
       },
     },
     {
-      accessorKey: "Contact Person Designation",
+      accessorKey: "contactPersonDesignation",
       header: "Designation",
       cell: ({ row }) => {
-        if (row.original.Category === 'Individual') return null;
-        return <div className="px-3 py-2">{row.original['Contact Person Designation']}</div>;
+        if (row.original.category === 'Individual') return null;
+        return <div className="px-3 py-2">{row.original.contactPersonDesignation}</div>;
       },
     },
   ]
 }
-
-    
