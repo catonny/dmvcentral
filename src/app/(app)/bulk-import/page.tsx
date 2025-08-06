@@ -8,12 +8,14 @@ import { BulkCreateEngagements } from "@/components/employee/bulk-assign";
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Client, Engagement, EngagementType, Employee } from "@/lib/data";
+import type { Client, Engagement, EngagementType, Employee, Department } from "@/lib/data";
+import { BulkCreateEmployees } from "@/components/employee/bulk-create-employees";
 
 export default function BulkImportPage() {
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     const [allClients, setAllClients] = React.useState<Client[]>([]);
     const [allEngagementTypes, setAllEngagementTypes] = React.useState<EngagementType[]>([]);
+    const [allDepartments, setAllDepartments] = React.useState<Department[]>([]);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
 
@@ -22,14 +24,16 @@ export default function BulkImportPage() {
         
         const fetchStaticData = async () => {
              try {
-                const [clientsSnapshot, employeesSnapshot, engagementTypesSnapshot] = await Promise.all([
+                const [clientsSnapshot, employeesSnapshot, engagementTypesSnapshot, departmentsSnapshot] = await Promise.all([
                 getDocs(collection(db, "clients")),
                 getDocs(collection(db, "employees")),
-                getDocs(collection(db, "engagementTypes"))
+                getDocs(collection(db, "engagementTypes")),
+                getDocs(collection(db, "departments")),
                 ]);
                 setAllClients(clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
                 setAllEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
                 setAllEngagementTypes(engagementTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType)));
+                setAllDepartments(departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department)));
             } catch (error) {
                 console.error("Error fetching static data for Bulk Import:", error);
                 toast({
@@ -64,6 +68,7 @@ export default function BulkImportPage() {
         <TabsList>
           <TabsTrigger value="bulk-client-update">Bulk Update Clients</TabsTrigger>
           <TabsTrigger value="bulk-engagements">Bulk Create Engagements</TabsTrigger>
+          <TabsTrigger value="bulk-employees">Bulk Create Employees</TabsTrigger>
         </TabsList>
         <TabsContent value="bulk-client-update">
             {/* Pass onBack as a dummy function as it's not needed here */}
@@ -74,6 +79,11 @@ export default function BulkImportPage() {
                 allEmployees={allEmployees}
                 allClients={allClients}
                 allEngagementTypes={allEngagementTypes}
+            />
+        </TabsContent>
+        <TabsContent value="bulk-employees">
+            <BulkCreateEmployees
+                allDepartments={allDepartments}
             />
         </TabsContent>
       </Tabs>
