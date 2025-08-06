@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -216,7 +217,9 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} sensors={sensors}>
             <ScrollArea className="flex-grow w-full">
                 <div className="flex gap-6 pb-4">
-                    {visibleDepartments.map(dept => (
+                    {visibleDepartments
+                        .filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)))
+                        .map(dept => (
                         <DepartmentColumn
                             key={dept.id}
                             department={dept}
