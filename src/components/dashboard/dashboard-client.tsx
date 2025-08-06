@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
-import type { Client, Employee, Engagement, EngagementStatus, Task, Timesheet } from "@/lib/data";
+import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
@@ -31,7 +31,6 @@ export function DashboardClient() {
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [timesheets, setTimesheets] = React.useState<Timesheet[]>([]);
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
   const [loadingData, setLoadingData] = React.useState(true);
   
@@ -74,20 +73,17 @@ export function DashboardClient() {
         
         const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snapshot) => {
             setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-        }, (error) => handleError(error, "tasks"));
+            setLoadingData(false); // Set loading to false after the last fetch
+        }, (error) => {
+            handleError(error, "tasks");
+            setLoadingData(false);
+        });
         
-        const unsubTimesheets = onSnapshot(query(collection(db, "timesheets")), (snapshot) => {
-            setTimesheets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Timesheet)));
-        }, (error) => handleError(error, "timesheets"));
-
-        setLoadingData(false);
-
         return () => {
             unsubClients();
             unsubEngagements();
             unsubEmployees();
             unsubTasks();
-            unsubTimesheets();
         };
     };
 
@@ -116,9 +112,7 @@ export function DashboardClient() {
                 clients: allClients,
                 engagements: engagements,
                 tasks: tasks,
-                employees: allEmployees,
                 currentUser: currentUserEmployeeProfile,
-                timesheets: timesheets,
             }
         };
     }
@@ -138,9 +132,7 @@ export function DashboardClient() {
                 clients: partnerClients,
                 engagements: partnerEngagements,
                 tasks: partnerTasks,
-                employees: allEmployees,
                 currentUser: currentUserEmployeeProfile,
-                timesheets: timesheets,
             }
         };
     }
@@ -150,7 +142,6 @@ export function DashboardClient() {
     const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
     const employeeClients = allClients.filter(c => employeeClientIds.has(c.id));
     const employeeTasks = tasks.filter(t => t.assignedTo === currentUserEmployeeProfile.id);
-    const employeeTimesheets = timesheets.filter(ts => ts.userId === currentUserEmployeeProfile.id);
     
     return {
         isPartner: false,
@@ -160,13 +151,11 @@ export function DashboardClient() {
             clients: employeeClients,
             engagements: employeeEngagements,
             tasks: employeeTasks,
-            employees: allEmployees,
             currentUser: currentUserEmployeeProfile,
-            timesheets: employeeTimesheets,
         }
     };
 
-  }, [currentUserEmployeeProfile, allClients, engagements, tasks, allEmployees, timesheets]);
+  }, [currentUserEmployeeProfile, allClients, engagements, tasks, allEmployees]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
