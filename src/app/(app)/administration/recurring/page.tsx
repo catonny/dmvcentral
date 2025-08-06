@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -10,11 +9,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { RecurringEngagementsTable } from "@/components/recurring/data-table";
+<<<<<<< HEAD
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+=======
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
 
 export default function RecurringEngagementsPage() {
     const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
     const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
@@ -119,6 +124,7 @@ export default function RecurringEngagementsPage() {
 
     return (
         <div className="space-y-6">
+<<<<<<< HEAD
             <Button asChild variant="outline" size="sm">
                 <Link href="/administration">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -129,6 +135,16 @@ export default function RecurringEngagementsPage() {
                 <CardHeader>
                     <CardTitle>Recurring Engagements</CardTitle>
                     <CardDescription>
+=======
+            <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Administration
+            </Button>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Recurring Engagements</h2>
+                    <p className="text-muted-foreground">
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
                         Manage all recurring service subscriptions for your clients.
                     </CardDescription>
                 </CardHeader>

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 "use client";
 
@@ -7,13 +8,29 @@ import { db } from "@/lib/firebase";
 import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+=======
+"use client";
+
+import * as React from "react";
+import { collection, query, onSnapshot, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Engagement, Employee, Client, BillStatus, PendingInvoice, EngagementType } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, ArrowLeft } from "lucide-react";
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+<<<<<<< HEAD
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+=======
+import { useRouter } from "next/navigation";
+
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
 
@@ -24,6 +41,10 @@ interface BillingDashboardEntry {
 
 export default function BillingDashboardPage() {
     const { toast } = useToast();
+<<<<<<< HEAD
+=======
+    const router = useRouter();
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
     const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
@@ -104,11 +125,17 @@ export default function BillingDashboardPage() {
     
     return (
         <div className="space-y-6">
+<<<<<<< HEAD
              <Button asChild variant="outline" size="sm">
                 <Link href="/administration">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Administration
                 </Link>
+=======
+            <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Administration
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2
             </Button>
             <Card>
                 <CardHeader>
@@ -209,5 +236,9 @@ export default function BillingDashboardPage() {
             </Card>
         </div>
     );
+<<<<<<< HEAD
 }
 
+=======
+}
+>>>>>>> 427bbe4834aecff0226c1ff95dd39457723b1fb2

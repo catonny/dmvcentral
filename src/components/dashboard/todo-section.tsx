@@ -31,6 +31,7 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
         const isAdmin = currentUser.role.includes("Admin");
         const isPartner = currentUser.role.includes("Partner");
 
+        // Queries for Engagements
         const reporterQuery = query(collection(db, "engagements"), where("reportedTo", "in", [null, ""]));
         const unassignedQuery = query(collection(db, "engagements"), where("assignedTo", "==", []));
         const feeRevisionQuery = query(collection(db, "todos"), where("type", "==", "FEE_REVISION_APPROVAL"), where("status", "==", "Pending"), where("userId", "==", currentUser.id));
@@ -39,32 +40,49 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
         const unsubUnassigned = onSnapshot(unassignedQuery, (snap) => setUnassignedEngagements(snap.docs.map(doc => doc.data() as Engagement)));
         const unsubFeeRevisions = onSnapshot(feeRevisionQuery, (snap) => setFeeRevisionTodos(snap.docs.map(doc => doc.data() as Todo)));
         
+        // Queries for incomplete clients
         const panQuery = query(collection(db, "clients"), where("pan", "==", "PANNOTAVLBL"));
         const mobileQuery = query(collection(db, "clients"), where("mobileNumber", "==", "1111111111"));
         const mailQuery = query(collection(db, "clients"), where("mailId", "==", "mail@notavailable.com"));
 
-        const combineIncompleteClients = (snapshots: any[]) => {
-            const allIncompleteMap = new Map<string, Client>();
-            snapshots.forEach(snapshot => {
-                if (snapshot?.docs) {
-                    snapshot.docs.forEach((doc: any) => {
-                        const clientData = {id: doc.id, ...doc.data()} as Client;
-                        if (clientData?.id) allIncompleteMap.set(clientData.id, clientData);
-                    });
-                }
-            });
+        const combineAndFilterClients = (panSnap: any, mobileSnap: any, mailSnap: any) => {
+             const allIncompleteMap = new Map<string, Client>();
+             
+             panSnap.docs.forEach((doc: any) => allIncompleteMap.set(doc.id, { id: doc.id, ...doc.data() } as Client));
+             mobileSnap.docs.forEach((doc: any) => allIncompleteMap.set(doc.id, { id: doc.id, ...doc.data() } as Client));
+             mailSnap.docs.forEach((doc: any) => allIncompleteMap.set(doc.id, { id: doc.id, ...doc.data() } as Client));
+
+            let finalClients = Array.from(allIncompleteMap.values());
             
-            let allIncomplete = Array.from(allIncompleteMap.values());
             if (isPartner && !isAdmin) {
-                allIncomplete = allIncomplete.filter(c => c.partnerId === currentUser.id);
+                finalClients = finalClients.filter(c => c.partnerId === currentUser.id);
             }
-            setIncompleteClients(allIncomplete);
+            setIncompleteClients(finalClients);
         };
+
+        const unsubPan = onSnapshot(panQuery, (panSnapshot) => {
+            getDocs(mobileQuery).then(mobileSnapshot => {
+                getDocs(mailQuery).then(mailSnapshot => {
+                    combineAndFilterClients(panSnapshot, mobileSnapshot, mailSnapshot);
+                });
+            });
+        });
+
+        const unsubMobile = onSnapshot(mobileQuery, (mobileSnapshot) => {
+             getDocs(panQuery).then(panSnapshot => {
+                getDocs(mailQuery).then(mailSnapshot => {
+                    combineAndFilterClients(panSnapshot, mobileSnapshot, mailSnapshot);
+                });
+            });
+        });
         
-        let panSnapshot: any, mobileSnapshot: any, mailSnapshot: any;
-        const unsubPan = onSnapshot(panQuery, (s) => { panSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
-        const unsubMobile = onSnapshot(mobileQuery, (s) => { mobileSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
-        const unsubMail = onSnapshot(mailQuery, (s) => { mailSnapshot = s; combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]); });
+        const unsubMail = onSnapshot(mailQuery, (mailSnapshot) => {
+             getDocs(panQuery).then(panSnapshot => {
+                getDocs(mobileQuery).then(mobileSnapshot => {
+                    combineAndFilterClients(panSnapshot, mobileSnapshot, mailSnapshot);
+                });
+            });
+        });
 
         return () => {
             unsubReporter();
@@ -85,9 +103,9 @@ export function TodoSection({ currentUser }: { currentUser: Employee | null }) {
         setLoading(true);
         try {
             const { clientName, engagementTypeName, oldFee, newFee } = todo.relatedData;
-            const client = await getDoc(doc(db, "clients", todo.clientId));
-            if (!client.exists()) throw new Error("Client not found");
-            const clientEmail = client.data().mailId;
+            const clientDoc = await getDoc(doc(db, "clients", todo.clientId));
+            if (!clientDoc.exists()) throw new Error("Client not found");
+            const clientEmail = clientDoc.data().mailId;
 
             const subject = `Important Update: Revision of Professional Fees for ${engagementTypeName}`;
             const body = `Dear ${clientName},

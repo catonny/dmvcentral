@@ -1,8 +1,7 @@
-
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
