@@ -134,7 +134,8 @@ const seedDatabase = async () => {
 
     console.log('Seeding departments...');
     departments.forEach((department) => {
-      const docRef = db.collection('departments').doc();
+      // Use department name as the ID to prevent duplicates
+      const docRef = db.collection('departments').doc(department.name);
       batch.set(docRef, { ...department, id: docRef.id });
     });
     
