@@ -22,7 +22,7 @@ const EMAIL_TEMPLATES = [
     "Fee Revision Approval"
 ] as const;
 
-export const GenerateEmailInputSchema = z.object({
+const GenerateEmailInputSchema = z.object({
   templateName: z.enum(EMAIL_TEMPLATES).describe("The name of the email template to use."),
   clientId: z.string().describe("The ID of the client to whom the email is addressed."),
   userId: z.string().describe("The ID of the employee sending the email (usually the partner)."),
