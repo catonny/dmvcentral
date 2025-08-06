@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Button } from "../ui/button";
-import { Download, Upload, Loader2, AlertTriangle, SkipForward, DatabaseBackup } from "lucide-react";
+import { Download, Upload, Loader2, AlertTriangle, SkipForward, DatabaseBackup, Database } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -41,6 +41,7 @@ interface ValidatedRow {
     originalIndex: number;
     action: RowAction;
     existingEmployeeId?: string;
+    duplicateReason?: string;
 }
 
 interface ValidationResult {
@@ -128,7 +129,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const existingEmployeesSnapshot = await getDocs(query(collection(db, "employees")));
-    const existingEmployees = existingEmployeesSnapshot.docs.map(d => d.data() as Employee);
+    const existingEmployees = existingEmployeesSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Employee));
     const emailToIdMap = new Map(existingEmployees.map(e => [e.email.toLowerCase(), e.id]));
     const validRoles = new Set(allDepartments.map(d => d.name));
 
@@ -143,11 +144,13 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
         const errors: { [key: string]: string } = {};
         let action: RowAction = "CREATE";
         let existingEmployeeId: string | undefined;
+        let duplicateReason: string | undefined;
 
         const email = row["Email"]?.toLowerCase();
 
         if (email && processedEmailsInCsv.has(email)) {
             action = "DUPLICATE";
+            duplicateReason = `Duplicate email found in CSV at an earlier row. This entry will be ignored by default.`
         } else if (email) {
             processedEmailsInCsv.add(email);
             if (emailToIdMap.has(email)) {
@@ -174,7 +177,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
             action = "IGNORE";
         }
         
-        result.rows.push({ row, action, errors, originalIndex: rowIndex, existingEmployeeId });
+        result.rows.push({ row, action, errors, originalIndex: rowIndex, existingEmployeeId, duplicateReason });
     });
 
     result.summary = result.rows.reduce((acc, r) => {
@@ -224,12 +227,14 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
             leavesTaken: 0,
         };
         
-        if (action === "CREATE" || (action === "DUPLICATE" && !skipDuplicates)) {
-            const newEmployeeDocRef = doc(collection(db, 'employees'));
-            batch.set(newEmployeeDocRef, { ...employeeData, id: newEmployeeDocRef.id });
-        } else if (action === "UPDATE" && existingEmployeeId) {
-            const employeeRef = doc(db, 'employees', existingEmployeeId);
-            batch.update(employeeRef, employeeData);
+        let docRef;
+
+        if (action === "UPDATE" && existingEmployeeId) {
+            docRef = doc(db, 'employees', existingEmployeeId);
+            batch.update(docRef, employeeData);
+        } else { // CREATE or Overwrite DUPLICATE
+            docRef = doc(collection(db, 'employees'));
+            batch.set(docRef, { ...employeeData, id: docRef.id });
         }
     });
 
@@ -258,7 +263,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
     const invalidRows = validationResult.rows
       .filter(r => r.action === 'IGNORE' || r.action === 'DUPLICATE')
       .map(r => {
-        const errorReason = Object.values(r.errors).join('; ');
+        const errorReason = r.duplicateReason || Object.values(r.errors).join('; ');
         return { ...r.row, 'Error Reason': errorReason };
       });
 
@@ -371,7 +376,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                                             "DUPLICATE": "bg-yellow-500/20"
                                                         }[validationRow?.action || ""] || "";
                                                         
-                                                        const tooltipText = Object.values(validationRow?.errors || {}).join(' | ');
+                                                        const tooltipText = validationRow?.duplicateReason || Object.values(validationRow?.errors || {}).join(' | ');
 
                                                         return (
                                                             <TableRow key={index} className={rowClass}>
@@ -419,6 +424,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                             )}
                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                             <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
+                                            
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button disabled={!validationResult || isImporting}>
@@ -432,14 +438,29 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
                                                             <ul className="list-disc pl-5 mt-2 space-y-1">
                                                                 <li><b>{validationResult?.summary.creates || 0}</b> new employees will be created.</li>
                                                                 <li><b>{validationResult?.summary.updates || 0}</b> employees will be updated.</li>
-                                                                <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates will be skipped.</li>
+                                                                {(validationResult?.summary.duplicates || 0) > 0 ? (
+                                                                    <li><b>{validationResult?.summary.duplicates || 0}</b> duplicates found in the CSV.</li>
+                                                                ) : null}
                                                                 <li><b>{validationResult?.summary.ignores || 0}</b> rows with errors will be ignored.</li>
                                                             </ul>
                                                         </div>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
+                                                        {(validationResult?.summary.duplicates || 0) > 0 ? (
+                                                            <>
+                                                                <Button variant="destructive" onClick={() => handleImport(false)}>
+                                                                    <Database className="mr-2 h-4 w-4" />
+                                                                    Overwrite Duplicates
+                                                                </Button>
+                                                                <AlertDialogAction onClick={() => handleImport(true)}>
+                                                                     <SkipForward className="mr-2 h-4 w-4" />
+                                                                    Skip Duplicates & Import
+                                                                </AlertDialogAction>
+                                                            </>
+                                                        ) : (
+                                                            <AlertDialogAction onClick={() => handleImport(true)}>Import Valid Data</AlertDialogAction>
+                                                        )}
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
