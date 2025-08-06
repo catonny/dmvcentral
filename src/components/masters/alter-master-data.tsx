@@ -31,8 +31,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
-type AlterableMasterType = "Engagement Types" | "Departments" | "Client Categories";
-const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Engagement Types", "Departments", "Client Categories"];
+type AlterableMasterType = "Departments" | "Client Categories";
+const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Departments", "Client Categories"];
 
 export function AlterMasterData({ onBack }: { onBack: () => void }) {
   const [selectedMaster, setSelectedMaster] = React.useState<AlterableMasterType | null>(null);
@@ -51,7 +51,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
     try {
       let collectionName = "";
       switch (masterType) {
-        case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
         default: throw new Error("Unknown master type");
@@ -106,7 +105,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
     
     let collectionName = "";
     switch (selectedMaster) {
-        case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
     }
@@ -128,7 +126,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
     if (!recordToEdit || !selectedMaster) return;
      let collectionName = "";
     switch (selectedMaster) {
-        case "Engagement Types": collectionName = "engagementTypes"; break;
         case "Departments": collectionName = "departments"; break;
         case "Client Categories": collectionName = "clientCategories"; break;
     }
@@ -267,17 +264,6 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                             className="col-span-3"
                         />
                     </div>
-                     {(selectedMaster === "Engagement Types") && (
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="description" className="text-right">Description</Label>
-                            <Input
-                                id="description"
-                                value={editFormData?.description || ""}
-                                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                                className="col-span-3"
-                            />
-                        </div>
-                     )}
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

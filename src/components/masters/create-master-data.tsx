@@ -13,8 +13,8 @@ import { collection, addDoc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Department } from "@/lib/data";
 
-type CreatableMasterType = "Engagement Types" | "Departments" | "Client Categories";
-const CREATABLE_MASTER_TYPES: CreatableMasterType[] = ["Engagement Types", "Departments", "Client Categories"];
+type CreatableMasterType = "Departments" | "Client Categories";
+const CREATABLE_MASTER_TYPES: CreatableMasterType[] = ["Departments", "Client Categories"];
 
 export function CreateMasterData({ onBack }: { onBack: () => void }) {
   const [selectedMaster, setSelectedMaster] = React.useState<CreatableMasterType | null>(null);
@@ -35,11 +35,6 @@ export function CreateMasterData({ onBack }: { onBack: () => void }) {
       let data: any = { name };
 
       switch (selectedMaster) {
-        case "Engagement Types":
-          collectionName = "engagementTypes";
-          data.description = description || "User-created type";
-          data.subTaskTitles = ["Task 1", "Task 2", "Task 3"]; // Default sub-tasks
-          break;
         case "Departments":
           collectionName = "departments";
           const deptsQuery = query(collection(db, "departments"));
@@ -83,12 +78,6 @@ export function CreateMasterData({ onBack }: { onBack: () => void }) {
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter name" />
           </div>
-          {selectedMaster === "Engagement Types" && (
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter a brief description" />
-            </div>
-          )}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSelectedMaster(null)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={loading}>
