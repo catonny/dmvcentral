@@ -4,6 +4,26 @@ export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
 
+export interface Firm {
+  id: string;
+  name: string;
+  pan: string;
+  gstn?: string;
+  pfCode?: string;
+  esiCode?: string;
+  website?: string;
+  email?: string;
+  contactNumber?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  billingAddressLine1?: string;
+  billingAddressLine2?: string;
+  billingAddressLine3?: string;
+  country?: string;
+  state?: string;
+}
+
 export interface ClientCategory {
   id: string;
   name: string;
@@ -33,6 +53,7 @@ export interface Client {
   mobileNumber: string | "1111111111";
   category?: string | "unassigned"; // Links to ClientCategory.name
   partnerId: string; // Partner's ID
+  firmId: string; // The firm this client belongs to
   // Optional
   phoneNumber?: string;
   dateOfBirth?: string; // Stored as ISO string
@@ -256,6 +277,21 @@ export const indianStatesAndUTs: string[] = [
 ];
 
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
+
+export const firms: Omit<Firm, 'id'>[] = [
+    {
+        name: "Davis, Martin & Varghese",
+        pan: "FIRMABC123D",
+        gstn: "22FIRMABC123D1Z5",
+        email: "contact@dmvca.com",
+        contactNumber: "0484 222 3333",
+        website: "https://dmvca.com",
+        billingAddressLine1: "DMV Tower",
+        billingAddressLine2: "Finance Road",
+        state: "Kerala",
+        country: "India",
+    }
+];
 
 export const employees: Employee[] = [
   { 
@@ -533,6 +569,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9876543210",
         mailId: "contact@innovate.com",
         partnerId: "S006", // Dojo Davis
+        firmId: "firm_id_placeholder",
         category: "Corporate",
         country: "India",
         gstin: "22AABCI1234F1Z5",
@@ -545,6 +582,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9988776655",
         mailId: "accounts@greenfuture.com",
         partnerId: "S006", // Dojo Davis
+        firmId: "firm_id_placeholder",
         category: "LLP",
         country: "India",
         contactPerson: "Emily White",
@@ -556,6 +594,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9654321098",
         mailId: "trust@hopefoundation.org",
         partnerId: "S006", // Dojo Davis
+        firmId: "firm_id_placeholder",
         category: "Trust",
         country: "India",
         contactPerson: "Riya Singh",

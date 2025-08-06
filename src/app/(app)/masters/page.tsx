@@ -4,7 +4,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group } from "lucide-react";
+import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building } from "lucide-react";
 import { ViewMasterData } from "@/components/masters/view-master-data";
 import { CreateMasterData } from "@/components/masters/create-master-data";
 import { AlterMasterData } from "@/components/masters/alter-master-data";
@@ -12,14 +12,20 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { WorkflowEditor } from "@/components/masters/workflow-editor";
 import { EmployeeManager } from "@/components/masters/employee-manager";
+import { useRouter } from "next/navigation";
 
-type Action = "view" | "create" | "alter" | "workflow" | "employee" | null;
+type Action = "view" | "create" | "alter" | "workflow" | "employee" | "firms" | null;
 
 export default function MastersPage() {
   const [currentAction, setCurrentAction] = React.useState<Action>(null);
+  const router = useRouter();
 
   const handleActionClick = (action: Action) => {
-    setCurrentAction(action);
+      if (action === 'firms') {
+          router.push('/masters/firms');
+      } else {
+        setCurrentAction(action);
+      }
   };
 
   const renderContent = () => {
@@ -38,34 +44,40 @@ export default function MastersPage() {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ActionCard
-                title="View Master Data"
-                description="Browse through existing master records like clients and engagement types."
-                icon={Eye}
-                onClick={() => handleActionClick("view")}
-                />
-                 <ActionCard
-                title="Create New Entry"
-                description="Add a new record to one of your master data sets."
-                icon={PlusCircle}
-                onClick={() => handleActionClick("create")}
+                    title="Manage Firms"
+                    description="Edit your firm's profile, address, and other details."
+                    icon={Building}
+                    onClick={() => handleActionClick("firms")}
                 />
                 <ActionCard
-                title="Alter Master Data"
-                description="Edit or delete existing records from your master data sets."
-                icon={PenSquare}
-                onClick={() => handleActionClick("alter")}
+                    title="Manage Employees"
+                    description="Add, edit, and manage employee profiles and department assignments."
+                    icon={Group}
+                    onClick={() => handleActionClick("employee")}
                 />
                 <ActionCard
-                title="Edit Engagement Workflows"
-                description="Define the sequence of tasks for different engagement types."
-                icon={GitBranch}
-                onClick={() => handleActionClick("workflow")}
+                    title="Edit Engagement Workflows"
+                    description="Define the sequence of tasks for different engagement types."
+                    icon={GitBranch}
+                    onClick={() => handleActionClick("workflow")}
+                />
+                <ActionCard
+                    title="View Master Data"
+                    description="Browse through existing master records like clients and engagement types."
+                    icon={Eye}
+                    onClick={() => handleActionClick("view")}
                 />
                  <ActionCard
-                title="Manage Employees"
-                description="Add, edit, and manage employee profiles and department assignments."
-                icon={Group}
-                onClick={() => handleActionClick("employee")}
+                    title="Create New Entry"
+                    description="Add a new record to one of your master data sets."
+                    icon={PlusCircle}
+                    onClick={() => handleActionClick("create")}
+                />
+                <ActionCard
+                    title="Alter Master Data"
+                    description="Edit or delete existing records from your master data sets."
+                    icon={PenSquare}
+                    onClick={() => handleActionClick("alter")}
                 />
             </div>
         );

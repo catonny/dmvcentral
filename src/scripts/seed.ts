@@ -13,7 +13,8 @@ import {
   clientCategories,
   timesheets,
   engagementIdMapForTimesheet,
-  ALL_FEATURES
+  ALL_FEATURES,
+  firms
 } from '@/lib/data';
 import type { Task, Permission } from '@/lib/data';
 
@@ -25,7 +26,7 @@ const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 let serviceAccount: any;
 if (serviceAccountString) {
     try {
-        serviceAccount = JSON.parse(serviceAccountString);
+        serviceAccount = JSON.parse(serviceAccountString.replace(/'/g, ''));
     } catch (e) {
         console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
         serviceAccount = undefined;
@@ -71,6 +72,7 @@ const seedDatabase = async () => {
         'leaveRequests',
         'events',
         'permissions',
+        'firms',
     ];
 
     console.log('Deleting existing data...');
@@ -80,10 +82,18 @@ const seedDatabase = async () => {
     }
     console.log('Existing data marked for deletion.');
 
-
+    const firmRefs: { [key: string]: string } = {};
     const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
     const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
     const realEngagementIdMap = new Map<string, string>();
+    
+    console.log('Seeding firms...');
+    firms.forEach(firm => {
+        const docRef = db.collection('firms').doc();
+        batch.set(docRef, { ...firm, id: docRef.id });
+        // Assuming only one firm for now for seed data
+        firmRefs["firm_id_placeholder"] = docRef.id;
+    });
 
     console.log('Seeding employees...');
     employees.forEach((employee) => {
@@ -99,16 +109,8 @@ const seedDatabase = async () => {
       const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
       
       const newClient = {
-            name: client.name,
-            pan: client.pan,
-            mobileNumber: client.mobileNumber,
-            mailId: client.mailId,
-            partnerId: client.partnerId,
-            category: client.category,
-            country: client.country,
-            gstin: client.gstin,
-            contactPerson: client.contactPerson,
-            contactPersonDesignation: client.contactPersonDesignation,
+            ...client,
+            firmId: firmRefs["firm_id_placeholder"], // Link client to the seeded firm
             id: docRef.id,
             createdAt: createdAt,
             lastUpdated: new Date().toISOString()
