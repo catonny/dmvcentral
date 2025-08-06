@@ -13,8 +13,9 @@ import {
   clientCategories,
   timesheets,
   engagementIdMapForTimesheet,
+  ALL_FEATURES
 } from '@/lib/data';
-import type { Task } from '@/lib/data';
+import type { Task, Permission } from '@/lib/data';
 
 
 // This will be automatically populated by the Firebase environment in production,
@@ -24,7 +25,7 @@ const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 let serviceAccount: any;
 if (serviceAccountString) {
     try {
-        serviceAccount = JSON.parse(serviceAccountString);
+        serviceAccount = JSON.parse(serviceAccountString.replace(/'/g, ''));
     } catch (e) {
         console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
         serviceAccount = undefined;
@@ -68,6 +69,8 @@ const seedDatabase = async () => {
         'chatMessages',
         'communications',
         'leaveRequests',
+        'events',
+        'permissions',
     ];
 
     console.log('Deleting existing data...');
@@ -132,6 +135,29 @@ const seedDatabase = async () => {
       const docRef = db.collection('departments').doc();
       batch.set(docRef, { ...department, id: docRef.id });
     });
+    
+    console.log('Seeding default permissions...');
+    const permissions: Permission[] = [
+        { feature: 'reports', departments: ['Admin', 'Partner'] },
+        { feature: 'accounts', departments: ['Admin', 'Partner', 'Accounts'] },
+        { feature: 'timesheet', departments: ['Admin', 'Partner'] },
+        { feature: 'calendar', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Accounts'] },
+        { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Accounts'] },
+        { feature: 'firm-analytics', departments: ['Admin', 'Partner'] },
+        { feature: 'leave-management', departments: ['Admin', 'Partner', 'Manager'] },
+        { feature: 'masters', departments: ['Admin'] },
+        { feature: 'bulk-import', departments: ['Admin'] },
+        { feature: 'employee-management', departments: ['Admin'] },
+        { feature: 'workflow-editor', departments: ['Admin'] },
+        { feature: 'settings-data-management', departments: ['Admin'] },
+        { feature: 'settings-access-control', departments: ['Admin'] },
+    ];
+
+    permissions.forEach(perm => {
+        const docRef = db.collection('permissions').doc(perm.feature);
+        batch.set(docRef, perm);
+    });
+
 
     console.log('Seeding countries...');
     countries.forEach((country) => {

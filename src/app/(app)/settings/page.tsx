@@ -224,7 +224,7 @@ export default function SettingsPage() {
             }
         });
 
-        const otherMasterCollections = ['departments', 'engagementTypes', 'clientCategories', 'countries'];
+        const otherMasterCollections = ['departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions'];
         for (const collectionName of otherMasterCollections) {
             const snapshot = await getDocs(query(collection(db, collectionName)));
             snapshot.forEach((doc) => batch.delete(doc.ref));
@@ -394,7 +394,7 @@ export default function SettingsPage() {
                     <div>
                         <h3 className="font-semibold">Delete Transactional Data</h3>
                         <p className="text-sm text-muted-foreground">
-                        Permanently delete all **clients, engagements, tasks, and communications**. Master data will not be affected.
+                        Permanently delete all **clients, engagements, tasks, timesheets, and communications**. Master data will not be affected.
                         </p>
                     </div>
                     <AlertDialog>
@@ -422,7 +422,7 @@ export default function SettingsPage() {
                     <div>
                         <h3 className="font-semibold">Delete Master Data</h3>
                         <p className="text-sm text-muted-foreground">
-                        Permanently delete all **employees, departments, and engagement types**. This will reset the app's core configuration.
+                        Permanently delete all **employees, departments, permissions, and engagement types**. This will reset the app's core configuration.
                         </p>
                     </div>
                     <AlertDialog>
