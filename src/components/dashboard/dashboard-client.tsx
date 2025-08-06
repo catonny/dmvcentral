@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
-import type { Client, Employee, Engagement, EngagementStatus } from "@/lib/data";
+import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
@@ -30,6 +30,7 @@ export function DashboardClient() {
   const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
   const [loadingData, setLoadingData] = React.useState(true);
   
@@ -60,7 +61,7 @@ export function DashboardClient() {
             setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
         }, (error) => handleError(error, "clients"));
 
-        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
         const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
         const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
             setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
@@ -70,12 +71,17 @@ export function DashboardClient() {
             setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
         }, (error) => handleError(error, "employees"));
         
+        const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snapshot) => {
+            setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
+        }, (error) => handleError(error, "tasks"));
+
         setLoadingData(false);
 
         return () => {
             unsubClients();
             unsubEngagements();
             unsubEmployees();
+            unsubTasks();
         };
     };
 
@@ -87,44 +93,75 @@ export function DashboardClient() {
     fetchProfileAndData();
   }, [user, toast]);
   
-  const { isPartner, visibleClients, dashboardEngagements } = React.useMemo(() => {
+  const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
     if (!currentUserEmployeeProfile) {
-        return { isPartner: false, visibleClients: [], dashboardEngagements: [] };
+        return { isPartner: false, isAdmin: false, userRole: "Employee", dashboardData: null };
     }
 
+    const userIsAdmin = currentUserEmployeeProfile.role.includes("Admin");
     const userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
 
-    if (userIsPartner) {
-      const partnerClients = allClients.filter(c => c.partnerId === currentUserEmployeeProfile.id);
-      const partnerClientIds = partnerClients.map(c => c.id);
-      
-      const relevantEngagements = engagements.filter(e => 
-        (e.assignedTo === null || e.assignedTo.length === 0) || 
-        partnerClientIds.includes(e.clientId) 
-      );
-
-      return { 
-        isPartner: true, 
-        visibleClients: allClients,
-        dashboardEngagements: relevantEngagements 
-      };
-    } else {
-      const assignedEngagements = engagements.filter(e => e.assignedTo.includes(currentUserEmployeeProfile.id));
-      const assignedClientIds = new Set(assignedEngagements.map(e => e.clientId));
-      const assignedClients = allClients.filter(client => assignedClientIds.has(client.id));
-      
-      return {
-          isPartner: false,
-          visibleClients: assignedClients,
-          dashboardEngagements: assignedEngagements
-      };
+    if (userIsAdmin) {
+        return {
+            isPartner: userIsPartner,
+            isAdmin: true,
+            userRole: "Admin",
+            dashboardData: {
+                clients: allClients,
+                engagements: engagements,
+                tasks: tasks,
+                employees: allEmployees,
+                currentUser: currentUserEmployeeProfile,
+            }
+        };
     }
-  }, [currentUserEmployeeProfile, allClients, engagements]);
+    
+    if (userIsPartner) {
+        const partnerClients = allClients.filter(c => c.partnerId === currentUserEmployeeProfile.id);
+        const partnerClientIds = new Set(partnerClients.map(c => c.id));
+        const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
+        const partnerEngagementIds = new Set(partnerEngagements.map(e => e.id));
+        const partnerTasks = tasks.filter(t => partnerEngagementIds.has(t.engagementId));
+
+        return {
+            isPartner: true,
+            isAdmin: false,
+            userRole: "Partner",
+            dashboardData: {
+                clients: partnerClients,
+                engagements: partnerEngagements,
+                tasks: partnerTasks,
+                employees: allEmployees,
+                currentUser: currentUserEmployeeProfile,
+            }
+        };
+    }
+    
+    // Default Employee view
+    const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUserEmployeeProfile.id));
+    const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
+    const employeeClients = allClients.filter(c => employeeClientIds.has(c.id));
+    const employeeTasks = tasks.filter(t => t.assignedTo === currentUserEmployeeProfile.id);
+    
+    return {
+        isPartner: false,
+        isAdmin: false,
+        userRole: "Employee",
+        dashboardData: {
+            clients: employeeClients,
+            engagements: employeeEngagements,
+            tasks: employeeTasks,
+            employees: allEmployees,
+            currentUser: currentUserEmployeeProfile,
+        }
+    };
+
+  }, [currentUserEmployeeProfile, allClients, engagements, tasks, allEmployees]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements across the team.', component: WorkloadDistribution, condition: isPartner, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
+        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements across the team.', component: WorkloadDistribution, condition: isAdmin || isPartner, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
         { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } },
     ];
     
@@ -135,7 +172,6 @@ export function DashboardClient() {
     if (storedLayout) {
         try {
           const parsedLayout = JSON.parse(storedLayout);
-          // Basic validation to ensure layout is not malformed
           if (Array.isArray(parsedLayout)) {
             setLayout(parsedLayout);
           } else {
@@ -147,7 +183,7 @@ export function DashboardClient() {
     } else {
         setLayout(visibleWidgets.map(w => ({...w.defaultLayout, i: w.id})));
     }
-  }, [isPartner]);
+  }, [isAdmin, isPartner]);
   
   const handleLayoutChange = (newLayout: GridLayout.Layout[]) => {
     setLayout(newLayout);
@@ -161,7 +197,7 @@ export function DashboardClient() {
   const getWidgetProps = (id: string) => {
       switch (id) {
           case 'status-cards':
-              return { clients: visibleClients, engagements: dashboardEngagements, isPartner };
+              return { data: dashboardData, userRole };
           case 'workload-distribution':
               return { engagements: engagements, employees: allEmployees };
           case 'todo-section':
@@ -177,8 +213,8 @@ export function DashboardClient() {
         <div>
            <div className="flex items-center gap-4">
              <h2 className="text-3xl font-bold tracking-tight font-headline">Dashboard</h2>
-             <Badge variant={isPartner ? "secondary" : "outline"}>
-                {isPartner ? "Partner View" : "Personal View"}
+             <Badge variant={isAdmin ? "destructive" : isPartner ? "secondary" : "outline"}>
+                {userRole} View
             </Badge>
            </div>
           <p className="text-muted-foreground">
@@ -218,3 +254,4 @@ export function DashboardClient() {
     </>
   );
 }
+

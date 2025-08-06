@@ -3,140 +3,83 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Client, Engagement, EngagementStatus } from "@/lib/data";
-import { CheckCircle, CircleDashed, FileClock, Users, CircleX, FileCheck2, AlertCircle, ChevronDown, ChevronUp, UserX, Briefcase, FileQuestion, UserCheck } from "lucide-react";
+import type { Client, Engagement, Task } from "@/lib/data";
+import { Users, Briefcase, UserX, ListTodo, AlertTriangle, GanttChartSquare } from "lucide-react";
 import * as React from 'react';
-import { Button } from "../ui/button";
+import { isThisWeek, parseISO } from 'date-fns';
 
-interface StatusCardsProps {
-    clients: Client[];
-    engagements: Engagement[];
-    isPartner: boolean;
+interface StatusCardProps {
+    title: string;
+    value: number;
+    description: string;
+    icon: React.ElementType;
 }
 
-const statusIcons: { [key in EngagementStatus | 'Unassigned']: React.ReactNode } = {
-    "Pending": <FileClock className="h-4 w-4 text-muted-foreground" />,
-    "Awaiting Documents": <FileQuestion className="h-4 w-4 text-yellow-500" />,
-    "In Process": <CircleDashed className="h-4 w-4 text-blue-500 animate-spin" />,
-    "Partner Review": <UserCheck className="h-4 w-4 text-purple-500" />,
-    "Completed": <CheckCircle className="h-4 w-4 text-green-500" />,
-    "Cancelled": <CircleX className="h-4 w-4 text-red-500" />,
-    "Unassigned": <UserX className="h-4 w-4 text-red-500" />,
-};
-
-const statusDescriptions: { [key in EngagementStatus | 'Unassigned']: string } = {
-    "Pending": "Engagements waiting to be started",
-    "Awaiting Documents": "Waiting for documents from the client",
-    "In Process": "Engagements currently being worked on",
-    "Partner Review": "Engagements awaiting review by a partner",
-    "Completed": "Successfully finished engagements",
-    "Cancelled": "Client engagements that were cancelled",
-    "Unassigned": "Tasks not assigned to anyone",
-};
-
-const defaultStatuses: EngagementStatus[] = ["Pending", "In Process", "Completed"];
+const KpiCard = ({ title, value, description, icon: Icon }: StatusCardProps) => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground">{description}</p>
+        </CardContent>
+    </Card>
+);
 
 
-export function StatusCards({ clients, engagements, isPartner }: StatusCardsProps) {
-    const [isExpanded, setIsExpanded] = React.useState(false);
+interface StatusCardsProps {
+    data: {
+        clients: Client[];
+        engagements: Engagement[];
+        tasks: Task[];
+    } | null;
+    userRole: "Admin" | "Partner" | "Employee";
+}
 
-    const { statusCounts, unassignedCount } = React.useMemo(() => {
-        const counts: { [key in EngagementStatus]?: number } = {};
-        let unassigned = 0;
+export function StatusCards({ data, userRole }: StatusCardsProps) {
+    const kpiData = React.useMemo(() => {
+        if (!data) return [];
         
-        for (const engagement of engagements) {
-            if (!engagement.assignedTo || engagement.assignedTo.length === 0) {
-                unassigned++;
-            }
-            if (engagement.status) {
-                 if (!counts[engagement.status]) {
-                    counts[engagement.status] = 0;
-                }
-                counts[engagement.status]!++;
-            }
+        const { clients, engagements, tasks } = data;
+        
+        if (userRole === 'Admin') {
+            return [
+                { title: 'Total Clients', value: clients.length, description: 'Total clients across the firm.', icon: Users },
+                { title: 'Total Engagements', value: engagements.length, description: 'All active engagements in the firm.', icon: Briefcase },
+                { title: 'Unassigned Engagements', value: engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0).length, description: 'Engagements not assigned to any team member.', icon: UserX },
+            ];
         }
-        return { statusCounts: counts, unassignedCount: unassigned };
-    }, [engagements]);
 
-    const allActiveStatuses = (Object.keys(statusCounts) as EngagementStatus[]).filter(status => (statusCounts[status] ?? 0) > 0);
-    const displayedStatuses = isExpanded ? allActiveStatuses : defaultStatuses.filter(s => allActiveStatuses.includes(s));
+        if (userRole === 'Partner') {
+            return [
+                { title: 'My Active Clients', value: clients.length, description: 'Clients for whom you are the partner.', icon: Users },
+                { title: 'Total Engagements', value: engagements.length, description: 'Active engagements for your clients.', icon: Briefcase },
+                { title: 'Unassigned Engagements', value: engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0).length, description: 'Engagements for your clients needing assignment.', icon: UserX },
+            ];
+        }
+        
+        // Employee View
+        const pendingTasks = tasks.filter(t => t.status === 'Pending');
+        const pendingThisWeek = pendingTasks.filter(t => {
+            const engagement = engagements.find(e => e.id === t.engagementId);
+            return engagement && isThisWeek(parseISO(engagement.dueDate), { weekStartsOn: 1 });
+        });
 
-
-    const partnerCards = (
-         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Unassigned Engagements</CardTitle>
-                {statusIcons["Unassigned"]}
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{unassignedCount}</div>
-                <p className="text-xs text-muted-foreground">
-                    {statusDescriptions["Unassigned"]}
-                </p>
-            </CardContent>
-        </Card>
-    );
+        return [
+            { title: 'My Clients', value: clients.length, description: 'Number of clients you are currently working on.', icon: Users },
+            { title: 'My Active Engagements', value: engagements.length, description: 'Your current active workload.', icon: GanttChartSquare },
+            { title: 'Tasks Due This Week', value: pendingThisWeek.length, description: 'Your pending tasks with a due date this week.', icon: AlertTriangle },
+            { title: 'All Pending Tasks', value: pendingTasks.length, description: 'Your total number of pending tasks.', icon: ListTodo },
+        ];
+        
+    }, [data, userRole]);
 
     return (
-        <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{isPartner ? 'Total Clients' : 'Assigned Clients'}</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{clients.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {isPartner ? 'Total clients in your firm' : 'Clients assigned to you'}
-                        </p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{isPartner ? 'Total Engagements' : 'My Engagements'}</CardTitle>
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{engagements.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                             {isPartner ? 'Total engagements across all clients' : 'Total engagements assigned to you'}
-                        </p>
-                    </CardContent>
-                </Card>
-                {isPartner && partnerCards}
-                {displayedStatuses.map(status => (
-                    <Card key={status}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{status}</CardTitle>
-                            {statusIcons[status]}
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{statusCounts[status] || 0}</div>
-                            <p className="text-xs text-muted-foreground">
-                                {statusDescriptions[status]}
-                            </p>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-             {allActiveStatuses.length > defaultStatuses.length && (
-                <div className="flex justify-center">
-                    <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
-                        {isExpanded ? (
-                            <>
-                                <ChevronUp className="mr-2 h-4 w-4" />
-                                Show Less
-                            </>
-                        ) : (
-                            <>
-                            <ChevronDown className="mr-2 h-4 w-4" />
-                                Show All Statuses
-                            </>
-                        )}
-                    </Button>
-                </div>
-            )}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {kpiData.map(item => <KpiCard key={item.title} {...item} />)}
         </div>
     );
 }
+
