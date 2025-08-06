@@ -4,7 +4,7 @@
 
 import { Logo } from "@/components/logo";
 import { UserNav } from "@/components/user-nav";
-import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer, User as UserIcon, Calendar, Search, Mail, LineChart } from "lucide-react";
+import { Briefcase, ClipboardList, Database, Group, LayoutDashboard, Pin, PinOff, Settings, UploadCloud, Users, Eye, Receipt, GitBranch, GripVertical, ShieldCheck, Workflow, UserCog, Timer, User as UserIcon, Calendar, Search, Mail, LineChart, Repeat } from "lucide-react";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
