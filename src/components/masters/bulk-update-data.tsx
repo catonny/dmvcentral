@@ -136,20 +136,17 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
   };
 
   const handleUpload = (results: any) => {
-    const dataWithHeaders = results.data.map((row: any, index: number) => {
-        if (index === 0) return row; // Keep headers as is for the first row
-        
+    // react-papaparse with header: true returns an array of objects in results.data
+    // We just need to clean the keys.
+    const dataRows = results.data.map((row: any) => {
         const newRow: any = {};
-        const headerRow = results.data[0];
-
         Object.keys(row).forEach(key => {
-            const cleanKey = key.replace(/\*$/, '').trim();
-            newRow[cleanKey] = row[key];
+            newRow[key.replace(/\*$/, '').trim()] = row[key];
         });
         return newRow;
-    }).slice(1); // Remove header row from final data
+    });
 
-    setParsedData(dataWithHeaders);
+    setParsedData(dataRows);
   };
   
   return (

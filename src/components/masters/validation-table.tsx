@@ -5,12 +5,12 @@ import * as React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { Button } from "../ui/button";
-import { DialogFooter, DialogClose } from "../ui/dialog";
+import { DialogFooter, DialogClose, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MANDATORY_CLIENT_HEADERS } from "./bulk-update-data";
-import { Loader2 } from "lucide-react";
-import { writeBatch, collection, doc, getDocs, query, where } from "firebase/firestore";
+import { Loader2, AlertTriangle, DatabaseBackup, SkipForward } from "lucide-react";
+import { writeBatch, collection, doc, getDocs, query, where, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -31,7 +31,7 @@ interface ValidationTableProps {
   onComplete: () => void;
 }
 
-type RowAction = "CREATE" | "UPDATE" | "IGNORE" | "FIX_AND_CREATE" | "FIX_AND_UPDATE";
+type RowAction = "CREATE" | "UPDATE" | "IGNORE" | "FIX_AND_CREATE" | "FIX_AND_UPDATE" | "DUPLICATE";
 
 interface ValidationResult {
     rows: {
@@ -40,11 +40,13 @@ interface ValidationResult {
         errors: { [key: string]: string };
         originalIndex: number;
         existingClientId?: string;
+        duplicateReason?: string;
     }[];
     summary: {
         creates: number;
         updates: number;
         ignores: number;
+        duplicates: number;
     }
 }
 
@@ -55,6 +57,9 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
   const [isValidating, setIsValidating] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+  const [importMode, setImportMode] = React.useState<'skip' | 'overwrite' | null>(null);
+  const [isInspectDialogOpen, setIsInspectDialogOpen] = React.useState(false);
+  
   const { toast } = useToast();
 
   if (!data || data.length === 0) {
@@ -73,67 +78,99 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
         const clientsQuery = query(collection(db, "clients"));
         const clientsSnapshot = await getDocs(clientsQuery);
         const existingClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        const panToIdMap = new Map(existingClients.map(c => [c.pan, c.id]));
+        const panToIdMap = new Map(existingClients.map(c => [c.PAN, c.id]));
+        const nameMobileToIdMap = new Map(existingClients.map(c => [`${c.Name?.toLowerCase()}_${c['Mobile Number']}`, c.id]));
 
         const result: ValidationResult = {
             rows: [],
-            summary: { creates: 0, updates: 0, ignores: 0 }
+            summary: { creates: 0, updates: 0, ignores: 0, duplicates: 0 }
         };
+        
+        const processedInCsv = new Set<string>(); // To track duplicates within the CSV
 
-        data.forEach((row, rowIndex) => {
+        for (const [rowIndex, row] of data.entries()) {
             const rowErrors: { [key: string]: string } = {};
             let action: RowAction = "CREATE";
             let existingClientId: string | undefined = undefined;
-            let isUpdate = false;
+            let duplicateReason: string | undefined;
 
-            if (row['PAN'] && String(row['PAN']).trim() !== '' && row['PAN'] !== 'PANNOTAVLBL') {
-                if (panToIdMap.has(row['PAN'])) {
-                    action = "UPDATE";
-                    isUpdate = true;
-                    existingClientId = panToIdMap.get(row['PAN']);
-                }
-            }
+            const pan = row['PAN']?.trim();
+            const name = row['Name']?.trim().toLowerCase();
+            const mobile = row['Mobile Number']?.trim();
             
-            if (!row['Name'] || String(row['Name']).trim() === '') {
-                rowErrors['Name'] = "Name is a mandatory field and cannot be empty. This row will be ignored.";
-                action = "IGNORE";
+            const nameMobileKey = `${name}_${mobile}`;
+            const panKey = pan;
+
+            // Check for duplicates within the CSV itself
+            if (pan && pan !== 'PANNOTAVLBL' && processedInCsv.has(panKey)) {
+                action = "DUPLICATE";
+                duplicateReason = `Duplicate PAN (${pan}) found in CSV at an earlier row.`;
+            } else if (processedInCsv.has(nameMobileKey)) {
+                action = "DUPLICATE";
+                duplicateReason = `Duplicate Name + Mobile combination found in CSV at an earlier row.`;
             } else {
-                MANDATORY_CLIENT_HEADERS.forEach(header => {
-                    if (header !== 'Name' && (!row[header] || String(row[header]).trim() === '')) {
-                        rowErrors[header] = `Mandatory field '${header}' is missing. It will be set to a default placeholder value.`;
-                    }
-                });
-
-                if (row['Mail ID'] && !emailRegex.test(row['Mail ID'])) {
-                    rowErrors['Mail ID'] = 'Invalid email format. It will be set to "mail@notavailable.com".';
-                }
-
-                if (!row['PAN'] && !isUpdate) { // Only error on missing PAN for new clients
-                    rowErrors['PAN'] = 'PAN is missing. It will be set to "PANNOTAVLBL" for now. Please update it later.';
+                // If not a CSV duplicate, check against the database
+                if (pan && pan !== 'PANNOTAVLBL' && panToIdMap.has(pan)) {
+                    action = "UPDATE";
+                    existingClientId = panToIdMap.get(pan);
+                } else if (name && mobile && nameMobileToIdMap.has(nameMobileKey)) {
+                    action = "UPDATE";
+                    existingClientId = nameMobileToIdMap.get(nameMobileKey);
                 }
             }
 
-            if (action !== "IGNORE" && Object.keys(rowErrors).length > 0) {
-                action = isUpdate ? "FIX_AND_UPDATE" : "FIX_AND_CREATE";
+            // Mark as processed to catch subsequent duplicates in the file
+            if (action !== "DUPLICATE") {
+                 if (pan && pan !== 'PANNOTAVLBL') processedInCsv.add(panKey);
+                 if (name && mobile) processedInCsv.add(nameMobileKey);
+            }
+
+            if (action !== "DUPLICATE") {
+                 if (!row['Name'] || String(row['Name']).trim() === '') {
+                    rowErrors['Name'] = "Name is a mandatory field and cannot be empty. This row will be ignored.";
+                    action = "IGNORE";
+                } else {
+                    MANDATORY_CLIENT_HEADERS.forEach(header => {
+                        if (header !== 'Name' && (!row[header] || String(row[header]).trim() === '')) {
+                            rowErrors[header] = `Mandatory field '${header}' is missing. It will be set to a default placeholder value.`;
+                        }
+                    });
+
+                    if (row['Mail ID'] && !emailRegex.test(row['Mail ID'])) {
+                        rowErrors['Mail ID'] = 'Invalid email format. It will be set to "mail@notavailable.com".';
+                    }
+
+                    if (!row['PAN'] && action === "CREATE") { // Only error on missing PAN for new clients
+                        rowErrors['PAN'] = 'PAN is missing. It will be set to "PANNOTAVLBL" for now. Please update it later.';
+                    }
+                }
+
+                if (action !== "IGNORE" && Object.keys(rowErrors).length > 0) {
+                    action = action.includes("UPDATE") ? "FIX_AND_UPDATE" : "FIX_AND_CREATE";
+                }
             }
             
-            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId });
-        });
+            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId, duplicateReason });
+        }
 
-        result.summary.creates = result.rows.filter(r => r.action === "CREATE" || r.action === "FIX_AND_CREATE").length;
-        result.summary.updates = result.rows.filter(r => r.action === "UPDATE" || r.action === "FIX_AND_UPDATE").length;
-        result.summary.ignores = result.rows.filter(r => r.action === "IGNORE").length;
+        result.summary = result.rows.reduce((acc, r) => {
+            if (r.action.includes("CREATE")) acc.creates++;
+            else if (r.action.includes("UPDATE")) acc.updates++;
+            else if (r.action === "DUPLICATE") acc.duplicates++;
+            else if (r.action === "IGNORE") acc.ignores++;
+            return acc;
+        }, { creates: 0, updates: 0, ignores: 0, duplicates: 0 });
 
         setValidationResult(result);
 
-        if (result.rows.some(r => r.action === "IGNORE" || Object.keys(r.errors).length > 0)) {
+        if (result.summary.ignores > 0 || result.summary.duplicates > 0) {
             setIsFiltered(true);
         }
 
         toast({
             title: "Validation Complete",
-            description: `${result.summary.creates} new, ${result.summary.updates} updates, and ${result.summary.ignores} ignored records found.`,
-            variant: result.summary.ignores > 0 ? "destructive" : "default",
+            description: `${result.summary.creates} new, ${result.summary.updates} updates, ${result.summary.duplicates} duplicates, and ${result.summary.ignores} ignored records found.`,
+            variant: result.summary.ignores > 0 || result.summary.duplicates > 0 ? "destructive" : "default",
         })
 
     } catch (error) {
@@ -144,16 +181,21 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     }
   };
   
-  const handleImport = async (): Promise<void> => {
+  const handleImport = async (mode: 'skip' | 'overwrite' | null): Promise<void> => {
     if (!validationResult) {
         toast({ title: "Validation required", description: "Please validate the data before importing.", variant: "destructive"});
         return;
     }
+    setImportMode(mode);
 
-    const rowsToImport = validationResult.rows.filter(r => r.action !== "IGNORE");
+    let rowsToImport = validationResult.rows.filter(r => r.action !== "IGNORE");
+    
+    if (mode === 'skip') {
+        rowsToImport = rowsToImport.filter(r => r.action !== 'DUPLICATE');
+    }
 
     if (rowsToImport.length === 0) {
-        toast({ title: "No data to import", description: "There are no valid records to import.", variant: "destructive"});
+        toast({ title: "No data to import", description: "There are no valid records to import based on your selection.", variant: "destructive"});
         return;
     }
 
@@ -161,13 +203,24 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     try {
         const batch = writeBatch(db);
         
-        rowsToImport.forEach(({ row, action, existingClientId }) => {
-            const isUpdate = action === "UPDATE" || action === "FIX_AND_UPDATE";
+        rowsToImport.forEach(({ row, action, existingClientId, duplicateReason }) => {
+            let isUpdate = action.includes("UPDATE");
+            // If overwriting, treat duplicates as updates if they match a DB record
+            if (mode === 'overwrite' && action === 'DUPLICATE' && !duplicateReason?.includes('CSV')) {
+                const pan = row['PAN']?.trim();
+                const name = row['Name']?.trim().toLowerCase();
+                const mobile = row['Mobile Number']?.trim();
+                const nameMobileKey = `${name}_${mobile}`;
+                
+                // This logic needs to be enhanced if we want to find the DB record to overwrite
+                isUpdate = true;
+            }
+
             const clientRef = isUpdate && existingClientId ? doc(db, 'clients', existingClientId) : doc(collection(db, 'clients'));
 
             const clientData: Partial<Client> = {
                 ...row,
-                name: row.Name, // Ensure name is always present
+                name: row.Name,
                 mailId: (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'mail@notavailable.com' : row['Mail ID'],
                 mobileNumber: !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
                 pan: !row['PAN'] && !isUpdate ? 'PANNOTAVLBL' : row['PAN'],
@@ -188,14 +241,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
 
         toast({
             title: "Import Complete",
-            description: (
-                <div>
-                    <div>Total rows in file: {data.length}</div>
-                    <div>Records Created: {validationResult.summary.creates}</div>
-                    <div>Records Updated: {validationResult.summary.updates}</div>
-                    <div>Records Ignored: {validationResult.summary.ignores}</div>
-                </div>
-            ),
+            description: `Import finished successfully.`,
             duration: 10000,
         });
         onComplete();
@@ -209,19 +255,33 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     }
   };
 
-  const getErrorForCell = (rowIndex: number, header: string): string | null => {
-      const resultRow = validationResult?.rows.find(r => r.originalIndex === rowIndex);
-      return resultRow ? resultRow.errors[header] || null : null;
-  }
-  
-  const getActionForCell = (rowIndex: number, header: string): RowAction | null => {
-    if (header !== "Name") return null;
+  const getCellAction = (rowIndex: number): RowAction | null => {
     const resultRow = validationResult?.rows.find(r => r.originalIndex === rowIndex);
     return resultRow ? resultRow.action : null;
   }
+  
+  const getCellTooltip = (rowIndex: number): string | null => {
+      if (!validationResult) return null;
+      const resultRow = validationResult.rows.find(r => r.originalIndex === rowIndex);
+      if (!resultRow) return null;
+
+      const errors = Object.values(resultRow.errors).join(' | ');
+      if (resultRow.action === "DUPLICATE") return resultRow.duplicateReason || "Duplicate record";
+      if (errors) return errors;
+
+      const actionText = {
+            "CREATE": "Will be created as a new client.",
+            "UPDATE": "Will update an existing client.",
+            "IGNORE": "Will be ignored due to fatal errors.",
+            "FIX_AND_CREATE": "Will be created with placeholder values for some fields.",
+            "FIX_AND_UPDATE": "Will update an existing client with placeholder values for some fields.",
+      }[resultRow.action];
+
+      return actionText || null;
+  }
 
   const displayedData = isFiltered && validationResult
-    ? data.filter((_, rowIndex) => validationResult.rows.some(r => r.originalIndex === rowIndex && (r.action === "IGNORE" || Object.keys(r.errors).length > 0)))
+    ? data.filter((_, rowIndex) => validationResult.rows.some(r => r.originalIndex === rowIndex && (r.action === "IGNORE" || r.action === "DUPLICATE" || Object.keys(r.errors).length > 0)))
     : data;
     
   const getOriginalIndex = (filteredIndex: number) => {
@@ -230,9 +290,9 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
       return data.indexOf(rowData);
   }
 
-  const hasIssues = validationResult && validationResult.rows.some(r => r.action !== "CREATE" && r.action !== "UPDATE");
-  const totalErrorRows = validationResult?.rows.filter(r => r.action === "IGNORE" || Object.keys(r.errors).length > 0).length || 0;
-
+  const issueRowsCount = validationResult?.rows.filter(r => r.action === "IGNORE" || r.action === "DUPLICATE" || Object.keys(r.errors).length > 0).length || 0;
+  
+  const duplicateRows = validationResult?.rows.filter(r => r.action === 'DUPLICATE') || [];
 
   return (
     <TooltipProvider>
@@ -248,51 +308,30 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                     <TableBody>
                         {displayedData.map((row, index) => {
                             const originalRowIndex = getOriginalIndex(index);
+                            const cellAction = getCellAction(originalRowIndex);
+                            const tooltipText = getCellTooltip(originalRowIndex);
+
+                            let rowClassName = "";
+                             if (cellAction === "DUPLICATE") rowClassName = "bg-orange-500/20";
+                             else if (cellAction === "IGNORE") rowClassName = "bg-red-500/20";
+                             else if (cellAction?.includes("FIX")) rowClassName = "bg-yellow-500/20";
+                             else if (cellAction === "UPDATE") rowClassName = "bg-blue-500/10";
+                             else if (cellAction === "CREATE") rowClassName = "bg-green-500/10";
+
                             return (
-                                <TableRow key={originalRowIndex}>
+                                <TableRow key={originalRowIndex} className={rowClassName}>
                                      <TableCell className="text-sm whitespace-nowrap px-4 py-2 font-medium text-muted-foreground">{originalRowIndex + 1}</TableCell>
                                     {headers.map(header => {
-                                        const cellError = getErrorForCell(originalRowIndex, header);
-                                        const cellAction = getActionForCell(originalRowIndex, header);
-
                                         const cellContent = <div className="max-w-[200px] truncate">{String(row[header] ?? '')}</div>;
-                                        
-                                        let cellClassName = "text-sm whitespace-nowrap p-0";
-                                        if (cellError) {
-                                            if (cellAction === "IGNORE") {
-                                                cellClassName = cn(cellClassName, "bg-red-500/20");
-                                            } else {
-                                                cellClassName = cn(cellClassName, "bg-yellow-500/20");
-                                            }
-                                        } else {
-                                           if (cellAction === "UPDATE" || cellAction === "FIX_AND_UPDATE") {
-                                               cellClassName = cn(cellClassName, "bg-blue-500/10");
-                                           } else if (cellAction === "CREATE" || cellAction === "FIX_AND_CREATE") {
-                                               cellClassName = cn(cellClassName, "bg-green-500/10");
-                                           }
-                                        }
-
-
-                                        const actionText = cellAction ? {
-                                            "CREATE": "Will be created",
-                                            "UPDATE": "Will be updated",
-                                            "IGNORE": "Will be ignored (Fatal Error)",
-                                            "FIX_AND_CREATE": "Will be created with fixes (Warning)",
-                                            "FIX_AND_UPDATE": "Will be updated with fixes (Warning)",
-                                        }[cellAction] : null;
-
-
-                                        const tooltipText = cellError || actionText;
-
                                         return (
-                                            <TableCell key={`${originalRowIndex}-${header}`} className={cellClassName}>
+                                            <TableCell key={`${originalRowIndex}-${header}`} className="p-0">
                                                  {tooltipText ? (
                                                     <Tooltip delayDuration={100}>
                                                         <TooltipTrigger asChild>
                                                             <div className="px-4 py-2 w-full h-full cursor-help">{cellContent}</div>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p className={cn(cellAction === "IGNORE" && "text-destructive font-bold")}>{tooltipText}</p>
+                                                            <p>{tooltipText}</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 ) : (
@@ -308,12 +347,12 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 </Table>
                 <ScrollBar orientation="horizontal" />
             </ScrollArea>
-            <DialogFooter className="pt-4 flex-shrink-0">
-                <div className="text-sm text-muted-foreground mr-auto flex items-center">
+            <DialogFooter className="pt-4 flex-shrink-0 items-center">
+                 <div className="text-sm text-muted-foreground mr-auto flex items-center">
                     {validationResult !== null ? (
-                         isFiltered && totalErrorRows > 0 ? (
+                         isFiltered && issueRowsCount > 0 ? (
                              <>
-                                <span>Showing {totalErrorRows} of {data.length} rows with issues.</span>
+                                <span>Showing {issueRowsCount} of {data.length} rows with issues.</span>
                                 <Button variant="link" size="sm" onClick={() => setIsFiltered(false)} className="p-1 h-auto">Show all</Button>
                              </>
                          ) : `Showing all ${data.length} records.`
@@ -325,35 +364,68 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 <Button onClick={handleValidate} disabled={isValidating}>
                     {isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}
                 </Button>
-                <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-                    <AlertDialogTrigger asChild>
-                        <Button 
-                            disabled={!validationResult || isImporting}
-                            onClick={() => { if (hasIssues) setIsConfirmOpen(true); else handleImport(); }}
-                        >
-                            {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                         <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Import</AlertDialogTitle>
-                            <div className="text-sm text-muted-foreground py-4">
-                                <div>Your data has been reviewed:</div>
-                                <ul className="list-disc pl-5 mt-2 space-y-1">
-                                    <li><b>{validationResult?.summary.creates || 0}</b> new records will be created.</li>
-                                    <li><b>{validationResult?.summary.updates || 0}</b> existing records will be updated.</li>
-                                    <li><b>{validationResult?.summary.ignores || 0}</b> records will be ignored due to missing data.</li>
-                                </ul>
-                                <div className="mt-4">Do you want to proceed with the import?</div>
-                            </div>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>No, Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleImport}>Yes, Import Now</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                {validationResult && validationResult.summary.duplicates > 0 && (
+                     <Button variant="secondary" onClick={() => setIsInspectDialogOpen(true)}>
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Inspect Duplicates ({validationResult.summary.duplicates})
+                    </Button>
+                )}
+                 {validationResult && validationResult.summary.duplicates > 0 ? (
+                     <AlertDialog>
+                         <AlertDialogTrigger asChild>
+                             <Button disabled={isImporting}><DatabaseBackup className="mr-2 h-4 w-4" /> Overwrite Duplicates</Button>
+                         </AlertDialogTrigger>
+                         <AlertDialogContent>
+                             <AlertDialogHeader>
+                                 <AlertDialogTitle>Confirm Overwrite</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                     This will overwrite {validationResult.summary.duplicates} existing records with the data from your CSV file. This action cannot be undone. Are you sure you want to proceed?
+                                 </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleImport('overwrite')}>Yes, Overwrite</AlertDialogAction>
+                             </AlertDialogFooter>
+                         </AlertDialogContent>
+                     </AlertDialog>
+                 ) : (
+                     <Button onClick={() => handleImport(null)} disabled={!validationResult || isImporting}>
+                        {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
+                    </Button>
+                 )}
             </DialogFooter>
+             <Dialog open={isInspectDialogOpen} onOpenChange={setIsInspectDialogOpen}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Duplicate Records Found</DialogTitle>
+                        <DialogDescription>
+                            The following rows from your CSV were identified as duplicates. They will be skipped unless you choose to overwrite.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-96">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Row #</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>PAN</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {duplicateRows.map(r => (
+                                    <TableRow key={r.originalIndex}>
+                                        <TableCell>{r.originalIndex + 1}</TableCell>
+                                        <TableCell>{r.row.Name}</TableCell>
+                                        <TableCell>{r.row.PAN}</TableCell>
+                                        <TableCell className="text-destructive">{r.duplicateReason}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
     </TooltipProvider>
   );
