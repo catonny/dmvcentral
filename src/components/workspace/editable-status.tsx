@@ -28,6 +28,7 @@ const engagementStatuses: EngagementStatus[] = [
     "Pending",
     "Awaiting Documents",
     "In Process",
+    "On Hold",
     "Partner Review",
     "Completed",
     "Cancelled"
@@ -37,6 +38,7 @@ const statusColorClasses: Record<EngagementStatus, string> = {
   "Pending": "bg-gray-200 text-gray-800",
   "Awaiting Documents": "bg-yellow-200 text-yellow-800",
   "In Process": "bg-blue-200 text-blue-800",
+  "On Hold": "bg-orange-200 text-orange-800",
   "Partner Review": "bg-purple-200 text-purple-800",
   "Completed": "bg-green-200 text-green-800",
   "Cancelled": "bg-red-200 text-red-800",

@@ -84,7 +84,7 @@ export interface EngagementType {
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
 }
 
-export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "Completed" | "Cancelled";
+export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "On Hold" | "Completed" | "Cancelled";
 export type TaskStatus = "Pending" | "Completed" | "Cancelled";
 
 export interface Department {

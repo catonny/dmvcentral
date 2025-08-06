@@ -1,7 +1,7 @@
 
-import { CheckCircle, CircleDashed, FileClock, CircleX, UserCheck, FileQuestion } from "lucide-react";
+import { CheckCircle, CircleDashed, FileClock, CircleX, UserCheck, FileQuestion, PauseCircle } from "lucide-react";
 
-export const engagementStatuses = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "Completed", "Cancelled"];
+export const engagementStatuses = ["Pending", "Awaiting Documents", "In Process", "On Hold", "Partner Review", "Completed", "Cancelled"];
 
 export const engagementStatusIcons = [
     {
@@ -18,6 +18,11 @@ export const engagementStatusIcons = [
         value: "In Process",
         label: "In Process",
         icon: CircleDashed,
+    },
+    {
+        value: "On Hold",
+        label: "On Hold",
+        icon: PauseCircle,
     },
     {
         value: "Partner Review",

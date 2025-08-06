@@ -140,7 +140,7 @@ export default function ReportsPage() {
     React.useEffect(() => {
         if (!hasAccess) return;
         
-        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
         const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
 
         const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {

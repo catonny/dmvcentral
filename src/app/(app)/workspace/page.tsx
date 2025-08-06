@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
 import type { Client, Engagement, Employee, Department, Task, EngagementType } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -59,7 +60,7 @@ export default function WorkspacePage() {
           setEngagementTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType)));
         }, (error) => handleError(error, "engagement types"));
 
-        const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review"];
+        const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
         const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
         const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
             const engagementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
