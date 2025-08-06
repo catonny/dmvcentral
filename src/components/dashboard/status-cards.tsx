@@ -3,14 +3,14 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Client, Engagement, Task } from "@/lib/data";
-import { Users, Briefcase, UserX, ListTodo, AlertTriangle, GanttChartSquare } from "lucide-react";
+import type { Client, Engagement, Task, Timesheet } from "@/lib/data";
+import { Users, Briefcase, UserX, ListTodo, AlertTriangle, GanttChartSquare, Timer } from "lucide-react";
 import * as React from 'react';
-import { isThisWeek, parseISO } from 'date-fns';
+import { isThisWeek, parseISO, startOfWeek, format } from 'date-fns';
 
 interface StatusCardProps {
     title: string;
-    value: number;
+    value: number | string;
     description: string;
     icon: React.ElementType;
 }
@@ -34,6 +34,7 @@ interface StatusCardsProps {
         clients: Client[];
         engagements: Engagement[];
         tasks: Task[];
+        timesheets: Timesheet[];
     } | null;
     userRole: "Admin" | "Partner" | "Employee";
 }
@@ -42,7 +43,7 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
     const kpiData = React.useMemo(() => {
         if (!data) return [];
         
-        const { clients, engagements, tasks } = data;
+        const { clients, engagements, tasks, timesheets } = data;
         
         if (userRole === 'Admin') {
             return [
@@ -53,10 +54,11 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
         }
 
         if (userRole === 'Partner') {
+             const unassignedEngagements = engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0);
             return [
                 { title: 'My Active Clients', value: clients.length, description: 'Clients for whom you are the partner.', icon: Users },
                 { title: 'Total Engagements', value: engagements.length, description: 'Active engagements for your clients.', icon: Briefcase },
-                { title: 'Unassigned Engagements', value: engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0).length, description: 'Engagements for your clients needing assignment.', icon: UserX },
+                { title: 'Unassigned Engagements', value: unassignedEngagements.length, description: 'Engagements for your clients needing assignment.', icon: UserX },
             ];
         }
         
@@ -67,14 +69,26 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
             return engagement && isThisWeek(parseISO(engagement.dueDate), { weekStartsOn: 1 });
         });
 
+        const weekStartDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        const currentWeekTimesheet = timesheets.find(ts => ts.weekStartDate.startsWith(weekStartDate));
+        const hoursLoggedThisWeek = currentWeekTimesheet?.totalHours || 0;
+
         return [
-            { title: 'My Clients', value: clients.length, description: 'Number of clients you are currently working on.', icon: Users },
             { title: 'My Active Engagements', value: engagements.length, description: 'Your current active workload.', icon: GanttChartSquare },
-            { title: 'Tasks Due This Week', value: pendingThisWeek.length, description: 'Your pending tasks with a due date this week.', icon: AlertTriangle },
+            { title: 'Pending Tasks This Week', value: pendingThisWeek.length, description: 'Tasks with a due date this week.', icon: AlertTriangle },
             { title: 'All Pending Tasks', value: pendingTasks.length, description: 'Your total number of pending tasks.', icon: ListTodo },
+            { title: 'Hours Logged This Week', value: hoursLoggedThisWeek.toFixed(1), description: 'Your total time logged this week.', icon: Timer },
         ];
         
     }, [data, userRole]);
+
+    if (userRole === "Admin" || userRole === "Partner") {
+        return (
+            <div className="grid gap-4 md:grid-cols-3">
+                {kpiData.map(item => <KpiCard key={item.title} {...item} />)}
+            </div>
+        );
+    }
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -82,4 +96,3 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
         </div>
     );
 }
-
