@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogClose
 } from "@/components/ui/dialog"
-import type { Engagement, EngagementType, Client, Employee, Task } from "@/lib/data";
+import type { Engagement, EngagementType, Client, Employee, Task, EngagementStatus } from "@/lib/data";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
@@ -36,8 +36,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, parse } from "date-fns";
+import { engagementStatuses } from "../reports/engagement-statuses";
 
-const ASSIGNMENT_HEADERS = ["Engagement Type", "Client Name", "Due Date", "Allotted User", "Remarks"];
+const ASSIGNMENT_HEADERS = ["Engagement Type", "Client Name", "Due Date", "Allotted User", "Reported To", "Status", "Fees", "Remarks"];
 const MANDATORY_ASSIGNMENT_HEADERS = ["Engagement Type", "Client Name", "Due Date", "Allotted User"];
 
 interface BulkCreateEngagementsProps {
@@ -51,7 +52,10 @@ interface ValidatedRow {
     client?: Client;
     engagementType?: EngagementType;
     allottedUser?: Employee;
+    reporter?: Employee;
     parsedDate?: Date;
+    status?: EngagementStatus;
+    fees?: number;
     errors: { [key: string]: string };
     originalIndex: number;
     action: "CREATE" | "IGNORE";
@@ -92,6 +96,9 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
             "Client Name*": "Innovate Inc.",
             "Due Date*": "31/07/2024",
             "Allotted User*": "Dojo Davis",
+            "Reported To": "Dojo Davis",
+            "Status": "Pending",
+            "Fees": "5000",
             "Remarks": "ITR for Innovate Inc. for Assessment Year 2024-25"
         },
         {
@@ -99,6 +106,9 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
             "Client Name*": "GreenFuture LLP",
             "Due Date*": "20/07/2024",
             "Allotted User*": "Dojo Davis",
+            "Reported To": "Dojo Davis",
+            "Status": "In Process",
+            "Fees": "8000",
             "Remarks": "Monthly GST returns for June 2024"
         }
     ];
@@ -163,11 +173,16 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         const clientName = row["Client Name"]?.toLowerCase();
         const engagementTypeName = row["Engagement Type"]?.toLowerCase();
         const allottedUserName = row["Allotted User"]?.toLowerCase();
+        const reporterName = row["Reported To"]?.toLowerCase();
         const dueDate = row["Due Date"];
+        const statusValue = row["Status"];
+        const feesValue = row["Fees"];
+
         
         const client = clientName ? clientNameMap.get(clientName) : undefined;
         const engagementType = engagementTypeName ? engagementTypeNameMap.get(engagementTypeName) : undefined;
         const allottedUser = allottedUserName ? employeeNameMap.get(allottedUserName) : undefined;
+        const reporter = reporterName ? employeeNameMap.get(reporterName) : undefined;
         
         let parsedDate: Date | undefined;
         if (dueDate) {
@@ -188,6 +203,26 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                 action = "IGNORE";
             }
         }
+        
+        let status: EngagementStatus | undefined = "Pending";
+        if (statusValue) {
+            if (engagementStatuses.includes(statusValue)) {
+                status = statusValue;
+            } else {
+                errors["Status"] = `Invalid status. Will default to 'Pending'.`;
+            }
+        }
+
+        let fees: number | undefined;
+        if (feesValue) {
+            const parsedFees = parseFloat(feesValue);
+            if (!isNaN(parsedFees)) {
+                fees = parsedFees;
+            } else {
+                 errors["Fees"] = `Invalid fees format. Must be a number.`;
+                 action = "IGNORE";
+            }
+        }
 
         if (action !== "IGNORE") {
             if (!client) {
@@ -199,13 +234,18 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
             if (!allottedUser) {
                 errors["Allotted User"] = `Employee "${row["Allotted User"]}" not found in master data.`;
             }
+            if (row["Reported To"] && !reporter) {
+                errors["Reported To"] = `Employee "${row["Reported To"]}" not found.`;
+            }
         }
         
-        if (Object.keys(errors).length > 0) {
-            action = "IGNORE";
+        if (Object.keys(errors).length > 0 && action === "CREATE") {
+             if (errors["Client Name"] || errors["Engagement Type"] || errors["Allotted User"]) {
+                action = "IGNORE";
+            }
         }
         
-        result.rows.push({ row, action, errors, client, engagementType, allottedUser, parsedDate, originalIndex: rowIndex });
+        result.rows.push({ row, action, errors, client, engagementType, allottedUser, reporter, parsedDate, status, fees, originalIndex: rowIndex });
     });
 
     result.summary.creates = result.rows.filter(r => r.action === "CREATE").length;
@@ -231,15 +271,16 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
     validationResult.rows.forEach(row => {
         if (row.action === "CREATE" && row.client && row.engagementType && row.allottedUser && row.parsedDate) {
             const newEngagementDocRef = doc(collection(db, 'engagements'));
-            const newEngagementData: Engagement = {
+            const newEngagementData: Partial<Engagement> = {
                 id: newEngagementDocRef.id,
                 clientId: row.client.id,
                 type: row.engagementType.id,
                 assignedTo: [row.allottedUser.id],
                 remarks: row.row["Remarks"] || row.engagementType.name,
                 dueDate: row.parsedDate.toISOString(),
-                status: 'Pending',
-                reportedTo: '', // Can be updated later
+                status: row.status || 'Pending',
+                reportedTo: row.reporter ? row.reporter.id : '',
+                fees: row.fees || 0
             };
             batch.set(newEngagementDocRef, newEngagementData);
 
@@ -425,7 +466,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                                         <Button onClick={handleValidate} disabled={isValidating}>{isValidating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validating...</> : 'Validate Data'}</Button>
                                          <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
                                             <AlertDialogTrigger asChild>
-                                                <Button disabled={!validationResult || isImporting} onClick={() => setIsConfirmOpen(true)}>
+                                                <Button disabled={!validationResult || isImporting || hasErrors} onClick={() => setIsConfirmOpen(true)}>
                                                     {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
                                                 </Button>
                                             </AlertDialogTrigger>
@@ -459,3 +500,4 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
     </Card>
   );
 }
+
