@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import 'dotenv/config';
 import {
   employees,
-  clients,
+  clients as clientData,
   engagementTypes,
   engagements,
   countries,
@@ -80,12 +80,29 @@ const seedDatabase = async () => {
     });
 
     console.log('Seeding clients...');
-    clients.forEach((client, index) => {
+    clientData.forEach((client, index) => {
       const docRef = db.collection('clients').doc();
       const now = new Date();
       // Go back 1 to 3 years for creation date
       const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
-      batch.set(docRef, { ...client, id: docRef.id, createdAt: createdAt, lastUpdated: new Date().toISOString() });
+      
+      const newClient = {
+            name: client.name,
+            pan: client.pan,
+            mobileNumber: client.mobileNumber,
+            mailId: client.mailId,
+            partnerId: client.partnerId,
+            category: client.category,
+            country: client.country,
+            gstin: client.gstin,
+            contactPerson: client.contactPerson,
+            contactPersonDesignation: client.contactPersonDesignation,
+            id: docRef.id,
+            createdAt: createdAt,
+            lastUpdated: new Date().toISOString()
+      };
+      
+      batch.set(docRef, newClient);
       clientRefs[`client${index + 1}_id_placeholder`] = {id: docRef.id, partnerId: client.partnerId};
     });
 
