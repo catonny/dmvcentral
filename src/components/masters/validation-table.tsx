@@ -371,23 +371,29 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                     </Button>
                 )}
                  {validationResult && validationResult.summary.duplicates > 0 ? (
-                     <AlertDialog>
-                         <AlertDialogTrigger asChild>
-                             <Button disabled={isImporting}><DatabaseBackup className="mr-2 h-4 w-4" /> Overwrite Duplicates</Button>
-                         </AlertDialogTrigger>
-                         <AlertDialogContent>
-                             <AlertDialogHeader>
-                                 <AlertDialogTitle>Confirm Overwrite</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                     This will overwrite {validationResult.summary.duplicates} existing records with the data from your CSV file. This action cannot be undone. Are you sure you want to proceed?
-                                 </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleImport('overwrite')}>Yes, Overwrite</AlertDialogAction>
-                             </AlertDialogFooter>
-                         </AlertDialogContent>
-                     </AlertDialog>
+                    <div className="flex gap-2">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive"><DatabaseBackup className="mr-2 h-4 w-4" /> Overwrite ({validationResult.summary.duplicates})</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Overwrite</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will overwrite {validationResult.summary.duplicates} existing records with the data from your CSV file. This action cannot be undone. Are you sure you want to proceed?
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleImport('overwrite')}>Yes, Overwrite</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        <Button onClick={() => handleImport('skip')} variant="outline">
+                            <SkipForward className="mr-2 h-4 w-4" />
+                            Skip Duplicates & Import Rest
+                        </Button>
+                    </div>
                  ) : (
                      <Button onClick={() => handleImport(null)} disabled={!validationResult || isImporting}>
                         {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import Data'}
