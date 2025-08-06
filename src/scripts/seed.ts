@@ -23,20 +23,12 @@ import type { Task, Permission } from '@/lib/data';
 // but for a local script, we need to explicitly load it.
 const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 
-let serviceAccount: any;
-if (serviceAccountString) {
-    try {
-        serviceAccount = JSON.parse(serviceAccountString);
-    } catch (e) {
-        console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
-        serviceAccount = undefined;
-    }
-}
 
-
-if (!serviceAccount) {
+if (!serviceAccountString) {
     throw new Error('Firebase Admin SDK service account is not defined. Make sure the FIREBASE_SERVICE_ACCOUNT environment variable is set correctly.');
 }
+
+const serviceAccount = JSON.parse(serviceAccountString);
 
 let app: App;
 
