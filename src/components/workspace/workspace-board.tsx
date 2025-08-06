@@ -70,23 +70,29 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
 
     const visibleDepartments = React.useMemo(() => {
         const userRoles = currentUser.role;
+
         if (userRoles.includes("Admin")) {
-            return allDepartments;
+            return allDepartments.filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
         }
 
-        const userDeptOrders = userRoles.map(role => {
-            const dept = allDepartments.find(d => d.name === role);
-            return dept ? dept.order : Infinity;
-        });
+        const userDeptOrders = userRoles
+            .map(role => allDepartments.find(d => d.name === role)?.order)
+            .filter((order): order is number => order !== undefined);
         
-        const minOrder = Math.min(...userDeptOrders);
-        const depts = allDepartments.filter(dept => dept.order >= minOrder);
-        const uniqueDeptMap = new Map();
-        depts.forEach(item => uniqueDeptMap.set(item.id, item));
+        if (userDeptOrders.length === 0) {
+            return [];
+        }
 
-        return Array.from(uniqueDeptMap.values());
+        const minOrder = Math.min(...userDeptOrders);
+
+        const depts = allDepartments.filter(dept => dept.order >= minOrder);
         
-    }, [currentUser, allDepartments]);
+        // Ensure the returned list has unique departments, then filter out empty ones
+        const uniqueDeptMap = new Map(depts.map(d => [d.id, d]));
+
+        return Array.from(uniqueDeptMap.values()).filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
+        
+    }, [currentUser, allDepartments, allEmployees]);
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
@@ -218,7 +224,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
             <ScrollArea className="flex-grow w-full">
                 <div className="flex gap-6 pb-4">
                     {visibleDepartments
-                        .filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)))
                         .map(dept => (
                         <DepartmentColumn
                             key={dept.id}
