@@ -122,7 +122,8 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
 
     const unsubDepts = onSnapshot(deptsQuery, (snapshot) => {
         const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-        setDepartments(deptsData);
+        const uniqueDepts = Array.from(new Map(deptsData.map(item => [item['id'], item])).values());
+        setDepartments(uniqueDepts);
         setLoading(false);
     }, (error) => {
         console.error("Error fetching departments: ", error);
@@ -204,6 +205,13 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
             await updateDoc(deptRef, { name: deptData.name });
             toast({ title: "Success", description: "Department updated." });
         } else { // Adding new department
+            // Check for duplicates before creating
+            const existingDepts = departments.map(d => d.name.toLowerCase());
+            if (existingDepts.includes(deptData.name.toLowerCase())) {
+                 toast({ title: "Duplicate Department", description: `A department with the name "${deptData.name}" already exists.`, variant: "destructive" });
+                 return;
+            }
+
             const newDeptRef = doc(collection(db, "departments"));
             const newOrder = departments.length > 0 ? Math.max(...departments.map(d => d.order)) + 1 : 1;
             await setDoc(newDeptRef, { id: newDeptRef.id, name: deptData.name, order: newOrder });
