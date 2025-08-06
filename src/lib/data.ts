@@ -638,61 +638,61 @@ export const engagementTypes: EngagementType[] = [
         id: "ET01", 
         name: "ITR Filing", 
         description: "Income Tax Return Filing for Individuals and Businesses",
-        subTaskTitles: ["Contact Client", "Collect Documents", "Prepare Computation", "Finalise Computation", "File ITR", "e-Verify ITR", "Send ITR-V to Client", "Bill for Services", "Collect Payment"],
+        subTaskTitles: ["Contact Client", "Collect Documents", "Prepare Computation", "Finalise Computation", "File ITR", "e-Verify ITR", "Send ITR-V to Client"],
         recurrence: "Yearly",
     },
     { 
         id: "ET02", 
         name: "GST Filing", 
         description: "Monthly and Quarterly GST Return Filing",
-        subTaskTitles: ["Request Sales Data", "Request Purchase Data", "Reconcile GSTR-2B", "Prepare GSTR-3B", "File GSTR-3B", "File GSTR-1", "Bill for Services", "Collect Payment"],
+        subTaskTitles: ["Request Sales Data", "Request Purchase Data", "Reconcile GSTR-2B", "Prepare GSTR-3B", "File GSTR-3B", "File GSTR-1"],
         recurrence: "Monthly",
     },
     {
         id: "ET03",
         name: "TDS Filing",
         description: "Quarterly TDS Return Filing",
-        subTaskTitles: ["Collect TDS Data", "Prepare TDS Return", "Validate TDS Return", "File TDS Return", "Download Form 16/16A", "Issue Certificates", "Bill for Services", "Collect Payment"],
+        subTaskTitles: ["Collect TDS Data", "Prepare TDS Return", "Validate TDS Return", "File TDS Return", "Download Form 16/16A", "Issue Certificates"],
         recurrence: "Quarterly",
     },
     { 
         id: "ET04", 
         name: "Tax Audit", 
         description: "Audit under section 44AB of the Income Tax Act",
-        subTaskTitles: ["Send Audit Request List", "Collect Financial Statements", "Vouching and Verification", "Prepare Audit Report", "Finalize Audit Report", "Upload Tax Audit Report", "Bill for Services", "Collect Payment"]
+        subTaskTitles: ["Send Audit Request List", "Collect Financial Statements", "Vouching and Verification", "Prepare Audit Report", "Finalize Audit Report", "Upload Tax Audit Report"]
     },
     {
         id: "ET05",
         name: "Company Audit",
         description: "Statutory audit for companies",
-        subTaskTitles: ["Engagement Acceptance", "Planning", "Risk Assessment", "Fieldwork", "Review", "Reporting", "Finalisation", "Billing"],
+        subTaskTitles: ["Engagement Acceptance", "Planning", "Risk Assessment", "Fieldwork", "Review", "Reporting", "Finalisation"],
         applicableCategories: ["Corporate", "LLP"]
     },
     {
         id: "ET06",
         name: "Net Worth Certificates",
         description: "Issuing net worth certificates for visa or other purposes",
-        subTaskTitles: ["Collect Asset/Liability Docs", "Verify Documents", "Draft Certificate", "Finalize Certificate", "Issue Certificate", "Billing"],
+        subTaskTitles: ["Collect Asset/Liability Docs", "Verify Documents", "Draft Certificate", "Finalize Certificate", "Issue Certificate"],
         applicableCategories: ["Individual"]
     },
     {
         id: "ET07",
         name: "Internal Audit",
         description: "Conducting internal audit for companies",
-        subTaskTitles: ["Planning", "Fieldwork", "Reporting", "Follow-up", "Billing"],
+        subTaskTitles: ["Planning", "Fieldwork", "Reporting", "Follow-up"],
         applicableCategories: ["Corporate", "LLP"]
     },
     {
         id: "ET08",
         name: "Book Keeping",
         description: "Maintaining books of accounts",
-        subTaskTitles: ["Collect Bank Statements", "Record Transactions", "Bank Reconciliation", "Prepare Financials", "Review", "Billing"]
+        subTaskTitles: ["Collect Bank Statements", "Record Transactions", "Bank Reconciliation", "Prepare Financials", "Review"]
     },
     { 
         id: "ET09", 
         name: "ROC Forms", 
         description: "Annual filings with the Registrar of Companies",
-        subTaskTitles: ["Prepare Board Resolutions", "Hold Board Meeting", "Draft Annual Report", "File AOC-4", "File MGT-7", "Bill for Services", "Collect Payment"],
+        subTaskTitles: ["Prepare Board Resolutions", "Hold Board Meeting", "Draft Annual Report", "File AOC-4", "File MGT-7"],
         applicableCategories: ["Corporate", "LLP"]
     },
 ];
