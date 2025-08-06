@@ -8,13 +8,14 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Engagement, Employee, Client, BillStatus, PendingInvoice, EngagementType } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GripVertical, Loader2, Grip } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import GridLayout from "react-grid-layout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmailCenter } from "@/components/administration/email-center";
 
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
@@ -24,17 +25,8 @@ interface BillingDashboardEntry {
     pendingInvoiceId: string;
 }
 
-interface Widget {
-  id: string;
-  component: React.FC<any>;
-  defaultLayout: { x: number; y: number; w: number; h: number; };
-}
-
-export default function AccountsPage() {
-    const { user, loading: authLoading } = useAuth();
+const BillingDashboard = () => {
     const { toast } = useToast();
-    const [hasAccess, setHasAccess] = React.useState(false);
-    const [loading, setLoading] = React.useState(true);
     const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
@@ -42,34 +34,8 @@ export default function AccountsPage() {
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
-    
-    const [widgets, setWidgets] = React.useState<Widget[]>([]);
-    const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
-    
-    React.useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            setLoading(false);
-            return;
-        }
-
-        const checkUserRole = async () => {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
-            if (!employeeSnapshot.empty) {
-                const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner") || employeeData.role.includes("Administration")) {
-                    setHasAccess(true);
-                }
-            }
-            setLoading(false);
-        };
-        checkUserRole();
-    }, [user, authLoading]);
 
     React.useEffect(() => {
-        if (!hasAccess) return;
-
         const fetchAndSetStaticData = async () => {
             try {
                 const [clientSnapshot, employeeSnapshot, engagementTypeSnapshot] = await Promise.all([
@@ -115,7 +81,7 @@ export default function AccountsPage() {
         });
 
         return () => unsubscribe();
-    }, [hasAccess, toast]);
+    }, [toast]);
     
     const handleBillStatusUpdate = async (engagementId: string, newStatus: BillStatus, pendingInvoiceId: string) => {
         const engagementRef = doc(db, "engagements", engagementId);
@@ -132,20 +98,15 @@ export default function AccountsPage() {
             toast({ title: "Error", description: "Failed to update bill status.", variant: "destructive" });
         }
     };
-    
-     const handleLayoutChange = (newLayout: GridLayout.Layout[]) => {
-        setLayout(newLayout);
-        localStorage.setItem('accountsLayout', JSON.stringify(newLayout));
-    };
-    
+
     const paginatedEntries = billingEntries.slice(
         pageIndex * pageSize,
         (pageIndex + 1) * pageSize
     );
     const pageCount = Math.ceil(billingEntries.length / pageSize);
-
-    const BillingDashboard = () => (
-        <>
+    
+    return (
+        <Card>
             <CardHeader>
                 <CardTitle>Billing Pending Dashboard</CardTitle>
                 <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
@@ -241,23 +202,35 @@ export default function AccountsPage() {
                     </Button>
                 </div>
             </div>
-        </>
+        </Card>
     );
+}
 
+export default function AdministrationPage() {
+    const { user, loading: authLoading } = useAuth();
+    const [hasAccess, setHasAccess] = React.useState(false);
+    const [loading, setLoading] = React.useState(true);
+    
     React.useEffect(() => {
-        const defaultWidgets: Widget[] = [
-            { id: 'billing-dashboard', component: BillingDashboard, defaultLayout: { x: 0, y: 0, w: 12, h: 16 } },
-        ];
-        
-        setWidgets(defaultWidgets);
-
-        const storedLayout = localStorage.getItem('accountsLayout');
-        if (storedLayout) {
-            setLayout(JSON.parse(storedLayout));
-        } else {
-            setLayout(defaultWidgets.map(w => ({...w.defaultLayout, i: w.id})));
+        if (authLoading) return;
+        if (!user) {
+            setLoading(false);
+            return;
         }
-    }, []);
+
+        const checkUserRole = async () => {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const employeeSnapshot = await getDocs(employeeQuery);
+            if (!employeeSnapshot.empty) {
+                const employeeData = employeeSnapshot.docs[0].data() as Employee;
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Administration")) {
+                    setHasAccess(true);
+                }
+            }
+            setLoading(false);
+        };
+        checkUserRole();
+    }, [user, authLoading]);
 
     if (loading) {
         return (
@@ -277,30 +250,28 @@ export default function AccountsPage() {
     }
 
     return (
-        <GridLayout
-            className="layout"
-            layout={layout}
-            cols={12}
-            rowHeight={30}
-            width={1200}
-            onLayoutChange={handleLayoutChange}
-            draggableHandle=".widget-drag-handle"
-        >
-            {widgets.map(widget => (
-                <div key={widget.id} data-grid={layout.find(l => l.i === widget.id) || widget.defaultLayout}>
-                    <Card className="h-full w-full overflow-hidden flex flex-col group">
-                        <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-colors widget-drag-handle">
-                            <GripVertical className="h-5 w-5" />
-                        </div>
-                        <div className="p-4 flex-grow">
-                            <widget.component />
-                        </div>
-                        <div className="react-resizable-handle absolute bottom-0 right-0 cursor-se-resize w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <Grip className="w-full h-full text-muted-foreground" />
-                        </div>
-                    </Card>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Administration</h2>
+                    <p className="text-muted-foreground">
+                        Manage firm-wide administrative tasks like billing and client communication.
+                    </p>
                 </div>
-            ))}
-        </GridLayout>
+            </div>
+
+            <Tabs defaultValue="billing" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="billing">Billing Dashboard</TabsTrigger>
+                    <TabsTrigger value="email">Email Center</TabsTrigger>
+                </TabsList>
+                <TabsContent value="billing" className="space-y-4">
+                    <BillingDashboard />
+                </TabsContent>
+                <TabsContent value="email" className="space-y-4">
+                    <EmailCenter />
+                </TabsContent>
+            </Tabs>
+        </div>
     )
 }
