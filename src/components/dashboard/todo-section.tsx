@@ -47,34 +47,37 @@ export function TodoSection() {
             toast({ title: "Error", description: "Could not fetch to-do list for assignments.", variant: "destructive" });
         });
         
-        const combineIncompleteClients = (snapshots: any[]) => {
+        const combineIncompleteClients = (snapshots: (any | undefined)[]) => {
             const allIncomplete = new Map<string, Client>();
             snapshots.forEach(snapshot => {
-                snapshot.docs.forEach((doc: any) => {
-                    const client = doc.data() as Client;
-                    if (!allIncomplete.has(client.id)) {
-                        allIncomplete.set(client.id, client);
-                    }
-                });
+                if (snapshot && snapshot.docs) {
+                    snapshot.docs.forEach((doc: any) => {
+                        const clientData = doc.data() as Client;
+                        // Ensure clientData and its id are valid before setting
+                        if (clientData && clientData.id && !allIncomplete.has(clientData.id)) {
+                            allIncomplete.set(clientData.id, clientData);
+                        }
+                    });
+                }
             });
             setIncompleteClients(Array.from(allIncomplete.values()));
         };
         
-        let panResults: any[] = [];
-        let mobileResults: any[] = [];
-        let mailResults: any[] = [];
+        let panSnapshot: any;
+        let mobileSnapshot: any;
+        let mailSnapshot: any;
 
         const unsubPan = onSnapshot(panQuery, (snapshot) => {
-            panResults = snapshot.docs;
-            combineIncompleteClients([panResults, mobileResults, mailResults]);
+            panSnapshot = snapshot;
+            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
         });
         const unsubMobile = onSnapshot(mobileQuery, (snapshot) => {
-            mobileResults = snapshot.docs;
-            combineIncompleteClients([panResults, mobileResults, mailResults]);
+            mobileSnapshot = snapshot;
+            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
         });
         const unsubMail = onSnapshot(mailQuery, (snapshot) => {
-            mailResults = snapshot.docs;
-            combineIncompleteClients([panResults, mobileResults, mailResults]);
+            mailSnapshot = snapshot;
+            combineIncompleteClients([panSnapshot, mobileSnapshot, mailSnapshot]);
         });
 
         return () => {
