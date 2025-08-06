@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, getDocs, doc, writeBatch, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, getDocs, doc, writeBatch, deleteDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
