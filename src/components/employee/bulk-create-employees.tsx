@@ -24,7 +24,7 @@ import { writeBatch, doc, collection, getDocs, query, where } from "firebase/fir
 import { db } from "@/lib/firebase";
 import { ScrollArea } from "../ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const EMPLOYEE_HEADERS = ["Name", "Email", "Designation", "Role", "leaveAllowance"];
 const MANDATORY_EMPLOYEE_HEADERS = ["Name", "Email", "Role"];
