@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Logo } from "@/components/logo";
@@ -83,11 +82,12 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
 
   // Super admin status depends on role selected at login
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isDeveloper, setIsDeveloper] = useState(false);
 
   useEffect(() => {
     if (user?.email === 'ca.tonnyvarghese@gmail.com') {
         const role = sessionStorage.getItem('userRole');
-        setIsSuperAdmin(role === 'developer');
+        setIsDeveloper(role === 'developer');
     }
   }, [user]);
 
@@ -132,12 +132,12 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
           ? allEmployees.find(e => e.id === impersonatedUserId)?.email
           : user.email;
 
-      if (isSuperAdmin && !impersonatedUserId) {
+      if (isDeveloper && !impersonatedUserId) {
           setCurrentUserEmployeeProfile({
               id: 'super-admin',
               name: 'Developer',
               email: user.email!,
-              role: ['Admin'],
+              role: ['Admin'], // Developer has Admin privileges
               avatar: ''
           });
       } else if (targetEmail) {
@@ -163,7 +163,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     } else if (!loading) {
         setProfileLoading(false);
     }
-  }, [user, loading, impersonatedUserId, isSuperAdmin, allEmployees]);
+  }, [user, loading, impersonatedUserId, isDeveloper, allEmployees]);
 
   useEffect(() => {
     if (profileLoading) return;
@@ -171,7 +171,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     const userRoles = currentUserEmployeeProfile?.role || [];
     
     const checkPermission = (feature: FeatureName) => {
-        if (isSuperAdmin) return true;
+        if (isDeveloper) return true;
         const permission = permissions.find(p => p.feature === feature);
         if (!permission) return false;
         return userRoles.some(role => permission.departments.includes(role));
@@ -180,7 +180,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     const defaultItems: NavItem[] = [
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
-        { id: 'recurring', href: '/recurring', icon: Repeat, tooltip: 'Recurring', label: 'Recurring', condition: checkPermission('administration') },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'leave-management', href: '/leave-management', icon: UserCog, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
@@ -188,7 +187,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
         { id: 'profile', href: '/profile', icon: UserIcon, tooltip: 'My Profile', label: 'My Profile', condition: true },
         { id: 'masters', href: '/masters', icon: Database, tooltip: 'Masters', label: 'Masters', condition: checkPermission('masters') },
-        { id: 'bulk-import', href: '/bulk-import', icon: UploadCloud, tooltip: 'Bulk Import', label: 'Bulk Import', condition: checkPermission('bulk-import') },
         { id: 'settings', href: '/settings', icon: Settings, tooltip: 'Settings', label: 'Settings', condition: checkPermission('settings-data-management') || checkPermission('settings-access-control') }
     ];
     
@@ -211,7 +209,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     } else {
          setNavItems(visibleItems);
     }
-  }, [currentUserEmployeeProfile, profileLoading, permissions, isSuperAdmin]);
+  }, [currentUserEmployeeProfile, profileLoading, permissions, isDeveloper]);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -260,7 +258,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     : user?.displayName?.split(' ')[0] || 'there';
   
   const checkPermission = (feature: FeatureName) => {
-    if (isSuperAdmin) return true;
+    if (isDeveloper) return true;
     const userRoles = currentUserEmployeeProfile?.role || [];
     const permission = permissions.find(p => p.feature === feature);
     if (!permission) return false;
@@ -331,7 +329,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                            <span className="text-xs">⌘</span>K
                         </kbd>
                    </Button>
-                  {isSuperAdmin && (
+                  {isDeveloper && (
                       <div className="flex items-center gap-2 text-white">
                           <UserCog className="h-5 w-5" />
                           <Select value={impersonatedUserId || "none"} onValueChange={(value) => setImpersonatedUserId(value === "none" ? null : value)}>

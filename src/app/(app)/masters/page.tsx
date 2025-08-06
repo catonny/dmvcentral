@@ -1,112 +1,11 @@
 
-
 "use client";
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building, UploadCloud } from "lucide-react";
-import { ViewMasterData } from "@/components/masters/view-master-data";
-import { CreateMasterData } from "@/components/masters/create-master-data";
-import { AlterMasterData } from "@/components/masters/alter-master-data";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { WorkflowEditor } from "@/components/masters/workflow-editor";
-import { EmployeeManager } from "@/components/masters/employee-manager";
 import { useRouter } from "next/navigation";
-
-type Action = "view" | "create" | "alter" | "workflow" | "employee" | "firms" | "bulk-import" | null;
-
-export default function MastersPage() {
-  const [currentAction, setCurrentAction] = React.useState<Action>(null);
-  const router = useRouter();
-
-  const handleActionClick = (action: Action) => {
-      if (action === 'firms') {
-          router.push('/masters/firms');
-      } else if (action === 'bulk-import') {
-          router.push('/bulk-import');
-      }
-      else {
-        setCurrentAction(action);
-      }
-  };
-
-  const renderContent = () => {
-    switch (currentAction) {
-      case "view":
-        return <ViewMasterData onBack={() => setCurrentAction(null)} />;
-      case "create":
-        return <CreateMasterData onBack={() => setCurrentAction(null)} />;
-      case "alter":
-        return <AlterMasterData onBack={() => setCurrentAction(null)} />;
-      case "workflow":
-        return <WorkflowEditor onBack={() => setCurrentAction(null)} />;
-      case "employee":
-        return <EmployeeManager onBack={() => setCurrentAction(null)} />;
-      default:
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ActionCard
-                    title="Manage Firms"
-                    description="Edit your firm's profile, address, and other details."
-                    icon={Building}
-                    onClick={() => handleActionClick("firms")}
-                />
-                <ActionCard
-                    title="Manage Employees"
-                    description="Add, edit, and manage employee profiles and department assignments."
-                    icon={Group}
-                    onClick={() => handleActionClick("employee")}
-                />
-                 <ActionCard
-                    title="Bulk Import"
-                    description="Efficiently add or update data using CSV files."
-                    icon={UploadCloud}
-                    onClick={() => handleActionClick("bulk-import")}
-                />
-                <ActionCard
-                    title="Edit Engagement Workflows"
-                    description="Define the sequence of tasks for different engagement types."
-                    icon={GitBranch}
-                    onClick={() => handleActionClick("workflow")}
-                />
-                <ActionCard
-                    title="View Master Data"
-                    description="Browse through existing master records like clients and engagement types."
-                    icon={Eye}
-                    onClick={() => handleActionClick("view")}
-                />
-                 <ActionCard
-                    title="Create New Entry"
-                    description="Add a new record to one of your master data sets."
-                    icon={PlusCircle}
-                    onClick={() => handleActionClick("create")}
-                />
-                <ActionCard
-                    title="Alter Master Data"
-                    description="Edit or delete existing records from your master data sets."
-                    icon={PenSquare}
-                    onClick={() => handleActionClick("alter")}
-                />
-            </div>
-        );
-    }
-  };
-
-  return (
-    <>
-      <div className="flex items-center justify-between space-y-2 mb-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight font-headline">Masters</h2>
-          <p className="text-muted-foreground">
-            Manage your core business data like clients, employees, and work types.
-          </p>
-        </div>
-      </div>
-      {renderContent()}
-    </>
-  );
-}
 
 const ActionCard = ({ title, description, icon: Icon, onClick, isDisabled = false }: { title: string, description: string, icon: React.ElementType, onClick: () => void, isDisabled?: boolean }) => (
   <Card
@@ -126,13 +25,70 @@ const ActionCard = ({ title, description, icon: Icon, onClick, isDisabled = fals
           <CardDescription className="mt-2">{description}</CardDescription>
         </div>
          <div className="flex flex-col items-end gap-2">
-            {!isDisabled ? (
-                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-            ) : (
-                <Badge variant="outline">Coming Soon</Badge>
-            )}
+            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
     </CardHeader>
   </Card>
 );
+
+export default function MastersPage() {
+  const router = useRouter();
+
+  return (
+    <>
+      <div className="flex items-center justify-between space-y-2 mb-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Masters</h2>
+          <p className="text-muted-foreground">
+            Manage your core business data like clients, employees, and work types.
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ActionCard
+              title="Manage Firms"
+              description="Edit your firm's profile, address, and other details."
+              icon={Building}
+              onClick={() => router.push('/masters/firms')}
+          />
+          <ActionCard
+              title="Manage Employees"
+              description="Add, edit, and manage employee profiles and department assignments."
+              icon={Group}
+              onClick={() => router.push('/masters/employees')}
+          />
+           <ActionCard
+              title="Bulk Import"
+              description="Efficiently add or update data using CSV files."
+              icon={UploadCloud}
+              onClick={() => router.push('/bulk-import')}
+          />
+          <ActionCard
+              title="Edit Engagement Workflows"
+              description="Define the sequence of tasks for different engagement types."
+              icon={GitBranch}
+              onClick={() => router.push('/masters/workflows')}
+          />
+          <ActionCard
+              title="View Master Data"
+              description="Browse through existing master records like clients and engagement types."
+              icon={Eye}
+              onClick={() => router.push('/masters/view')}
+          />
+           <ActionCard
+              title="Create New Entry"
+              description="Add a new record to one of your master data sets."
+              icon={PlusCircle}
+              onClick={() => router.push('/masters/create')}
+          />
+          <ActionCard
+              title="Alter Master Data"
+              description="Edit or delete existing records from your master data sets."
+              icon={PenSquare}
+              onClick={() => router.push('/masters/alter')}
+          />
+      </div>
+    </>
+  );
+}

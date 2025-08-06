@@ -8,8 +8,10 @@ import { useAuth } from "@/hooks/use-auth";
 import type { RecurringEngagement, Employee, Client, EngagementType } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { RecurringEngagementsTable } from "@/components/recurring/data-table";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function RecurringEngagementsPage() {
     const { user, loading: authLoading } = useAuth();
@@ -117,20 +119,29 @@ export default function RecurringEngagementsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Recurring Engagements</h2>
-                    <p className="text-muted-foreground">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/administration">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Administration
+                </Link>
+            </Button>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recurring Engagements</CardTitle>
+                    <CardDescription>
                         Manage all recurring service subscriptions for your clients.
-                    </p>
-                </div>
-            </div>
-            <RecurringEngagementsTable
-                data={recurringEngagements}
-                clients={clients}
-                engagementTypes={engagementTypes}
-                onUpdate={handleUpdate}
-            />
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <RecurringEngagementsTable
+                        data={recurringEngagements}
+                        clients={clients}
+                        engagementTypes={engagementTypes}
+                        onUpdate={handleUpdate}
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }
+

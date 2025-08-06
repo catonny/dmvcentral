@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -30,6 +29,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { useAuth } from "@/hooks/use-auth";
+import type { Employee } from "@/lib/data";
 
 type AlterableMasterType = "Departments" | "Client Categories";
 const ALTERABLE_MASTER_TYPES: AlterableMasterType[] = ["Departments", "Client Categories"];
@@ -45,6 +46,30 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
   const [editFormData, setEditFormData] = React.useState<any>({});
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [hasAccess, setHasAccess] = React.useState(false);
+  const [authLoading, setAuthLoading] = React.useState(true);
+
+
+   React.useEffect(() => {
+    if (user) {
+        const checkUserRole = async () => {
+            const q = query(collection(db, "employees"), where("email", "==", user.email));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const employee = snapshot.docs[0].data() as Employee;
+                const role = sessionStorage.getItem('userRole');
+                if (employee.role.includes("Admin") || role === 'developer') {
+                    setHasAccess(true);
+                }
+            }
+            setAuthLoading(false);
+        };
+        checkUserRole();
+    } else {
+        setAuthLoading(false);
+    }
+  }, [user]);
 
   const fetchMasterData = async (masterType: AlterableMasterType) => {
     setLoading(true);
@@ -71,7 +96,7 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
     if (selectedMaster) {
       fetchMasterData(selectedMaster);
     }
-  }, [selectedMaster, toast]);
+  }, [selectedMaster]);
   
   React.useEffect(() => {
     setEditFormData(recordToEdit || {});
@@ -111,8 +136,8 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
 
     try {
       await deleteDoc(doc(db, collectionName, recordToDelete.id));
+      setData(prev => prev.filter(item => item.id !== recordToDelete.id)); // Optimistic update
       toast({ title: "Success", description: "Record deleted successfully." });
-      setData(prev => prev.filter(item => item.id !== recordToDelete.id));
     } catch (error) {
       console.error("Error deleting record:", error);
       toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
@@ -203,6 +228,23 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
         </Card>
     );
   };
+  
+  if (authLoading) {
+       return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  
+  if(!hasAccess) {
+       return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>You do not have the required permissions to alter master data.</p>
+                </CardContent>
+            </Card>
+        );
+  }
 
   return (
     <div>

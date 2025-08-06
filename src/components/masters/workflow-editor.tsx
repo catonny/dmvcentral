@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -41,6 +40,7 @@ import {
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useRouter } from "next/navigation";
 
 
 function SortableTaskItem({ id, title, onUpdate, onDelete }: { id: string; title: string; onUpdate: (newTitle: string) => void; onDelete: () => void; }) {
@@ -103,6 +103,8 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
+    const router = useRouter();
+
 
     React.useEffect(() => {
         const unsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
@@ -157,7 +159,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                 subTaskTitles: ["Task 1", "Task 2"]
             });
             await updateDoc(newDocRef, { id: newDocRef.id });
-            const newType = { id: newDocRef.id, name: newTypeName, description: "A new workflow template.", subTaskTitles: ["Task 1", "Task 2"] };
+            const newType = { id: newDocRef.id, name: newTypeName, description: "A new workflow template.", subTaskTitles: ["Task 1", "Task 2"], recurrence: undefined };
             setSelectedType(newType);
             toast({ title: "Success", description: "New engagement type created." });
         } catch (error) {
@@ -237,9 +239,9 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
 
     return (
         <div className="space-y-6">
-            <Button variant="outline" size="sm" onClick={onBack} className="mb-4">
+             <Button variant="outline" size="sm" onClick={() => router.push('/masters')} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Master Actions
+                Back to Masters
             </Button>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
