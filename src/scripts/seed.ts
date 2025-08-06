@@ -26,7 +26,7 @@ const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 let serviceAccount: any;
 if (serviceAccountString) {
     try {
-        serviceAccount = JSON.parse(serviceAccountString.replace(/'/g, ''));
+        serviceAccount = JSON.parse(serviceAccountString);
     } catch (e) {
         console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON string:", e);
         serviceAccount = undefined;
