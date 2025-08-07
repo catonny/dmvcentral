@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
 import { sendEmail } from "@/ai/flows/send-email-flow";
+import { Badge } from "@/components/ui/badge";
 
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
@@ -30,7 +31,7 @@ export default function BillingDashboardPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
-    const [unbilledEngagements, setUnbilledEngagements] = React.useState<Engagement[]>([]);
+    const [unbilledCount, setUnbilledCount] = React.useState(0);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
     const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
@@ -63,6 +64,11 @@ export default function BillingDashboardPage() {
         const unsubPending = onSnapshot(q, async (snapshot) => {
             const pendingInvoices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingInvoice));
             
+            if (pendingInvoices.length === 0) {
+                setBillingEntries([]);
+                return;
+            }
+
             const engagementPromises = pendingInvoices.map(pi => getDoc(doc(db, "engagements", pi.engagementId)));
             const engagementSnapshots = await Promise.all(engagementPromises);
 
@@ -84,12 +90,12 @@ export default function BillingDashboardPage() {
             toast({ title: "Error", description: "Could not fetch billing data.", variant: "destructive" });
         });
 
-        // Fetch unbilled engagements
+        // Fetch unbilled engagements count
         const unbilledQuery = query(collection(db, "engagements"), where("status", "==", "Completed"));
         const unsubUnbilled = onSnapshot(unbilledQuery, (snapshot) => {
             const completedEngagements = snapshot.docs.map(doc => doc.data() as Engagement);
             const unbilled = completedEngagements.filter(eng => !eng.billStatus);
-            setUnbilledEngagements(unbilled);
+            setUnbilledCount(unbilled.length);
         });
 
         return () => {
@@ -97,39 +103,6 @@ export default function BillingDashboardPage() {
             unsubUnbilled();
         }
     }, [toast]);
-    
-    const handleSubmitForBilling = async (engagement: Engagement) => {
-        const client = clients.get(engagement.clientId);
-        if (!client) {
-            toast({ title: "Client not found", description: "Cannot submit for billing.", variant: "destructive" });
-            return;
-        }
-
-        const batch = writeBatch(db);
-        const engagementRef = doc(db, "engagements", engagement.id);
-        batch.update(engagementRef, {
-            billStatus: "To Bill",
-            billSubmissionDate: new Date().toISOString()
-        });
-
-        const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
-        batch.set(pendingInvoiceRef, {
-            id: pendingInvoiceRef.id,
-            engagementId: engagement.id,
-            clientId: engagement.clientId,
-            assignedTo: engagement.assignedTo,
-            reportedTo: engagement.reportedTo,
-            partnerId: client.partnerId,
-        });
-
-        try {
-            await batch.commit();
-            toast({ title: "Success!", description: `"${engagement.remarks}" has been submitted for billing.` });
-        } catch (error) {
-            console.error("Error submitting for billing:", error);
-            toast({ title: "Submission Failed", description: "Could not submit engagement for billing.", variant: "destructive" });
-        }
-    }
     
     const handleGenerateAndSendInvoice = async (engagementId: string, pendingInvoiceId: string) => {
         setProcessingInvoiceId(engagementId);
@@ -180,9 +153,22 @@ export default function BillingDashboardPage() {
                 Back to Administration
             </Button>
             <Card>
-                <CardHeader>
-                    <CardTitle>Billing Pending Dashboard</CardTitle>
-                    <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between">
+                    <div>
+                        <CardTitle>Billing Pending Dashboard</CardTitle>
+                        <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
+                    </div>
+                     {unbilledCount > 0 && (
+                        <Button variant="outline" className="relative" asChild>
+                           <Link href="/reports/exceptions/unbilled-engagements">
+                                <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
+                                Unbilled Engagements
+                                <Badge variant="destructive" className="absolute -top-2 -right-2">
+                                    {unbilledCount}
+                                </Badge>
+                           </Link>
+                        </Button>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="w-full whitespace-nowrap">
@@ -279,52 +265,7 @@ export default function BillingDashboardPage() {
                     </div>
                 </div>
             </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Exception: Completed but not Billed</CardTitle>
-                    <CardDescription>
-                        These engagements are marked as "Completed" but have not been submitted to the billing queue.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ScrollArea className="w-full whitespace-nowrap">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Completion Date</TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Engagement</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {unbilledEngagements.length > 0 ? (
-                                    unbilledEngagements.map(eng => (
-                                        <TableRow key={eng.id}>
-                                            <TableCell>{format(parseISO(eng.dueDate), 'dd MMM yyyy')}</TableCell>
-                                            <TableCell>{clients.get(eng.clientId)?.name || 'Unknown Client'}</TableCell>
-                                            <TableCell>{eng.remarks}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button onClick={() => handleSubmitForBilling(eng)}>
-                                                    Submit for Billing
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
-                                            No unbilled engagements found. Great job!
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                         <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-                </CardContent>
-            </Card>
         </div>
     );
-}
+
+    
