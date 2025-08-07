@@ -65,19 +65,17 @@ export default function ClientWorkspacePage() {
     };
     fetchStaticData();
 
-    // Modified query to prevent index error.
-    // We now filter by status in the application code.
+    // The query that requires an index
+    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
+        where("status", "in", activeStatuses),
         orderBy("dueDate", "asc")
     );
 
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-      const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-      const allEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-      const activeEngagements = allEngagements.filter(e => activeStatuses.includes(e.status));
-      setEngagements(activeEngagements);
+      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
     }, (error) => handleError(error, 'engagements'));
 
     return () => {
