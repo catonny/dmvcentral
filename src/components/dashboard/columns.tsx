@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Client, Employee } from "@/lib/data"
 import { format, parseISO } from "date-fns"
 import { Checkbox } from "../ui/checkbox"
+import Link from "next/link"
 
 
 export const getColumns = (
@@ -74,7 +75,13 @@ export const getColumns = (
           </Button>
         )
       },
-      cell: ({ row }) => <div className="font-medium px-3 py-2">{row.original.name}</div>,
+      cell: ({ row }) => (
+        <Button variant="link" asChild className="p-0 h-auto font-medium">
+            <Link href={`/workspace/${row.original.id}`}>
+                {row.original.name}
+            </Link>
+        </Button>
+      ),
       enableResizing: true,
       size: 250,
     },
