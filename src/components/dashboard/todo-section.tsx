@@ -12,6 +12,7 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
+import { ScrollArea } from "../ui/scroll-area";
 
 export function TodoSection({ currentUser, allClients, allEmployees }: { currentUser: Employee | null, allClients: Client[], allEmployees: Employee[] }) {
     const [todos, setTodos] = React.useState<Todo[]>([]);
@@ -100,7 +101,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                 </CardTitle>
                 <CardDescription>Action items that require your attention. Mention users with @.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow space-y-4 flex flex-col">
+            <CardContent className="flex-grow space-y-4 flex flex-col min-h-0">
                 <div className="flex gap-2">
                     <Textarea 
                         placeholder="Add a new to-do..."
@@ -111,27 +112,29 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                         {isAdding ? <Loader2 className="animate-spin"/> : <Send/>}
                     </Button>
                 </div>
-                <div className="flex-grow space-y-2 overflow-y-auto">
-                    {todos.length > 0 ? todos.map(todo => (
-                        <div key={todo.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
-                            <Button size="icon" variant="ghost" className="h-6 w-6 mt-1">
-                               <Check className="h-4 w-4"/>
-                            </Button>
-                            <div className="flex-grow">
-                                <p className="text-sm">{todo.text}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                    <User className="h-3 w-3"/>
-                                    <span>{allEmployees.find(e => e.id === todo.createdBy)?.name || 'System'}</span>
+                <ScrollArea className="flex-grow">
+                    <div className="space-y-2 pr-4">
+                        {todos.length > 0 ? todos.map(todo => (
+                            <div key={todo.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
+                                <Button size="icon" variant="ghost" className="h-6 w-6 mt-1">
+                                <Check className="h-4 w-4"/>
+                                </Button>
+                                <div className="flex-grow">
+                                    <p className="text-sm">{todo.text}</p>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                        <User className="h-3 w-3"/>
+                                        <span>{allEmployees.find(e => e.id === todo.createdBy)?.name || 'System'}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )) : (
-                        <div className="text-center text-muted-foreground pt-8">
-                             <p className="text-lg font-semibold">All Caught Up!</p>
-                             <p>No pending actions required.</p>
-                        </div>
-                    )}
-                </div>
+                        )) : (
+                            <div className="text-center text-muted-foreground pt-8">
+                                <p className="text-lg font-semibold">All Caught Up!</p>
+                                <p>No pending actions required.</p>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
             </CardContent>
         </Card>
     );
