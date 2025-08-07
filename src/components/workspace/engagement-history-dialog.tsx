@@ -25,6 +25,8 @@ interface EngagementHistoryDialogProps {
   onClose: () => void;
   clientId: string;
   clientName: string;
+  employees: Employee[];
+  engagementTypes: EngagementType[];
 }
 
 const activityIcons: { [key: string]: React.ElementType } = {

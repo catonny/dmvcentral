@@ -65,15 +65,19 @@ export default function ClientWorkspacePage() {
     };
     fetchStaticData();
 
-    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+    // Modified query to prevent index error.
+    // We now filter by status in the application code.
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "in", activeStatuses),
         orderBy("dueDate", "asc")
     );
+
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+      const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+      const allEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+      const activeEngagements = allEngagements.filter(e => activeStatuses.includes(e.status));
+      setEngagements(activeEngagements);
     }, (error) => handleError(error, 'engagements'));
 
     return () => {
@@ -139,21 +143,21 @@ export default function ClientWorkspacePage() {
             <div>
               <CardTitle className="font-headline text-2xl">{client.Name}'s Workspace</CardTitle>
               <CardDescription>
-                Viewing all engagements for {client.Name} (PAN: {client.PAN || 'N/A'}).
+                Viewing all engagements for {client.Name} (PAN: {client.pan || 'N/A'}).
               </CardDescription>
             </div>
              <div className="flex items-center gap-2">
-                {client['Mobile Number'] && (
+                {client.mobileNumber && (
                     <Button variant="outline" asChild>
-                        <a href={`tel:${client['Mobile Number']}`}>
+                        <a href={`tel:${client.mobileNumber}`}>
                             <Phone />
                             Call Client
                         </a>
                     </Button>
                 )}
-                {client['Mail ID'] && (
+                {client.mailId && (
                     <Button variant="outline" asChild>
-                        <a href={`mailto:${client['Mail ID']}`}>
+                        <a href={`mailto:${client.mailId}`}>
                             <Mail />
                             Email Client
                         </a>
