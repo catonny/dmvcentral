@@ -2,32 +2,22 @@
 "use client";
 
 import * as React from "react";
-import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail, Phone, History } from "lucide-react";
-import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PastEngagementsDialog } from "@/components/workspace/past-engagements-dialog";
 import { EngagementHistoryDialog } from "@/components/workspace/engagement-history-dialog";
-
-const statusColors: { [key: string]: string } = {
-  "Pending": "bg-gray-200 text-gray-800",
-  "Awaiting Documents": "bg-yellow-200 text-yellow-800",
-  "In Process": "bg-blue-200 text-blue-800",
-  "On Hold": "bg-orange-200 text-orange-800",
-  "Partner Review": "bg-purple-200 text-purple-800",
-  "Completed": "bg-green-200 text-green-800",
-  "Cancelled": "bg-red-200 text-red-800",
-};
+import { EditableDueDate } from "@/components/workspace/editable-due-date";
+import { EditableStatus } from "@/components/workspace/editable-status";
+import { EditableAssignees } from "@/components/workspace/editable-assignees";
 
 export default function ClientWorkspacePage() {
   const params = useParams();
@@ -75,18 +65,15 @@ export default function ClientWorkspacePage() {
     };
     fetchStaticData();
 
-    // Listen to *active* engagements for the client
     const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "in", activeStatuses)
+        where("status", "in", activeStatuses),
+        orderBy("dueDate", "asc")
     );
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-      const engagementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-      // Sort on the client-side
-      const sortedEngagements = engagementsData.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-      setEngagements(sortedEngagements);
+      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
     }, (error) => handleError(error, 'engagements'));
 
     return () => {
@@ -94,6 +81,36 @@ export default function ClientWorkspacePage() {
       engagementsUnsub();
     };
   }, [clientId, toast]);
+  
+  const updateEngagementField = async (engagementId: string, field: keyof Engagement, value: any, successMessage?: string) => {
+        const engagementRef = doc(db, "engagements", engagementId);
+        try {
+            await updateDoc(engagementRef, { [field]: value });
+            if (successMessage) {
+                toast({
+                    title: "Success",
+                    description: successMessage,
+                });
+            }
+        } catch (error) {
+            console.error(`Error updating ${field}:`, error);
+            toast({
+                title: "Error",
+                description: `Failed to update the ${field}.`,
+                variant: "destructive",
+            });
+        }
+    };
+    
+    const handleDueDateChange = (engagementId: string, newDueDate: Date) => {
+       updateEngagementField(engagementId, 'dueDate', newDueDate.toISOString(), `Due date changed.`);
+    };
+     const handleStatusChange = (engagementId: string, newStatus: EngagementStatus, submitToBilling?: boolean) => {
+        updateEngagementField(engagementId, 'status', newStatus, `Status changed to ${newStatus}.`);
+    };
+     const handleAssigneesChange = (engagementId: string, newAssignees: string[]) => {
+        updateEngagementField(engagementId, 'assignedTo', newAssignees, "Assignees updated.");
+    };
 
 
   if (loading) {
@@ -105,7 +122,6 @@ export default function ClientWorkspacePage() {
     return null;
   }
 
-  const getEmployeeMember = (employeeId: string) => employees.find(s => s.id === employeeId);
   const getEngagementType = (typeId: string) => engagementTypes.find(et => et.id === typeId);
 
   return (
@@ -179,29 +195,33 @@ export default function ClientWorkspacePage() {
               <TableBody>
                 {engagements.length > 0 ? (
                   engagements.map((eng) => {
-                    const assignedToIds = Array.isArray(eng.assignedTo) ? eng.assignedTo : [eng.assignedTo].filter(Boolean);
-                    const assignedEmployees = assignedToIds.map(getEmployeeMember).filter(Boolean);
                     const engagementType = getEngagementType(eng.type);
                     return (
                       <TableRow key={eng.id}>
-                        <TableCell className="font-medium">{eng.remarks}</TableCell>
+                        <TableCell className="font-medium">
+                            <Button variant="link" asChild className="p-0 h-auto font-medium">
+                                <Link href={`/workflow/${eng.id}`}>
+                                    {eng.remarks}
+                                </Link>
+                            </Button>
+                        </TableCell>
                         <TableCell>{engagementType?.name || 'N/A'}</TableCell>
-                        <TableCell>{format(parseISO(eng.dueDate), "dd MMM, yyyy")}</TableCell>
                         <TableCell>
-                          <Badge className={`${statusColors[eng.status] || ''} hover:${statusColors[eng.status] || ''}`}>
-                              {eng.status}
-                          </Badge>
+                            <EditableDueDate engagement={eng} onDueDateChange={handleDueDateChange} />
                         </TableCell>
                         <TableCell>
-                           <div className="flex items-center -space-x-2">
-                            {assignedEmployees.map(employee => (
-                                <Avatar key={employee.id} className="h-8 w-8 border-2 border-background">
-                                <AvatarImage src={employee.avatar} alt={employee.name} />
-                                <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            ))}
-                            {assignedEmployees.length === 0 && <span>Unassigned</span>}
-                           </div>
+                           <EditableStatus
+                                engagement={eng}
+                                client={client}
+                                onStatusChange={handleStatusChange}
+                            />
+                        </TableCell>
+                        <TableCell>
+                           <EditableAssignees
+                                engagement={eng}
+                                allEmployees={employees}
+                                onAssigneesChange={handleAssigneesChange}
+                           />
                         </TableCell>
                       </TableRow>
                     );
