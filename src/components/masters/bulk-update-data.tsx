@@ -27,6 +27,7 @@ export const CLIENT_HEADERS = [
     "Mobile Number",
     "Category",
     "Partner",
+    "Firm Name",
     "Phone Number",
     "Date of Birth",
     "linkedClientIds",
@@ -41,7 +42,7 @@ export const CLIENT_HEADERS = [
     "Contact Person Designation"
 ];
 
-export const MANDATORY_CLIENT_HEADERS = ["Name", "Mail ID", "Mobile Number", "Category", "Partner"];
+export const MANDATORY_CLIENT_HEADERS = ["Name", "Mail ID", "Mobile Number", "Category", "Partner", "Firm Name"];
 
 
 export function BulkUpdateData({ onBack }: { onBack: () => void }) {
@@ -79,6 +80,7 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                 "Mobile Number*": "9876543210",
                 "Category*": "Corporate",
                 "Partner*": "Dojo Davis",
+                "Firm Name*": "Davis, Martin & Varghese",
                 "Phone Number": "0484-2345678",
                 "Date of Birth": "",
                 "linkedClientIds": "",
@@ -98,6 +100,7 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                 "Mobile Number*": "9123456780",
                 "Category*": "Individual",
                 "Partner*": "Dojo Davis",
+                "Firm Name*": "Davis, Martin & Varghese",
                 "Phone Number": "",
                 "Date of Birth": "15/05/1990",
                 "linkedClientIds": "",
@@ -183,13 +186,19 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                         const removeFile = (e?: React.MouseEvent<HTMLButtonElement>) => {
                             if (e) e.stopPropagation();
                             setParsedData([]);
-                            (getRemoveFileProps() as any).onClick(e);
+                            if (getRemoveFileProps) {
+                                (getRemoveFileProps() as any).onClick(e);
+                            }
                         }
                         
                         const handleDialogClose = (open: boolean) => {
                             if (!open) {
                                 setIsValidationDialogOpen(false);
-                                removeFile();
+                                setParsedData([]);
+                                // This will clear the file from the CSVReader's state
+                                if (getRemoveFileProps) {
+                                    (getRemoveFileProps() as any).onClick();
+                                }
                             } else {
                                 setIsValidationDialogOpen(true);
                             }
