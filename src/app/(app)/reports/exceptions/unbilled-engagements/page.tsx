@@ -38,6 +38,7 @@ export default function UnbilledEngagementsReportPage() {
         
         const unsub = onSnapshot(q, (snapshot) => {
             const allCompleted = snapshot.docs.map(doc => doc.data() as Engagement);
+            // Filter in code to avoid Firestore query issues with null/undefined
             const unbilled = allCompleted.filter(eng => !eng.billStatus);
             setEngagements(unbilled);
             setLoading(false);
@@ -91,7 +92,7 @@ export default function UnbilledEngagementsReportPage() {
                                         <TableCell>{format(parseISO(eng.dueDate), 'dd MMM yyyy')}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="link" size="sm" asChild>
-                                                <Link href={`/workspace`}>Go to Workspace</Link>
+                                                <Link href={`/workflow/${eng.id}`}>Go to Workflow</Link>
                                             </Button>
                                         </TableCell>
                                     </TableRow>
