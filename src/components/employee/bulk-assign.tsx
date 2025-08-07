@@ -107,7 +107,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
             "Client Name*": "GreenFuture LLP",
             "Due Date*": "20/07/2024",
             "Allotted User*": "Dojo Davis",
-            "Reported To": "Dojo Davis",
+            "Reported To": "", // Example of empty reported to, will default to client partner
             "Status": "In Process",
             "Fees": "8000",
             "Remarks": "Monthly GST returns for June 2024"
@@ -284,6 +284,10 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
         const { row, client, engagementType, allottedUser, reporter, parsedDate, status, fees } = rowToImport;
         if (client && engagementType && allottedUser && parsedDate) {
             const newEngagementDocRef = doc(collection(db, 'engagements'));
+            
+            // If reporter is not specified, default to the client's partner
+            const reportedToId = reporter ? reporter.id : (client.partnerId || '');
+            
             const newEngagementData: Partial<Engagement> = {
                 id: newEngagementDocRef.id,
                 clientId: client.id,
@@ -292,7 +296,7 @@ export function BulkCreateEngagements({ allEmployees, allClients, allEngagementT
                 remarks: row["Remarks"] || engagementType.name,
                 dueDate: parsedDate.toISOString(),
                 status: status || 'Pending',
-                reportedTo: reporter ? reporter.id : '',
+                reportedTo: reportedToId,
                 fees: fees || 0
             };
             batch.set(newEngagementDocRef, newEngagementData);
