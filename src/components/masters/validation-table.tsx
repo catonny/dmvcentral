@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Client } from "@/lib/data";
+import type { Client, Employee } from "@/lib/data";
 import Papa from "papaparse";
 
 interface ValidationTableProps {
@@ -41,6 +41,7 @@ interface ValidationResult {
         errors: { [key: string]: string };
         originalIndex: number;
         existingClientId?: string;
+        partnerId?: string;
         duplicateReason?: string;
     }[];
     summary: {
@@ -76,11 +77,18 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     setValidationResult(null);
 
     try {
-        const clientsQuery = query(collection(db, "clients"));
-        const clientsSnapshot = await getDocs(clientsQuery);
+        const [clientsSnapshot, employeesSnapshot] = await Promise.all([
+             getDocs(query(collection(db, "clients"))),
+             getDocs(query(collection(db, "employees")))
+        ]);
+        
         const existingClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        const panToIdMap = new Map(existingClients.map(c => [c.PAN, c.id]));
+        const allEmployees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        
+        const panToIdMap = new Map(existingClients.map(c => [c.pan, c.id]));
         const nameMobileToIdMap = new Map(existingClients.map(c => [`${c.Name?.toLowerCase()}_${c['Mobile Number']}`, c.id]));
+        const partnerNameToIdMap = new Map(allEmployees.map(e => [e.name.toLowerCase(), e.id]));
+
 
         const result: ValidationResult = {
             rows: [],
@@ -126,6 +134,15 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                  if (name && mobile) processedInCsv.add(nameMobileKey);
             }
 
+            let partnerId: string | undefined;
+            if (row['Partner']) {
+                partnerId = partnerNameToIdMap.get(row['Partner'].toLowerCase());
+                if (!partnerId) {
+                    rowErrors['Partner'] = `Partner '${row['Partner']}' not found in employees.`;
+                }
+            }
+
+
             if (action !== "DUPLICATE") {
                  if (!row['Name'] || String(row['Name']).trim() === '') {
                     rowErrors['Name'] = "Name is a mandatory field and cannot be empty. This row will be ignored.";
@@ -151,7 +168,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 }
             }
             
-            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId, duplicateReason });
+            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId, partnerId, duplicateReason });
         }
 
         result.summary = result.rows.reduce((acc, r) => {
@@ -204,7 +221,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     try {
         const batch = writeBatch(db);
         
-        rowsToImport.forEach(({ row, action, existingClientId, duplicateReason }) => {
+        rowsToImport.forEach(({ row, action, existingClientId, partnerId, duplicateReason }) => {
             let isUpdate = action.includes("UPDATE");
             // If overwriting, treat duplicates as updates if they match a DB record
             if (mode === 'overwrite' && action === 'DUPLICATE' && !duplicateReason?.includes('CSV')) {
@@ -222,11 +239,11 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
             const clientData: Partial<Client> = {
                 ...row,
                 name: row.Name,
-                mailId: (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'mail@notavailable.com' : row['Mail ID'],
+                mailId: (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'unassigned' : row['Mail ID'],
                 mobileNumber: !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
                 pan: !row['PAN'] && !isUpdate ? 'PANNOTAVLBL' : row['PAN'],
                 category: !row['Category'] ? 'unassigned' : row['Category'],
-                partnerId: !row['Partner'] ? 'unassigned' : row['Partner'],
+                partnerId: partnerId || "unassigned",
                 linkedClientIds: row.linkedClientIds ? String(row.linkedClientIds).split(',').map(id => id.trim()) : [],
                 lastUpdated: new Date().toISOString()
             };
