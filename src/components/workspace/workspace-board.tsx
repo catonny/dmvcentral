@@ -70,27 +70,27 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
 
     const visibleDepartments = React.useMemo(() => {
         const userRoles = currentUser.role;
+        let deptsToShow: Department[];
 
         if (userRoles.includes("Admin")) {
-            return allDepartments.filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
+            deptsToShow = allDepartments.filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
+        } else {
+            const userDeptOrders = userRoles
+                .map(role => allDepartments.find(d => d.name === role)?.order)
+                .filter((order): order is number => order !== undefined);
+            
+            if (userDeptOrders.length === 0) {
+                deptsToShow = [];
+            } else {
+                const minOrder = Math.min(...userDeptOrders);
+                const depts = allDepartments.filter(dept => dept.order >= minOrder);
+                const uniqueDeptMap = new Map(depts.map(d => [d.id, d]));
+                deptsToShow = Array.from(uniqueDeptMap.values()).filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
+            }
         }
-
-        const userDeptOrders = userRoles
-            .map(role => allDepartments.find(d => d.name === role)?.order)
-            .filter((order): order is number => order !== undefined);
         
-        if (userDeptOrders.length === 0) {
-            return [];
-        }
-
-        const minOrder = Math.min(...userDeptOrders);
-
-        const depts = allDepartments.filter(dept => dept.order >= minOrder);
-        
-        // Ensure the returned list has unique departments, then filter out empty ones
-        const uniqueDeptMap = new Map(depts.map(d => [d.id, d]));
-
-        return Array.from(uniqueDeptMap.values()).filter(dept => allEmployees.some(emp => emp.role.includes(dept.name)));
+        // Always filter out the 'Admin' department from being displayed as a column
+        return deptsToShow.filter(dept => dept.name !== 'Admin');
         
     }, [currentUser, allDepartments, allEmployees]);
 
