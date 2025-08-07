@@ -33,12 +33,13 @@ export default function UnbilledEngagementsReportPage() {
         fetchStaticData();
         
         const q = query(collection(db, "engagements"), 
-            where("status", "==", "Completed"),
-            where("billStatus", "in", [null, undefined, ""])
+            where("status", "==", "Completed")
         );
         
         const unsub = onSnapshot(q, (snapshot) => {
-            setEngagements(snapshot.docs.map(doc => doc.data() as Engagement));
+            const allCompleted = snapshot.docs.map(doc => doc.data() as Engagement);
+            const unbilled = allCompleted.filter(eng => !eng.billStatus);
+            setEngagements(unbilled);
             setLoading(false);
         }, (err) => {
             toast({variant: "destructive", title: "Error", description: "Could not query engagements"});
