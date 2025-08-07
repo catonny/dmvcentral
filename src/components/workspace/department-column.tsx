@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -9,12 +10,10 @@ interface DepartmentColumnProps {
     employees: Employee[];
     engagements: Engagement[];
     clientMap: Map<string, Client>;
-    employeeMap: Map<string, Employee>;
-    onRemoveUser: (engagementId: string, userIdToRemove: string) => void;
     onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function DepartmentColumn({ department, employees, engagements, clientMap, employeeMap, onRemoveUser, onScheduleMeeting }: DepartmentColumnProps) {
+export function DepartmentColumn({ department, employees, engagements, clientMap, onScheduleMeeting }: DepartmentColumnProps) {
     const sortedEmployees = employees.sort((a, b) => a.name.localeCompare(b.name));
 
     return (
@@ -30,8 +29,6 @@ export function DepartmentColumn({ department, employees, engagements, clientMap
                         employee={employee}
                         engagements={engagements.filter(e => e.assignedTo.includes(employee.id))}
                         clientMap={clientMap}
-                        employeeMap={employeeMap}
-                        onRemoveUser={onRemoveUser}
                         onScheduleMeeting={onScheduleMeeting}
                     />
                 ))}

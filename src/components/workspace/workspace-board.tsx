@@ -3,12 +3,11 @@
 
 import * as React from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { Engagement, Employee, Department, Client, Task, CalendarEvent } from "@/lib/data";
 import { DepartmentColumn } from "./department-column";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
-import { EngagementCard } from "./engagement-card";
-import { doc, updateDoc, writeBatch, collection, addDoc } from "firebase/firestore";
+import { EngagementListItem } from "./engagement-list-item";
+import { doc, updateDoc, writeBatch, collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EventDialog } from "../calendar/event-dialog";
@@ -22,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EngagementListItem } from "./engagement-list-item";
 
 const ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
@@ -34,11 +32,17 @@ interface WorkspaceBoardProps {
     currentUser: Employee;
 }
 
+interface ReassignmentConfirmation {
+    engagement: Engagement;
+    newAssignee: Employee;
+}
+
 export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, clientMap, currentUser }: WorkspaceBoardProps) {
     const { toast } = useToast();
     const [activeEngagement, setActiveEngagement] = React.useState<Engagement | null>(null);
     const [isEventDialogOpen, setIsEventDialogOpen] = React.useState(false);
     const [eventDialogInfo, setEventDialogInfo] = React.useState<any>(null);
+    const [reassignmentConfirmation, setReassignmentConfirmation] = React.useState<ReassignmentConfirmation | null>(null);
     
     const [isPromptOpen, setIsPromptOpen] = React.useState(false);
     const activityTimer = React.useRef<NodeJS.Timeout | null>(null);
@@ -112,63 +116,52 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         const targetEmployeeId = over.id as string;
 
         const engagement = allEngagements.find(e => e.id === engagementId);
-        if (!engagement) return;
+        const newAssignee = allEmployees.find(e => e.id === targetEmployeeId);
+        
+        if (!engagement || !newAssignee || engagement.assignedTo.includes(targetEmployeeId)) return;
+        
+        setReassignmentConfirmation({ engagement, newAssignee });
+    };
 
-        if (engagement.assignedTo.includes(targetEmployeeId)) return;
-        
-        const newAssignedTo = [...engagement.assignedTo, targetEmployeeId];
-        
+    const executeReassignment = async () => {
+        if (!reassignmentConfirmation) return;
+        const { engagement, newAssignee } = reassignmentConfirmation;
+        const oldAssigneeId = engagement.assignedTo[0]; 
+
         try {
-            const engagementRef = doc(db, "engagements", engagementId);
-            await updateDoc(engagementRef, { assignedTo: newAssignedTo });
-            const targetEmployee = allEmployees.find(e => e.id === targetEmployeeId);
+            const batch = writeBatch(db);
+            const engagementRef = doc(db, "engagements", engagement.id);
+
+            batch.update(engagementRef, { assignedTo: [newAssignee.id] });
+
+            const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+            tasksSnapshot.docs
+                .map(d => d.data() as any)
+                .filter(t => t.engagementId === engagement.id && t.assignedTo === oldAssigneeId)
+                .forEach(task => {
+                    const taskRef = doc(db, "tasks", task.id);
+                    batch.update(taskRef, { assignedTo: newAssignee.id });
+                });
+            
+            await batch.commit();
+
             toast({
-                title: "Engagement Updated",
-                description: `${targetEmployee?.name} has been added to the engagement "${engagement.remarks}".`
+                title: "Engagement Re-assigned",
+                description: `"${engagement.remarks}" has been assigned to ${newAssignee.name}.`
             });
+
         } catch (error) {
-            console.error("Error updating engagement assignment:", error);
+             console.error("Error re-assigning engagement:", error);
             toast({
-                title: "Update Failed",
-                description: "Could not reassign the engagement.",
+                title: "Re-assignment Failed",
+                description: "Could not re-assign the engagement.",
                 variant: "destructive",
             });
+        } finally {
+            setReassignmentConfirmation(null);
         }
-    };
+    }
     
-     const handleRemoveUser = async (engagementId: string, userIdToRemove: string) => {
-        const engagement = allEngagements.find(e => e.id === engagementId);
-        if (!engagement) return;
-
-        const newAssignedTo = engagement.assignedTo.filter(id => id !== userIdToRemove);
-        
-        if (newAssignedTo.length === 0) {
-            toast({
-                title: "Action prevented",
-                description: "Cannot remove the last user from an engagement. Add another user first.",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        try {
-            const engagementRef = doc(db, "engagements", engagementId);
-            await updateDoc(engagementRef, { assignedTo: newAssignedTo });
-             const removedEmployee = allEmployees.find(e => e.id === userIdToRemove);
-            toast({
-                title: "User Removed",
-                description: `${removedEmployee?.name} has been removed from the engagement.`
-            });
-        } catch (error) {
-            console.error("Error removing user from engagement:", error);
-            toast({
-                title: "Update Failed",
-                description: "Could not remove the user.",
-                variant: "destructive",
-            });
-        }
-    };
-
     const handleOpenScheduleDialog = (engagement: Engagement) => {
         const now = new Date();
         setEventDialogInfo({
@@ -217,8 +210,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
         })
     );
     
-    const employeeMap = new Map(allEmployees.map(e => [e.id, e]));
-
     return (
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} sensors={sensors}>
             <ScrollArea className="flex-grow w-full">
@@ -231,8 +222,6 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                             employees={allEmployees.filter(emp => emp.role.includes(dept.name))}
                             engagements={allEngagements}
                             clientMap={clientMap}
-                            employeeMap={employeeMap}
-                            onRemoveUser={handleRemoveUser}
                             onScheduleMeeting={handleOpenScheduleDialog}
                         />
                     ))}
@@ -269,6 +258,27 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            {reassignmentConfirmation && (
+                <AlertDialog open={!!reassignmentConfirmation} onOpenChange={() => setReassignmentConfirmation(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Re-assignment</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to assign the engagement{' '}
+                                <span className="font-semibold text-primary">{reassignmentConfirmation.engagement.remarks}</span>{' '}
+                                for client{' '}
+                                <span className="font-semibold text-primary">{clientMap.get(reassignmentConfirmation.engagement.clientId)?.Name}</span>{' '}
+                                to <span className="font-semibold text-primary">{reassignmentConfirmation.newAssignee.name}</span>?
+                                This will also re-assign all of its pending tasks.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={executeReassignment}>Confirm</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
         </DndContext>
     );
 }

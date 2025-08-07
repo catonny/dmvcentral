@@ -19,12 +19,10 @@ interface EmployeeLaneProps {
     employee: Employee;
     engagements: Engagement[];
     clientMap: Map<string, Client>;
-    employeeMap: Map<string, Employee>;
-    onRemoveUser: (engagementId: string, userIdToRemove: string) => void;
     onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function EmployeeLane({ employee, engagements, clientMap, employeeMap, onRemoveUser, onScheduleMeeting }: EmployeeLaneProps) {
+export function EmployeeLane({ employee, engagements, clientMap, onScheduleMeeting }: EmployeeLaneProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: employee.id,
     });
@@ -32,13 +30,16 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
 
 
     return (
+        <div 
+            ref={setNodeRef}
+            className={cn(
+                "flex flex-col gap-3 p-3 rounded-lg bg-muted/30 transition-colors h-full",
+                isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+            )}
+        >
         <Collapsible
             open={isOpen}
             onOpenChange={setIsOpen}
-            className={cn(
-                "flex flex-col gap-3 p-3 rounded-lg bg-muted/30 transition-colors h-full",
-                isOver && "bg-primary/10"
-            )}
         >
             <CollapsibleTrigger asChild>
                  <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer group">
@@ -54,7 +55,7 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
                 </div>
             </CollapsibleTrigger>
              <CollapsibleContent>
-                <div ref={setNodeRef} className="space-y-2 min-h-[80px] flex-grow">
+                <div className="space-y-2 min-h-[80px] flex-grow mt-3">
                     <SortableContext items={engagements.map(e => e.id)} strategy={verticalListSortingStrategy}>
                         {engagements.map(engagement => (
                             <EngagementListItem
@@ -67,5 +68,6 @@ export function EmployeeLane({ employee, engagements, clientMap, employeeMap, on
                 </div>
              </CollapsibleContent>
         </Collapsible>
+        </div>
     );
 }
