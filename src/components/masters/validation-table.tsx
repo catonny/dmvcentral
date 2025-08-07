@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Client, Employee } from "@/lib/data";
+import type { Client, Employee, Firm } from "@/lib/data";
 import Papa from "papaparse";
 
 interface ValidationTableProps {
@@ -42,6 +42,7 @@ interface ValidationResult {
         originalIndex: number;
         existingClientId?: string;
         partnerId?: string;
+        firmId?: string;
         duplicateReason?: string;
     }[];
     summary: {
@@ -77,17 +78,20 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     setValidationResult(null);
 
     try {
-        const [clientsSnapshot, employeesSnapshot] = await Promise.all([
+        const [clientsSnapshot, employeesSnapshot, firmsSnapshot] = await Promise.all([
              getDocs(query(collection(db, "clients"))),
-             getDocs(query(collection(db, "employees")))
+             getDocs(query(collection(db, "employees"))),
+             getDocs(query(collection(db, "firms"))),
         ]);
         
         const existingClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         const allEmployees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        const allFirms = firmsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Firm));
         
         const panToIdMap = new Map(existingClients.map(c => [c.pan, c.id]));
-        const nameMobileToIdMap = new Map(existingClients.map(c => [`${c.Name?.toLowerCase()}_${c['Mobile Number']}`, c.id]));
-        const partnerNameToIdMap = new Map(allEmployees.map(e => [e.name.toLowerCase(), e.id]));
+        const nameMobileToIdMap = new Map(existingClients.map(c => [`${c.name?.toLowerCase()}_${c.mobileNumber}`, c.id]));
+        const partnerNameToIdMap = new Map(allEmployees.filter(e => e.role.includes("Partner")).map(e => [e.name.toLowerCase(), e.id]));
+        const firmNameToIdMap = new Map(allFirms.map(f => [f.name.toLowerCase(), f.id]));
 
 
         const result: ValidationResult = {
@@ -141,6 +145,14 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                     rowErrors['Partner'] = `Partner '${row['Partner']}' not found in employees.`;
                 }
             }
+            
+            let firmId: string | undefined;
+            if (row['Firm Name']) {
+                firmId = firmNameToIdMap.get(row['Firm Name'].toLowerCase());
+                if (!firmId) {
+                    rowErrors['Firm Name'] = `Firm '${row['Firm Name']}' not found.`;
+                }
+            }
 
 
             if (action !== "DUPLICATE") {
@@ -155,7 +167,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                     });
 
                     if (row['Mail ID'] && !emailRegex.test(row['Mail ID'])) {
-                        rowErrors['Mail ID'] = 'Invalid email format. It will be set to "mail@notavailable.com".';
+                        rowErrors['Mail ID'] = 'Invalid email format. It will be set to "unassigned".';
                     }
 
                     if (!row['PAN'] && action === "CREATE") { // Only error on missing PAN for new clients
@@ -168,7 +180,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 }
             }
             
-            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId, partnerId, duplicateReason });
+            result.rows.push({ row, action, errors: rowErrors, originalIndex: rowIndex, existingClientId, partnerId, firmId, duplicateReason });
         }
 
         result.summary = result.rows.reduce((acc, r) => {
@@ -221,7 +233,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
     try {
         const batch = writeBatch(db);
         
-        rowsToImport.forEach(({ row, action, existingClientId, partnerId, duplicateReason }) => {
+        rowsToImport.forEach(({ row, action, existingClientId, partnerId, firmId, duplicateReason }) => {
             let isUpdate = action.includes("UPDATE");
             // If overwriting, treat duplicates as updates if they match a DB record
             if (mode === 'overwrite' && action === 'DUPLICATE' && !duplicateReason?.includes('CSV')) {
@@ -244,6 +256,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
                 pan: !row['PAN'] && !isUpdate ? 'PANNOTAVLBL' : row['PAN'],
                 category: !row['Category'] ? 'unassigned' : row['Category'],
                 partnerId: partnerId || "unassigned",
+                firmId: firmId || "unassigned",
                 linkedClientIds: row.linkedClientIds ? String(row.linkedClientIds).split(',').map(id => id.trim()) : [],
                 lastUpdated: new Date().toISOString()
             };
