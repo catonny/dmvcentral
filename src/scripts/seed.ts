@@ -4,7 +4,7 @@ import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import 'dotenv/config';
 import {
-  employees,
+  employees as defaultEmployees,
   clients as clientData,
   engagementTypes,
   engagements,
@@ -16,7 +16,7 @@ import {
   ALL_FEATURES,
   firms
 } from '@/lib/data';
-import type { Task, Permission } from '@/lib/data';
+import type { Task, Permission, Employee } from '@/lib/data';
 
 
 // This will be automatically populated by the Firebase environment in production,
@@ -43,7 +43,7 @@ if (!getApps().length) {
 
 const db = getFirestore(app);
 
-const seedDatabase = async () => {
+export const seedDatabase = async () => {
   console.log('Starting database seed...');
   try {
     const batch = db.batch();
@@ -73,6 +73,20 @@ const seedDatabase = async () => {
         snapshot.docs.forEach(doc => batch.delete(doc.ref));
     }
     console.log('Existing data marked for deletion.');
+    
+    const adminUser: Employee = {
+        id: "S001",
+        name: "Tonny Varghese",
+        email: "ca.tonnyvarghese@gmail.com",
+        designation: "Founder & CEO",
+        avatar: "https://placehold.co/40x40.png",
+        role: ["Admin", "Partner"],
+        leaveAllowance: 24,
+        leavesTaken: 0,
+    };
+    
+    const employees = [adminUser, ...defaultEmployees];
+
 
     const firmRefs: { [key: string]: string } = {};
     const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
@@ -238,5 +252,7 @@ const seedDatabase = async () => {
     process.exit(1);
   }
 };
-
-seedDatabase();
+// This allows the script to be importable and not run automatically
+if (require.main === module) {
+    seedDatabase();
+}
