@@ -216,7 +216,7 @@ export default function BillingDashboardPage() {
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center h-24">No engagements pending for billing.</TableCell>
+                                        <TableCell colSpan={7} className="text-center h-24">No new engagements submitted for billing.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
