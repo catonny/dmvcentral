@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
+import { sendEmail } from "@/ai/flows/send-email-flow";
 
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
@@ -34,6 +36,7 @@ export default function BillingDashboardPage() {
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
+    const [processingInvoiceId, setProcessingInvoiceId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const fetchAndSetStaticData = async () => {
@@ -83,19 +86,39 @@ export default function BillingDashboardPage() {
         return () => unsubscribe();
     }, [toast]);
     
-    const handleBillStatusUpdate = async (engagementId: string, newStatus: BillStatus, pendingInvoiceId: string) => {
-        const engagementRef = doc(db, "engagements", engagementId);
+    const handleGenerateAndSendInvoice = async (engagementId: string, pendingInvoiceId: string) => {
+        setProcessingInvoiceId(engagementId);
         try {
-            await updateDoc(engagementRef, { billStatus: newStatus });
-            
-            if (newStatus !== "To Bill") {
-                await deleteDoc(doc(db, "pendingInvoices", pendingInvoiceId));
-            }
+            // 1. AI generates the invoice
+            toast({ title: "Generating Invoice...", description: "The AI is creating the invoice." });
+            const invoiceData = await generateInvoice({ engagementId });
 
-            toast({ title: "Success", description: "Bill status updated." });
+            // 2. Send the invoice via email
+            toast({ title: "Sending Email...", description: `Sending invoice to ${invoiceData.recipientEmail}.` });
+            await sendEmail({
+                recipientEmails: [invoiceData.recipientEmail],
+                subject: invoiceData.subject,
+                body: invoiceData.htmlContent,
+            });
+            
+            // 3. Update database state
+            const batch = writeBatch(db);
+            const engagementRef = doc(db, "engagements", engagementId);
+            batch.update(engagementRef, { billStatus: "Pending Collection" });
+            
+            const pendingInvoiceRef = doc(db, "pendingInvoices", pendingInvoiceId);
+            batch.delete(pendingInvoiceRef);
+
+            await batch.commit();
+
+            toast({ title: "Success!", description: "Invoice generated and sent to the client." });
+
         } catch (error) {
-            console.error("Error updating bill status:", error);
-            toast({ title: "Error", description: "Failed to update bill status.", variant: "destructive" });
+            console.error("Error processing invoice:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ title: "Invoice Processing Failed", description: errorMessage, variant: "destructive" });
+        } finally {
+            setProcessingInvoiceId(null);
         }
     };
 
@@ -138,6 +161,7 @@ export default function BillingDashboardPage() {
                                         const partner = client ? employees.get(client.partnerId) : undefined;
                                         const assignedToNames = engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
                                         const engagementType = engagementTypes.get(engagement.type);
+                                        const isProcessing = processingInvoiceId === engagement.id;
 
                                         return (
                                             <TableRow key={engagement.id}>
@@ -149,9 +173,11 @@ export default function BillingDashboardPage() {
                                                 <TableCell>{engagement.remarks}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button
-                                                        onClick={() => handleBillStatusUpdate(engagement.id, "Pending Collection", pendingInvoiceId)}
+                                                        onClick={() => handleGenerateAndSendInvoice(engagement.id, pendingInvoiceId)}
+                                                        disabled={isProcessing}
                                                     >
-                                                        Generate Invoice
+                                                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                        Generate & Send Invoice
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
