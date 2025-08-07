@@ -10,7 +10,7 @@ import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,6 +139,7 @@ export default function EngagementWorkflowPage() {
   const engagementId = params.engagementId as string;
   const [engagement, setEngagement] = React.useState<Engagement | null>(null);
   const [client, setClient] = React.useState<Client | null>(null);
+  const [engagementType, setEngagementType] = React.useState<EngagementType | null>(null);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -157,10 +158,18 @@ export default function EngagementWorkflowPage() {
         setAllEmployees(snapshot.docs.map(doc => doc.data() as Employee));
     });
 
-    const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), (docSnap) => {
+    const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), async (docSnap) => {
       if (docSnap.exists()) {
         const engData = { id: docSnap.id, ...docSnap.data() } as Engagement;
         setEngagement(engData);
+
+        const typeDoc = await getDoc(doc(db, "engagementTypes", engData.type));
+        if (typeDoc.exists()) {
+            setEngagementType(typeDoc.data() as EngagementType);
+        } else {
+            setEngagementType(null);
+        }
+
         const clientUnsub = onSnapshot(doc(db, "clients", engData.clientId), (clientDoc) => {
           if (clientDoc.exists()) {
             setClient({ id: clientDoc.id, ...clientDoc.data() } as Client);
@@ -228,10 +237,13 @@ export default function EngagementWorkflowPage() {
 
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline text-2xl">{engagement.remarks}</CardTitle>
+            <CardTitle className="font-headline text-2xl">{engagementType?.name || engagement.type}</CardTitle>
             <CardDescription>
                 Client: {client.Name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
             </CardDescription>
+            {engagement.remarks && (
+                 <p className="text-sm text-foreground pt-2">{engagement.remarks}</p>
+            )}
         </CardHeader>
       </Card>
       
