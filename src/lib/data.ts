@@ -351,7 +351,18 @@ export const firms: Omit<Firm, 'id'>[] = [
     }
 ];
 
-export const employees: Employee[] = [
+const adminUser: Employee = {
+    id: "S001",
+    name: "Tonny Varghese",
+    email: "ca.tonnyvarghese@gmail.com",
+    designation: "Founder & CEO",
+    avatar: "https://placehold.co/40x40.png",
+    role: ["Admin", "Partner"],
+    leaveAllowance: 24,
+    leavesTaken: 0,
+};
+
+const defaultEmployees: Employee[] = [
   { 
     id: "S006", 
     name: "Dojo Davis", 
@@ -363,6 +374,9 @@ export const employees: Employee[] = [
     leavesTaken: 0 
   },
 ];
+
+export const employees: Employee[] = [adminUser, ...defaultEmployees];
+
 
 export const departments: Omit<Department, "id">[] = [
     { name: "Admin", order: 1 },
@@ -651,7 +665,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         pan: "DDHFT1234E",
         mobileNumber: "9654321098",
         mailId: "trust@hopefoundation.org",
-        partnerId: "S006", // Dojo Davis
+        partnerId: "S001", // Tonny Varghese
         firmId: "firm_id_placeholder",
         category: "Trust",
         country: "India",
@@ -732,14 +746,14 @@ export const engagements: Omit<Engagement, 'id'>[] = [
     // PENDING (3)
     { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(10), status: "Pending", fees: 5000 },
     { clientId: "client2_id_placeholder", remarks: "GST Filing for June 2024", type: "ET02", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(5), status: "Pending", fees: 8000 },
-    { clientId: "client3_id_placeholder", remarks: "Book Keeping Q2 2024", type: "ET08", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(20), status: "Pending", fees: 15000 },
+    { clientId: "client3_id_placeholder", remarks: "Book Keeping Q2 2024", type: "ET08", assignedTo: ["S001"], reportedTo: "S001", dueDate: getDueDate(20), status: "Pending", fees: 15000 },
 
     // IN PROCESS (2)
-    { clientId: "client1_id_placeholder", remarks: "Company Audit FY 23-24", type: "ET05", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(90), status: "In Process", fees: 50000 },
+    { clientId: "client1_id_placeholder", remarks: "Company Audit FY 23-24", type: "ET05", assignedTo: ["S006", "S001"], reportedTo: "S001", dueDate: getDueDate(90), status: "In Process", fees: 50000 },
     { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 23-24", type: "ET04", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(60), status: "In Process", fees: 75000 },
     
     // COMPLETED (1)
-    { clientId: "client3_id_placeholder", remarks: "TDS Filing Q4 FY23", type: "ET03", assignedTo: ["S006"], reportedTo: "S006", dueDate: getPastDate(60), status: "Completed", billStatus: "Collected", fees: 6500 },
+    { clientId: "client3_id_placeholder", remarks: "TDS Filing Q4 FY23", type: "ET03", assignedTo: ["S001"], reportedTo: "S001", dueDate: getPastDate(60), status: "Completed", billStatus: "Collected", fees: 6500 },
 
 ];
 

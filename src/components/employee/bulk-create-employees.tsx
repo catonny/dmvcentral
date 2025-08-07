@@ -26,7 +26,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const EMPLOYEE_HEADERS = ["Name", "Email", "Designation", "Role", "leaveAllowance"];
+const EMPLOYEE_HEADERS = ["Name", "Email", "Designation", "Role", "leaveAllowance", "linkedin", "emergencyContact", "bloodGroup"];
 const MANDATORY_EMPLOYEE_HEADERS = ["Name", "Email", "Role"];
 
 interface BulkCreateEmployeesProps {
@@ -80,14 +80,20 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
             "Email*": "ravi.kumar@example.com",
             "Designation": "Senior Accountant",
             "Role*": "Employee",
-            "leaveAllowance": "18"
+            "leaveAllowance": "18",
+            "linkedin": "https://linkedin.com/in/ravikumar",
+            "emergencyContact": "9876543210",
+            "bloodGroup": "O+"
         },
         {
             "Name*": "Priya Sharma",
             "Email*": "priya.sharma@example.com",
             "Designation": "Audit Assistant",
             "Role*": "Articles",
-            "leaveAllowance": "12"
+            "leaveAllowance": "12",
+            "linkedin": "",
+            "emergencyContact": "",
+            "bloodGroup": "A-"
         }
     ];
 
@@ -225,6 +231,9 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
             avatar: `https://placehold.co/40x40.png`,
             leaveAllowance: Number(row["leaveAllowance"]) || 18,
             leavesTaken: 0,
+            linkedin: row["linkedin"] || "",
+            emergencyContact: row["emergencyContact"] || "",
+            bloodGroup: row["bloodGroup"] || "",
         };
         
         let docRef;
