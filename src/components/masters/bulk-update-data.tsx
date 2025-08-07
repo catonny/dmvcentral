@@ -183,24 +183,13 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                     config={{ header: true, skipEmptyLines: true, comments: "#" }}
                 >
                     {({ getRootProps, acceptedFile, ProgressBar, getRemoveFileProps }: any) => {
-                        const removeFile = (e?: React.MouseEvent<HTMLButtonElement>) => {
-                            if (e) e.stopPropagation();
-                            setParsedData([]);
-                            if (getRemoveFileProps) {
-                                (getRemoveFileProps() as any).onClick(e);
-                            }
-                        }
                         
                         const handleDialogClose = (open: boolean) => {
                             if (!open) {
                                 setIsValidationDialogOpen(false);
                                 setParsedData([]);
-                                // This will clear the file from the CSVReader's state
-                                if (getRemoveFileProps) {
-                                    (getRemoveFileProps() as any).onClick();
-                                }
-                            } else {
-                                setIsValidationDialogOpen(true);
+                                // This is the correct way to trigger the file removal without an event
+                                getRemoveFileProps().onClick();
                             }
                         }
 
@@ -226,7 +215,11 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
                                         variant="destructive"
                                         size="sm"
                                         className="mt-2"
-                                        onClick={removeFile}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            getRemoveFileProps().onClick(e);
+                                            setParsedData([]);
+                                        }}
                                         >
                                         Remove
                                     </Button>
