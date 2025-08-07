@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote } from "lucide-react";
+import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote, Edit } from "lucide-react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 
 
 function EngagementNotes({ engagement, client, allEmployees }: { engagement: Engagement; client: Client, allEmployees: Employee[] }) {
@@ -144,6 +145,7 @@ export default function EngagementWorkflowPage() {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -247,6 +249,19 @@ export default function EngagementWorkflowPage() {
     }
   };
 
+  const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
+    if (!engagement?.id) return;
+    try {
+        const engagementRef = doc(db, "engagements", engagement.id);
+        await updateDoc(engagementRef, engagementData);
+        toast({ title: "Success", description: "Engagement updated successfully." });
+        setIsSheetOpen(false);
+    } catch (error) {
+        console.error("Error saving engagement:", error);
+        toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
+    }
+  };
+
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center">Loading Engagement Workflow...</div>;
@@ -256,8 +271,15 @@ export default function EngagementWorkflowPage() {
     notFound();
     return null;
   }
+
+  const typedSelectedEngagement = {
+    ...engagement,
+    clientName: client.Name,
+    engagementTypeName: engagementType?.name || engagement.type,
+  };
   
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Button asChild variant="outline" size="sm">
@@ -265,6 +287,10 @@ export default function EngagementWorkflowPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to My Engagements
             </Link>
+        </Button>
+         <Button variant="outline" size="sm" onClick={() => setIsSheetOpen(true)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Engagement
         </Button>
       </div>
 
@@ -325,5 +351,13 @@ export default function EngagementWorkflowPage() {
            </div>
       </div>
     </div>
+    <EditEngagementSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        onSave={handleSaveEngagement}
+        engagement={typedSelectedEngagement}
+        allEmployees={allEmployees}
+    />
+    </>
   );
 }
