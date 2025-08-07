@@ -2,122 +2,46 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, where, getDocs, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/hooks/use-auth";
-import type { Engagement, Employee, Client, EngagementType, EngagementStatus } from "@/lib/data";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GripVertical, Loader2, Grip, TrendingUp, UserX, Repeat, HandCoins, BarChart } from "lucide-react";
-import { ReportsDataTable } from "@/components/reports/data-table";
-import { getReportsColumns } from "@/components/reports/columns";
-import { EngagementSummaryTable } from "@/components/reports/engagement-summary";
-import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
-import GridLayout from "react-grid-layout";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { differenceInDays, parseISO } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Employee } from "@/lib/data";
+import { Loader2 } from "lucide-react";
 
-const RECURRING_KEYWORDS = ["book keeping", "gst filing", "monthly", "quarterly"];
-
-export interface ReportsEngagement extends Engagement {
-    clientName: string;
-    engagementTypeName: string;
-    partnerId?: string;
-}
-
-interface Widget {
-  id: string;
-  component: React.FC<any>;
-  defaultLayout: { x: number; y: number; w: number; h: number; };
-}
-
-interface KpiData {
-    clientLifetimeValue: number;
-    churnRate: number;
-    monthlyRecurringRevenue: number;
-    averageRevenuePerClient: number;
-}
-
-
-function KpiCard({ title, value, description, icon: Icon, valuePrefix = "", valueSuffix = "" }: { title: string, value: string | number, description: string, icon: React.ElementType, valuePrefix?: string, valueSuffix?: string }) {
-    return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">
-                    {valuePrefix}{value}{valueSuffix}
-                </div>
-                <p className="text-xs text-muted-foreground">{description}</p>
-            </CardContent>
-        </Card>
-    );
-}
-
-const KpiDashboard = ({ kpiData, loading }: { kpiData: KpiData | null, loading: boolean }) => {
-    if (loading) {
-        return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /> <span className="ml-2">Calculating KPIs...</span></div>;
-    }
-    if (!kpiData) {
-        return <div className="text-center text-muted-foreground">Click "Generate KPIs" to view analytics.</div>;
-    }
-    return (
-         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-                title="Client Lifetime Value (CLV)"
-                value={kpiData.clientLifetimeValue.toFixed(0)}
-                valuePrefix="₹"
-                description="Estimated total revenue a client generates over their lifetime."
-                icon={TrendingUp}
-            />
-            <KpiCard
-                title="Client Churn Rate (Annual)"
-                value={kpiData.churnRate.toFixed(2)}
-                valueSuffix="%"
-                description="Percentage of clients with no activity in the last year."
-                icon={UserX}
-            />
-            <KpiCard
-                title="Estimated Monthly Recurring Revenue (MRR)"
-                value={(kpiData.monthlyRecurringRevenue / 1000).toFixed(1)}
-                valuePrefix="₹"
-                valueSuffix="k"
-                description="From completed retainership engagements."
-                icon={Repeat}
-            />
-            <KpiCard
-                title="Average Revenue Per Client (ARPC)"
-                value={kpiData.averageRevenuePerClient.toFixed(0)}
-                valuePrefix="₹"
-                description="Average revenue from all completed engagements per client."
-                icon={HandCoins}
-            />
+const ReportCard = ({ title, description, icon: Icon, onClick, isDisabled = false }: { title: string, description: string, icon: React.ElementType, onClick: () => void, isDisabled?: boolean }) => (
+  <Card
+    className={cn(
+        "transition-all group",
+        isDisabled ? "cursor-not-allowed bg-muted/50" : "cursor-pointer hover:border-primary/80 hover:shadow-primary/20"
+    )}
+    onClick={isDisabled ? undefined : onClick}
+  >
+    <CardHeader>
+      <div className="flex justify-between items-start">
+        <div>
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <Icon className={cn("h-6 w-6", isDisabled ? "text-muted-foreground" : "text-primary")} />
+            {title}
+          </CardTitle>
+          <CardDescription className="mt-2">{description}</CardDescription>
         </div>
-    )
-}
-
+         <div className="flex flex-col items-end gap-2">
+            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+    </CardHeader>
+  </Card>
+);
 
 export default function ReportsPage() {
     const { user } = useAuth();
     const router = useRouter();
-    const { toast } = useToast();
-    const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
-    const [tableData, setTableData] = React.useState<ReportsEngagement[]>([]);
-    const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
-    const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
-    const [employeeMap, setEmployeeMap] = React.useState<Map<string, {name: string, avatar?: string}>>(new Map());
-    
-    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
-    const [selectedEngagement, setSelectedEngagement] = React.useState<ReportsEngagement | null>(null);
-    const [widgets, setWidgets] = React.useState<Widget[]>([]);
-    const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
-    
-    const [kpiData, setKpiData] = React.useState<KpiData | null>(null);
-    const [kpiLoading, setKpiLoading] = React.useState(false);
+    const [hasAccess, setHasAccess] = React.useState(false);
 
     React.useEffect(() => {
         if (!user) return;
@@ -137,165 +61,7 @@ export default function ReportsPage() {
 
     }, [user]);
 
-    React.useEffect(() => {
-        if (!hasAccess) return;
-        
-        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
-
-        const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
-            let employeeMapInternal: Map<string, Employee> = new Map();
-            let clientMap: Map<string, Client> = new Map();
-            let engagementTypeMap: Map<string, EngagementType> = new Map();
-            
-            Promise.all([
-                getDocs(collection(db, "employees")),
-                getDocs(collection(db, "clients")),
-                getDocs(collection(db, "engagementTypes"))
-            ]).then(([employeeSnapshot, clientSnapshot, engagementTypeSnapshot]) => {
-                const employeeData = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-                employeeMapInternal = new Map(employeeData.map(s => [s.id, s]));
-                setEmployeeMap(new Map(employeeData.map(e => [e.id, { name: e.name, avatar: e.avatar }])));
-                setAllEmployees(employeeData);
-
-                clientMap = new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
-                const engagementTypesData = engagementTypeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType));
-                engagementTypeMap = new Map(engagementTypesData.map(et => [et.id, et]));
-                
-                setEngagementTypes(engagementTypesData);
-
-                const engagementData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-
-                const formattedData: ReportsEngagement[] = engagementData.map(eng => {
-                    const client = clientMap.get(eng.clientId);
-                    const engagementType = engagementTypeMap.get(eng.type);
-
-                    return {
-                        ...eng,
-                        clientName: client?.name || 'N/A',
-                        engagementTypeName: engagementType?.name || 'N/A',
-                        partnerId: client?.partnerId,
-                    };
-                });
-                
-                setTableData(formattedData);
-            }).catch(err => {
-                 toast({ title: "Error", description: "Could not fetch supporting data for engagements", variant: "destructive" })
-            });
-            
-        }, (err) => toast({ title: "Error", description: "Could not fetch engagements", variant: "destructive" }));
-        
-        return () => {
-            unsubEngagements();
-        }
-
-    }, [hasAccess, toast]);
-    
-    React.useEffect(() => {
-        const defaultWidgets: Widget[] = [
-            { id: 'summary-table', component: EngagementSummaryTable, defaultLayout: { x: 0, y: 0, w: 12, h: 8 } },
-            { id: 'data-table', component: ReportsDataTable, defaultLayout: { x: 0, y: 8, w: 12, h: 10 } }
-        ];
-        
-        setWidgets(defaultWidgets);
-
-        const storedLayout = localStorage.getItem('reportsLayout');
-        if (storedLayout) {
-            setLayout(JSON.parse(storedLayout));
-        } else {
-            setLayout(defaultWidgets.map(w => ({...w.defaultLayout, i: w.id})));
-        }
-    }, []);
-    
-    const handleOpenEditSheet = (engagement: ReportsEngagement) => {
-        setSelectedEngagement(engagement);
-        setIsSheetOpen(true);
-    };
-
-    const handleCloseEditSheet = () => {
-        setIsSheetOpen(false);
-        setSelectedEngagement(null);
-    };
-    
-    const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
-        if (!selectedEngagement?.id) return;
-        try {
-            const engagementRef = doc(db, "engagements", selectedEngagement.id);
-            await updateDoc(engagementRef, engagementData);
-            toast({ title: "Success", description: "Engagement updated successfully." });
-            handleCloseEditSheet();
-        } catch (error) {
-            console.error("Error saving engagement:", error);
-            toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
-        }
-    };
-    
-    const handleLayoutChange = (newLayout: GridLayout.Layout[]) => {
-        setLayout(newLayout);
-        localStorage.setItem('reportsLayout', JSON.stringify(newLayout));
-    };
-    
-    const handleRowClick = (engagementId: string) => {
-        router.push(`/workflow/${engagementId}`);
-    };
-
-    const handleGenerateKpis = async () => {
-        setKpiLoading(true);
-        try {
-            const [clientsSnapshot, engagementsSnapshot] = await Promise.all([
-                getDocs(collection(db, "clients")),
-                getDocs(query(collection(db, "engagements"), where("status", "==", "Completed"))),
-            ]);
-
-            const allFetchedClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-            const completedEngagements = engagementsSnapshot.docs.map(doc => doc.data() as Engagement).filter(e => e.fees);
-
-            const totalRevenue = completedEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
-            const activeClients = new Set(completedEngagements.map(e => e.clientId));
-
-            const averageRevenuePerClient = activeClients.size > 0 ? totalRevenue / activeClients.size : 0;
-            
-            let totalLifespanDays = 0;
-            activeClients.forEach(clientId => {
-                const client = allFetchedClients.find(c => c.id === clientId);
-                if (client && client.createdAt) {
-                    totalLifespanDays += differenceInDays(new Date(), parseISO(client.createdAt));
-                }
-            });
-            const averageLifespanDays = activeClients.size > 0 ? totalLifespanDays / activeClients.size : 0;
-            const clientLifetimeValue = averageRevenuePerClient * (averageLifespanDays / 365);
-
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            
-            const allEngagementsSnapshot = await getDocs(collection(db, "engagements"));
-            const allEngagements = allEngagementsSnapshot.docs.map(doc => doc.data() as Engagement);
-
-            const clientsWithRecentActivity = new Set(allEngagements.filter(e => parseISO(e.dueDate) > oneYearAgo).map(e => e.clientId));
-            const churnedClients = allFetchedClients.filter(c => !clientsWithRecentActivity.has(c.id)).length;
-            const churnRate = allFetchedClients.length > 0 ? (churnedClients / allFetchedClients.length) * 100 : 0;
-            
-            const recurringEngagements = completedEngagements.filter(e => 
-                RECURRING_KEYWORDS.some(keyword => (e.remarks || '').toLowerCase().includes(keyword))
-            );
-            const monthlyRecurringRevenue = recurringEngagements.reduce((sum, e) => sum + (e.fees || 0), 0);
-
-            setKpiData({
-                clientLifetimeValue,
-                churnRate,
-                monthlyRecurringRevenue,
-                averageRevenuePerClient
-            });
-
-        } catch (error) {
-            toast({title: "Error", description: "Could not generate KPIs. Please try again.", variant: "destructive" });
-            console.error("Error generating KPIs:", error);
-        } finally {
-            setKpiLoading(false);
-        }
-    }
-
-    if (loading) {
+     if (loading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -315,83 +81,66 @@ export default function ReportsPage() {
             </Card>
         );
     }
-    
-    const columns = getReportsColumns(
-        engagementTypes.map(et => et.name), 
-        employeeMap,
-        handleOpenEditSheet
-    );
 
-    const getWidgetProps = (id: string) => {
-        switch (id) {
-            case 'summary-table':
-                return { engagements: tableData, engagementTypes: engagementTypes };
-            case 'data-table':
-                return { columns: columns, data: tableData, onRowClick: handleRowClick };
-            default:
-                return {};
-        }
-    };
-
-    return (
-        <>
-            <div className="flex items-center justify-between space-y-2 mb-4">
-                <div>
-                <h2 className="text-3xl font-bold tracking-tight font-headline">Reports</h2>
-                <p className="text-muted-foreground">
-                    A comprehensive overview of all firm-wide engagements.
-                </p>
-                </div>
-            </div>
-
-            <Card className="mb-6">
-                <CardHeader className="flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Firm Analytics</CardTitle>
-                        <CardDescription>Key Performance Indicators based on the Audit Quality Maturity Model.</CardDescription>
-                    </div>
-                    <Button onClick={handleGenerateKpis} disabled={kpiLoading}>
-                        <BarChart className="mr-2 h-4 w-4" />
-                        Generate KPIs
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <KpiDashboard kpiData={kpiData} loading={kpiLoading} />
-                </CardContent>
-            </Card>
-
-            <GridLayout
-                className="layout"
-                layout={layout}
-                cols={12}
-                rowHeight={30}
-                width={1200}
-                onLayoutChange={handleLayoutChange}
-                draggableHandle=".widget-drag-handle"
-            >
-                {widgets.map(widget => (
-                    <div key={widget.id} data-grid={layout.find(l => l.i === widget.id) || widget.defaultLayout}>
-                        <Card className="h-full w-full overflow-hidden flex flex-col">
-                             <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-colors widget-drag-handle">
-                                <GripVertical className="h-5 w-5" />
-                            </div>
-                             <div className="p-4 flex-grow">
-                                <widget.component {...getWidgetProps(widget.id)} />
-                            </div>
-                             <div className="react-resizable-handle absolute bottom-0 right-0 cursor-se-resize w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Grip className="w-full h-full text-muted-foreground" />
-                            </div>
-                        </Card>
-                    </div>
-                ))}
-            </GridLayout>
-             <EditEngagementSheet
-                isOpen={isSheetOpen}
-                onClose={handleCloseEditSheet}
-                onSave={handleSaveEngagement}
-                engagement={selectedEngagement}
-                allEmployees={allEmployees}
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight font-headline">Reports Dashboard</h2>
+        <p className="text-muted-foreground">
+          Select a report to view detailed information.
+        </p>
+      </div>
+      
+      <section className="space-y-4">
+        <h3 className="text-2xl font-semibold tracking-tight font-headline">Standard Reports</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ReportCard 
+                title="Engagement Summary"
+                description="High-level overview of active engagements by status and type."
+                icon={FileText}
+                onClick={() => router.push('/reports/engagement-summary')}
             />
-        </>
-    )
+             <ReportCard 
+                title="Firm Analytics (KPIs)"
+                description="Key performance indicators for your firm's health and growth."
+                icon={BarChart}
+                onClick={() => router.push('/reports/kpi-dashboard')}
+            />
+             <ReportCard 
+                title="All Engagements"
+                description="A sortable and filterable list of every engagement in the firm."
+                icon={Users}
+                onClick={() => router.push('/reports/all-engagements')}
+            />
+        </div>
+      </section>
+
+       <section className="space-y-4">
+        <h3 className="text-2xl font-semibold tracking-tight font-headline flex items-center gap-2">
+            <AlertTriangle className="text-destructive"/>
+            Exception Reports
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ReportCard 
+                title="Incomplete Client Data"
+                description="Find clients with missing mandatory information like PAN or email."
+                icon={Users}
+                onClick={() => router.push('/reports/exceptions/incomplete-clients')}
+            />
+             <ReportCard 
+                title="Unbilled Engagements"
+                description="Engagements marked 'Completed' but not yet submitted for billing."
+                icon={FileText}
+                onClick={() => router.push('/reports/exceptions/unbilled-engagements')}
+            />
+             <ReportCard 
+                title="Overdue Engagements"
+                description="Active engagements that have passed their due date."
+                icon={FileText}
+                onClick={() => router.push('/reports/exceptions/overdue-engagements')}
+            />
+        </div>
+      </section>
+    </div>
+  );
 }
