@@ -174,6 +174,31 @@ export interface Task {
     assignedTo: string; // Corresponds to Employee.id
 }
 
+export type ActivityLogType = 
+    | 'CREATE_ENGAGEMENT'
+    | 'STATUS_CHANGE'
+    | 'DUE_DATE_CHANGED'
+    | 'ASSIGNEE_CHANGED'
+    | 'REMARKS_CHANGED'
+    | 'TASK_COMPLETED';
+
+export interface ActivityLog {
+    id: string;
+    engagementId: string;
+    clientId: string;
+    type: ActivityLogType;
+    timestamp: string; // ISO 8601
+    userId: string; // Employee ID of who performed the action
+    userName: string; // Name of the employee for easy display
+    details: {
+        engagementName: string;
+        from?: string;
+        to?: string;
+        taskName?: string;
+    };
+}
+
+
 export interface EngagementNote {
     id: string;
     engagementId: string;

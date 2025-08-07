@@ -5,7 +5,7 @@
 import * as React from "react";
 import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc, setDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, EngagementNote } from "@/lib/data";
-import { db } from "@/lib/firebase";
+import { db, logActivity } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -138,12 +138,14 @@ function EngagementNotes({ engagement, client, allEmployees }: { engagement: Eng
 
 export default function EngagementWorkflowPage() {
   const params = useParams();
+  const { user } = useAuth();
   const engagementId = params.engagementId as string;
   const [engagement, setEngagement] = React.useState<Engagement | null>(null);
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagementType, setEngagementType] = React.useState<EngagementType | null>(null);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { toast } = useToast();
@@ -153,17 +155,27 @@ export default function EngagementWorkflowPage() {
   const debouncedRemarks = useDebounce(remarks, 500);
 
   React.useEffect(() => {
-    if (engagement) {
-      setRemarks(engagement.remarks || "");
+    if (user) {
+        getDocs(query(collection(db, "employees"), where("email", "==", user.email)))
+            .then(snap => {
+                if (!snap.empty) setCurrentUserEmployee(snap.docs[0].data() as Employee);
+            });
     }
-  }, [engagement]);
-  
-   React.useEffect(() => {
+  }, [user]);
+
+  React.useEffect(() => {
     if (engagement && debouncedRemarks !== engagement.remarks) {
       const updateRemarks = async () => {
+        if (!currentUserEmployee) return;
         const engagementRef = doc(db, "engagements", engagementId);
         try {
           await updateDoc(engagementRef, { remarks: debouncedRemarks });
+          await logActivity({
+              engagement: { ...engagement, remarks: debouncedRemarks },
+              type: 'REMARKS_CHANGED',
+              user: currentUserEmployee,
+              details: {}
+          });
           toast({
             title: "Saved",
             description: "Engagement remarks have been updated.",
@@ -179,8 +191,14 @@ export default function EngagementWorkflowPage() {
       };
       updateRemarks();
     }
-  }, [debouncedRemarks, engagement, engagementId, toast]);
+  }, [debouncedRemarks, engagement, engagementId, toast, currentUserEmployee]);
 
+  React.useEffect(() => {
+    if (engagement) {
+      setRemarks(engagement.remarks || "");
+    }
+  }, [engagement]);
+  
   React.useEffect(() => {
     if (!engagementId) {
         setLoading(true);
@@ -240,9 +258,18 @@ export default function EngagementWorkflowPage() {
   }, [engagementId]);
 
   const handleTaskStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+    if (!currentUserEmployee || !engagement) return;
     const taskRef = doc(db, "tasks", taskId);
     try {
         await updateDoc(taskRef, { status: newStatus });
+        if (newStatus === 'Completed') {
+            await logActivity({
+                engagement: engagement,
+                type: 'TASK_COMPLETED',
+                user: currentUserEmployee,
+                details: { taskName: tasks.find(t => t.id === taskId)?.title || 'Unknown Task' }
+            });
+        }
     } catch (error) {
          console.error(`Error updating task status:`, error);
         toast({ title: "Error", description: `Failed to update task status.`, variant: "destructive" });
@@ -250,9 +277,19 @@ export default function EngagementWorkflowPage() {
   };
 
   const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
-    if (!engagement?.id) return;
+    if (!engagement?.id || !currentUserEmployee) return;
     try {
         const engagementRef = doc(db, "engagements", engagement.id);
+        
+        if (engagementData.dueDate && engagementData.dueDate !== engagement.dueDate) {
+             await logActivity({
+                engagement: { ...engagement, ...engagementData },
+                type: 'DUE_DATE_CHANGED',
+                user: currentUserEmployee,
+                details: { from: engagement.dueDate, to: engagementData.dueDate }
+            });
+        }
+        
         await updateDoc(engagementRef, engagementData);
         toast({ title: "Success", description: "Engagement updated successfully." });
         setIsSheetOpen(false);

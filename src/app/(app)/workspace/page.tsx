@@ -4,7 +4,7 @@
 import * as React from "react";
 import { collection, query, where, onSnapshot, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
 import type { Client, Engagement, Employee, Department, Task, EngagementType } from "@/lib/data";
-import { db } from "@/lib/firebase";
+import { db, logActivity } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, PlusCircle } from "lucide-react";
@@ -129,6 +129,13 @@ export default function WorkspacePage() {
                 dueDate: data.dueDate.toISOString()
             };
             batch.set(engagementDocRef, newEngagementData);
+            
+            await logActivity({
+                engagement: newEngagementData,
+                type: 'CREATE_ENGAGEMENT',
+                user: currentUserEmployee,
+                details: {}
+            });
             
             const engagementType = engagementTypes.find(et => et.id === engagementTypeId);
             const subTaskTitles = engagementType?.subTaskTitles || (data.saveAsTemplate ? ["Task 1", "Task 2", "Task 3"] : []);

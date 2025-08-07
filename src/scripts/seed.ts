@@ -65,6 +65,7 @@ export const seedDatabase = async () => {
         'events',
         'permissions',
         'firms',
+        'activityLog',
     ];
 
     console.log('Deleting existing data...');
@@ -179,7 +180,23 @@ export const seedDatabase = async () => {
         const clientRefData = clientRefs[engagement.clientId];
         if (clientRefData) {
           const engagementDocRef = db.collection('engagements').doc();
-          batch.set(engagementDocRef, { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id });
+          const newEngagement = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
+          batch.set(engagementDocRef, newEngagement);
+
+          // Log creation
+          const activityLogRef = db.collection('activityLog').doc();
+          batch.set(activityLogRef, {
+              id: activityLogRef.id,
+              engagementId: newEngagement.id,
+              clientId: newEngagement.clientId,
+              type: 'CREATE_ENGAGEMENT',
+              timestamp: new Date().toISOString(),
+              userId: adminUser.id, // Assume admin creates all seed data
+              userName: adminUser.name,
+              details: {
+                  engagementName: newEngagement.remarks,
+              },
+          });
 
           const timesheetPlaceholder = Object.keys(engagementIdMapForTimesheet).find(
               key => engagementIdMapForTimesheet[key as keyof typeof engagementIdMapForTimesheet].remarks === engagement.remarks
