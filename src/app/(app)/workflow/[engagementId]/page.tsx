@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 
 
 function EngagementNotes({ engagement, client, allEmployees }: { engagement: Engagement; client: Client, allEmployees: Employee[] }) {
@@ -145,6 +146,38 @@ export default function EngagementWorkflowPage() {
   const [loading, setLoading] = React.useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  
+  const [remarks, setRemarks] = React.useState("");
+  const debouncedRemarks = useDebounce(remarks, 500);
+
+  React.useEffect(() => {
+    if (engagement) {
+      setRemarks(engagement.remarks || "");
+    }
+  }, [engagement]);
+  
+   React.useEffect(() => {
+    if (engagement && debouncedRemarks !== engagement.remarks) {
+      const updateRemarks = async () => {
+        const engagementRef = doc(db, "engagements", engagementId);
+        try {
+          await updateDoc(engagementRef, { remarks: debouncedRemarks });
+          toast({
+            title: "Saved",
+            description: "Engagement remarks have been updated.",
+          });
+        } catch (error) {
+          console.error("Error updating remarks:", error);
+          toast({
+            title: "Error",
+            description: "Failed to save remarks.",
+            variant: "destructive",
+          });
+        }
+      };
+      updateRemarks();
+    }
+  }, [debouncedRemarks, engagement, engagementId, toast]);
 
   React.useEffect(() => {
     if (!engagementId) {
@@ -241,10 +274,18 @@ export default function EngagementWorkflowPage() {
             <CardDescription>
                 Client: {client.Name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
             </CardDescription>
-            {engagement.remarks && (
-                 <p className="text-sm text-foreground pt-2">{engagement.remarks}</p>
-            )}
         </CardHeader>
+        <CardContent>
+            <div className="space-y-2">
+                <Label htmlFor="remarks">Engagement Remarks</Label>
+                <Textarea 
+                    id="remarks"
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Add specific details about this engagement..."
+                />
+            </div>
+        </CardContent>
       </Card>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
