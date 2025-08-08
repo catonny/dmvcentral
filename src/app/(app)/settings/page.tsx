@@ -36,6 +36,7 @@ export default function SettingsPage() {
   const [backupFile, setBackupFile] = React.useState<File | null>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = React.useState(false);
   const [backupFileInfo, setBackupFileInfo] = React.useState<{type: 'master' | 'transactional' | 'full' | 'unknown', date?: string} | null>(null);
+  const [deleteTransactionalConfirmText, setDeleteTransactionalConfirmText] = React.useState('');
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
   
@@ -203,6 +204,7 @@ export default function SettingsPage() {
       });
     } finally {
       setLoadingDeleteTransactional(false);
+      setDeleteTransactionalConfirmText('');
     }
   };
 
@@ -399,12 +401,29 @@ export default function SettingsPage() {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all transactional data. Master data will NOT be deleted.
+                            This action cannot be undone. To confirm, please type{" "}
+                            <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-destructive">
+                                delete transactional data
+                            </code>{" "}
+                            below.
                             </AlertDialogDescription>
+                             <Input
+                                id="delete-confirm"
+                                value={deleteTransactionalConfirmText}
+                                onChange={(e) => setDeleteTransactionalConfirmText(e.target.value)}
+                                className="mt-2"
+                                placeholder="delete transactional data"
+                            />
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteTransactionalData} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
+                            <AlertDialogCancel onClick={() => setDeleteTransactionalConfirmText('')}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={handleDeleteTransactionalData} 
+                                className="bg-destructive hover:bg-destructive/90"
+                                disabled={deleteTransactionalConfirmText !== 'delete transactional data'}
+                            >
+                                Continue
+                            </AlertDialogAction>
                         </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
