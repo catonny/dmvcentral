@@ -276,7 +276,7 @@ const generateInvoiceFlow = ai.defineFlow(
     
     finalHtml = finalHtml.replace(/~{{#with \(multiply \(divide engagement.fees 100\) 9\)}}~{{this}}{{\/with}}~/g, gst.toFixed(2));
     finalHtml = finalHtml.replace(/~{{#with \(add engagement.fees \(multiply \(divide engagement.fees 100\) 18\)\)}}~{{this}}{{\/with}}~/g, total.toFixed(2));
-    finalHtml = finalHtml.replace(/{{#toWords \S+}}{{/toWords}}/, `Indian Rupee ${numberToWords(total)} Only`);
+    finalHtml = finalHtml.replace(/{{#toWords \S+}}{{\/toWords}}/, `Indian Rupee ${numberToWords(total)} Only`);
 
 
     output.htmlContent = finalHtml;
