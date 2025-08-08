@@ -260,7 +260,7 @@ const generateInvoiceFlow = ai.defineFlow(
         invoiceNumber,
     });
     
-    const output = llmResponse.output;
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("The AI model failed to produce a valid invoice.");
     }

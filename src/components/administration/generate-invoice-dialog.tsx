@@ -27,6 +27,8 @@ import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SearchableSelectWithCreate } from "../masters/searchable-select-with-create";
 import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
+import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
+import { sendEmail } from "@/ai/flows/send-email-flow";
 
 interface LineItem {
     id: string;
@@ -96,18 +98,31 @@ export function GenerateInvoiceDialog({
   }, [entry, firms, salesItems, taxRates, hsnSacCodes]);
 
   const handleSave = async () => {
-    if (!entry || !selectedFirmId || lineItems.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a firm and add at least one line item.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const { total } = calculateTotals();
+    if (!entry) return;
     setIsSaving(true);
-    await onSave(entry.engagement.id, total);
-    setIsSaving(false);
+    try {
+        const result = await generateInvoice({ engagementId: entry.engagement.id });
+        await sendEmail({
+            recipientEmails: [result.recipientEmail],
+            subject: result.subject,
+            body: result.htmlContent
+        });
+        const { total } = calculateTotals();
+        await onSave(entry.engagement.id, total);
+        toast({
+            title: "Invoice Generated & Sent!",
+            description: `The invoice has been sent to ${result.recipientEmail}.`
+        });
+    } catch (error) {
+        console.error("Error generating or sending invoice:", error);
+        toast({
+            title: "Error",
+            description: "Could not generate or send the invoice.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsSaving(false);
+    }
   };
   
   const handleCreateNewSalesItem = (itemName: string) => {
@@ -310,7 +325,7 @@ export function GenerateInvoiceDialog({
           </Button>
           <Button type="submit" onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save & Mark as Billed
+            Save & Send Invoice
           </Button>
         </DialogFooter>
       </DialogContent>
