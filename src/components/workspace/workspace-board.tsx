@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { Engagement, Employee, Department, Client, Task, CalendarEvent } from "@/lib/data";
+import { Engagement, Employee, Department, Client, Task, CalendarEvent, EngagementType } from "@/lib/data";
 import { DepartmentColumn } from "./department-column";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { EngagementListItem } from "./engagement-list-item";
@@ -28,6 +28,7 @@ interface WorkspaceBoardProps {
     allEngagements: Engagement[];
     allEmployees: Employee[];
     allDepartments: Department[];
+    engagementTypes: EngagementType[];
     clientMap: Map<string, Client>;
     currentUser: Employee;
 }
@@ -37,7 +38,7 @@ interface ReassignmentConfirmation {
     newAssignee: Employee;
 }
 
-export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, clientMap, currentUser }: WorkspaceBoardProps) {
+export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, engagementTypes, clientMap, currentUser }: WorkspaceBoardProps) {
     const { toast } = useToast();
     const [activeEngagement, setActiveEngagement] = React.useState<Engagement | null>(null);
     const [isEventDialogOpen, setIsEventDialogOpen] = React.useState(false);
@@ -221,6 +222,7 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, c
                             department={dept}
                             employees={allEmployees.filter(emp => emp.role.includes(dept.name))}
                             engagements={allEngagements}
+                            engagementTypes={engagementTypes}
                             clientMap={clientMap}
                             onScheduleMeeting={handleOpenScheduleDialog}
                         />

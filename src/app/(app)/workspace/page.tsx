@@ -190,6 +190,7 @@ export default function WorkspacePage() {
             allEngagements={allEngagements}
             allEmployees={employees}
             allDepartments={departments}
+            engagementTypes={engagementTypes}
             clientMap={clients}
             currentUser={currentUserEmployee}
         />

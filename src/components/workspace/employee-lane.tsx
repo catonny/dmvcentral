@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Employee, Engagement, Client } from "@/lib/data";
+import { Employee, Engagement, Client, EngagementType } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { cn } from "@/lib/utils";
 import { EngagementListItem } from "./engagement-list-item";
@@ -14,19 +14,38 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronRight } from "lucide-react";
+import { Badge } from "../ui/badge";
 
 interface EmployeeLaneProps {
     employee: Employee;
     engagements: Engagement[];
+    engagementTypes: EngagementType[];
     clientMap: Map<string, Client>;
     onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function EmployeeLane({ employee, engagements, clientMap, onScheduleMeeting }: EmployeeLaneProps) {
+interface GroupedEngagements {
+    [typeId: string]: Engagement[];
+}
+
+export function EmployeeLane({ employee, engagements, engagementTypes, clientMap }: EmployeeLaneProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: employee.id,
     });
-    const [isOpen, setIsOpen] = React.useState(false);
+    const [openCollapsibleId, setOpenCollapsibleId] = React.useState<string | null>(null);
+
+    const groupedEngagements = React.useMemo(() => {
+        return engagements.reduce((acc, eng) => {
+            const typeId = eng.type;
+            if (!acc[typeId]) {
+                acc[typeId] = [];
+            }
+            acc[typeId].push(eng);
+            return acc;
+        }, {} as GroupedEngagements);
+    }, [engagements]);
+
+    const engagementTypeMap = React.useMemo(() => new Map(engagementTypes.map(et => [et.id, et.name])), [engagementTypes]);
 
 
     return (
@@ -37,37 +56,45 @@ export function EmployeeLane({ employee, engagements, clientMap, onScheduleMeeti
                 isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background"
             )}
         >
-        <Collapsible
-            open={isOpen}
-            onOpenChange={setIsOpen}
-        >
-            <CollapsibleTrigger asChild>
-                 <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer group">
-                    <Avatar>
-                        <AvatarImage src={employee.avatar} alt={employee.name} />
-                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-grow">
-                        <h3 className="font-semibold text-foreground">{employee.name}</h3>
-                        <p className="text-xs text-muted-foreground">{engagements.length} active engagement(s)</p>
-                    </div>
-                    <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform group-hover:text-foreground", isOpen && "rotate-90")} />
+             <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer group">
+                <Avatar>
+                    <AvatarImage src={employee.avatar} alt={employee.name} />
+                    <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-grow">
+                    <h3 className="font-semibold text-foreground">{employee.name}</h3>
+                    <p className="text-xs text-muted-foreground">{engagements.length} active engagement(s)</p>
                 </div>
-            </CollapsibleTrigger>
-             <CollapsibleContent>
-                <div className="space-y-2 min-h-[80px] flex-grow mt-3">
-                    <SortableContext items={engagements.map(e => e.id)} strategy={verticalListSortingStrategy}>
-                        {engagements.map(engagement => (
-                            <EngagementListItem
-                                key={engagement.id}
-                                engagement={engagement}
-                                client={clientMap.get(engagement.clientId)}
-                            />
-                        ))}
-                    </SortableContext>
-                </div>
-             </CollapsibleContent>
-        </Collapsible>
+            </div>
+
+            <div className="space-y-1">
+                 {Object.entries(groupedEngagements).map(([typeId, engagementList]) => (
+                     <Collapsible key={typeId} onOpenChange={(isOpen) => setOpenCollapsibleId(isOpen ? typeId : null)} open={openCollapsibleId === typeId}>
+                        <CollapsibleTrigger className="w-full">
+                             <div className="flex items-center justify-between p-2 rounded-md hover:bg-muted w-full text-left">
+                                <div className="flex items-center gap-2">
+                                     <ChevronRight className={cn("h-4 w-4 transition-transform", openCollapsibleId === typeId && "rotate-90")} />
+                                    <span className="text-sm font-medium">{engagementTypeMap.get(typeId) || "Untitled Type"}</span>
+                                </div>
+                                <Badge variant="secondary">{engagementList.length}</Badge>
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="space-y-2 min-h-[10px] flex-grow pt-2 pl-4">
+                                <SortableContext items={engagementList.map(e => e.id)} strategy={verticalListSortingStrategy}>
+                                    {engagementList.map(engagement => (
+                                        <EngagementListItem
+                                            key={engagement.id}
+                                            engagement={engagement}
+                                            client={clientMap.get(engagement.clientId)}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </div>
+                        </CollapsibleContent>
+                     </Collapsible>
+                 ))}
+            </div>
         </div>
     );
 }

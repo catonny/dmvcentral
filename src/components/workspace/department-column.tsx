@@ -2,18 +2,19 @@
 "use client";
 
 import * as React from "react";
-import { Employee, Department, Engagement, Client } from "@/lib/data";
+import { Employee, Department, Engagement, Client, EngagementType } from "@/lib/data";
 import { EmployeeLane } from "./employee-lane";
 
 interface DepartmentColumnProps {
     department: Department;
     employees: Employee[];
     engagements: Engagement[];
+    engagementTypes: EngagementType[];
     clientMap: Map<string, Client>;
     onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function DepartmentColumn({ department, employees, engagements, clientMap, onScheduleMeeting }: DepartmentColumnProps) {
+export function DepartmentColumn({ department, employees, engagements, engagementTypes, clientMap, onScheduleMeeting }: DepartmentColumnProps) {
     const sortedEmployees = employees.sort((a, b) => a.name.localeCompare(b.name));
 
     return (
@@ -28,6 +29,7 @@ export function DepartmentColumn({ department, employees, engagements, clientMap
                         key={employee.id}
                         employee={employee}
                         engagements={engagements.filter(e => e.assignedTo.includes(employee.id))}
+                        engagementTypes={engagementTypes}
                         clientMap={clientMap}
                         onScheduleMeeting={onScheduleMeeting}
                     />
