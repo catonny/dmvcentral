@@ -88,4 +88,3 @@ export function CreateTaxRateDialog({ isOpen, onClose, onSave, taxRate }: Create
         </Dialog>
     );
 }
-
