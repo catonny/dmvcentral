@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Engagement, Client, BillStatus, EngagementType, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
