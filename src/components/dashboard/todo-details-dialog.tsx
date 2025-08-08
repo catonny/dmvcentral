@@ -53,6 +53,14 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients
         }
     }, [isOpen]);
     
+    const getMissingFields = (client: Client) => {
+        const missing = [];
+        if (client.pan === 'PANNOTAVLBL') missing.push('PAN');
+        if (client.mailId === 'unassigned') missing.push('Email');
+        if (client.mobileNumber === '1111111111') missing.push('Mobile');
+        return missing;
+    };
+    
     const renderEngagementContent = () => (
          <Table>
             <TableHeader className="sticky top-0 bg-muted">
@@ -92,9 +100,7 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients
             <TableHeader className="sticky top-0 bg-muted">
                 <TableRow>
                     <TableHead>Client Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>PAN</TableHead>
+                    <TableHead>Missing Fields</TableHead>
                     <TableHead>Action</TableHead>
                 </TableRow>
             </TableHeader>
@@ -102,20 +108,22 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients
                 {incompleteClients && incompleteClients.length > 0 ? incompleteClients.map(client => {
                     return (
                         <TableRow key={client.id}>
-                            <TableCell>{client.name}</TableCell>
-                            <TableCell>{client.mailId}</TableCell>
-                            <TableCell>{client.mobileNumber}</TableCell>
-                            <TableCell>{client.pan || "N/A"}</TableCell>
+                            <TableCell>{client.Name}</TableCell>
+                            <TableCell>
+                                <div className="flex gap-1">
+                                    {getMissingFields(client).map(field => <Badge key={field} variant="destructive">{field}</Badge>)}
+                                </div>
+                            </TableCell>
                              <TableCell>
                                 <Button variant="link" asChild size="sm">
-                                    <Link href="/clients">Go to Client Manager</Link>
+                                    <Link href="/reports/exceptions/incomplete-clients">Go to report</Link>
                                 </Button>
                              </TableCell>
                         </TableRow>
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center h-24">No clients to display.</TableCell>
+                        <TableCell colSpan={3} className="text-center h-24">No clients to display.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
