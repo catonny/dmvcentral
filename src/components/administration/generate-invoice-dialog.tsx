@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
+import { indianStatesAndUTs } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -66,6 +66,7 @@ export function GenerateInvoiceDialog({
 }: GenerateInvoiceDialogProps) {
   const [lineItems, setLineItems] = React.useState<LineItem[]>([]);
   const [selectedFirmId, setSelectedFirmId] = React.useState<string>("");
+  const [placeOfSupply, setPlaceOfSupply] = React.useState<string>("");
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
 
@@ -85,6 +86,7 @@ export function GenerateInvoiceDialog({
         }];
         setLineItems(initialLineItems);
         setSelectedFirmId(entry.client.firmId || (firms.length > 0 ? firms[0].id : ""));
+        setPlaceOfSupply(entry.client.State || "");
     }
   }, [entry, firms, salesItems, taxRates, hsnSacCodes]);
 
@@ -187,14 +189,25 @@ export function GenerateInvoiceDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-            <div className="w-1/3">
-                <Label htmlFor="firm">Issuing Firm</Label>
-                <Select value={selectedFirmId} onValueChange={setSelectedFirmId}>
-                    <SelectTrigger id="firm"><SelectValue placeholder="Select a firm..." /></SelectTrigger>
-                    <SelectContent>
-                        {firms.map(firm => <SelectItem key={firm.id} value={firm.id}>{firm.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <Label htmlFor="firm">Issuing Firm</Label>
+                    <Select value={selectedFirmId} onValueChange={setSelectedFirmId}>
+                        <SelectTrigger id="firm"><SelectValue placeholder="Select a firm..." /></SelectTrigger>
+                        <SelectContent>
+                            {firms.map(firm => <SelectItem key={firm.id} value={firm.id}>{firm.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <Label htmlFor="placeOfSupply">Place of Supply</Label>
+                     <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
+                        <SelectTrigger id="placeOfSupply"><SelectValue placeholder="Select state..." /></SelectTrigger>
+                        <SelectContent>
+                            {indianStatesAndUTs.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
             <div className="border rounded-lg overflow-hidden">
                  <Table>
