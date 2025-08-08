@@ -166,7 +166,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   }, [user, loading, impersonatedUserId, isSuperAdmin, allEmployees]);
 
   useEffect(() => {
-    if (profileLoading) return;
+    if (profileLoading || !currentUserEmployeeProfile) return;
     
     const userRoles = currentUserEmployeeProfile?.role || [];
     
