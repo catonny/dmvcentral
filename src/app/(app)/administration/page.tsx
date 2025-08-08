@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot } from "lucide-react";
+import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot, MailSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +115,12 @@ export default function AdministrationPage() {
                     description="Use AI to create and assign new engagements for many clients at once."
                     icon={Bot}
                     onClick={() => router.push('/administration/scheduler')}
+                />
+                <ActionCard 
+                    title="Manual Email Processor"
+                    description="Manually trigger the AI to process and categorize an email."
+                    icon={MailSearch}
+                    onClick={() => router.push('/administration/email-processor')}
                 />
             </div>
         </div>
