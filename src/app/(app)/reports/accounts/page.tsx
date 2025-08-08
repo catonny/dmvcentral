@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, FileText, PieChart, ArrowLeft } from "lucide-react";
+import { ArrowRight, FileText, PieChart, ArrowLeft, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export default function AccountsReportsPage() {
             </p>
             </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ActionCard 
                 title="Invoices Report"
                 description="View, filter, and export a detailed list of all generated invoices."
@@ -59,6 +59,12 @@ export default function AccountsReportsPage() {
                 description="Analyze revenue, collections, and pending amounts across the firm."
                 icon={PieChart}
                 onClick={() => router.push('/reports/accounts/revenue')}
+            />
+             <ActionCard 
+                title="Pending Collections"
+                description="Track all invoices that have been billed but are awaiting payment."
+                icon={Hourglass}
+                onClick={() => router.push('/reports/accounts/pending-collections')}
             />
         </div>
     </div>
