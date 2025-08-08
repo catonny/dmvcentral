@@ -278,7 +278,8 @@ export type FeatureName =
     | "calendar"
     | "inbox"
     | "firm-analytics"
-    | "leave-management";
+    | "leave-management"
+    | "agentic-ai";
 
 export const ALL_FEATURES: { id: FeatureName, name: string, description: string }[] = [
     { id: "reports", name: "Reports", description: "Access the firm-wide engagement overview." },
@@ -288,6 +289,7 @@ export const ALL_FEATURES: { id: FeatureName, name: string, description: string 
     { id: "inbox", name: "Inbox", description: "View and manage AI-processed client communications." },
     { id: "firm-analytics", name: "Firm Analytics", description: "View key performance indicators for the firm." },
     { id: "leave-management", name: "Leave Management", description: "Approve or reject employee leave requests." },
+    { id: "agentic-ai", name: "Agentic AI", description: "Access and manage AI-powered agents." },
     { id: "masters", name: "Masters", description: "Create, view, and alter master data." },
     { id: "bulk-import", name: "Bulk Import", description: "Bulk create or update data using CSV files." },
     { id: "employee-management", name: "Employee Management", description: "Manage employee roles and departments." },
