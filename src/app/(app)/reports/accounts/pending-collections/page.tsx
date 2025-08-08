@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, updateDoc, where } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, updateDoc, where, writeBatch, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Engagement, Client, BillStatus, EngagementType, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format, parseISO, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, Loader2, SendToBack } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -103,6 +103,44 @@ export default function PendingCollectionsPage() {
             setProcessingId(null);
         }
     };
+    
+    const handleSendBackToBilling = async (engagement: Engagement) => {
+        setProcessingId(engagement.id);
+        const client = clients.get(engagement.clientId);
+        if (!client) {
+            toast({ title: "Error", description: "Client data not found for this engagement.", variant: "destructive" });
+            setProcessingId(null);
+            return;
+        }
+
+        try {
+            const batch = writeBatch(db);
+            
+            // 1. Update engagement status
+            const engagementRef = doc(db, "engagements", engagement.id);
+            batch.update(engagementRef, { billStatus: "To Bill" });
+
+            // 2. Re-create the pendingInvoices document
+            const pendingInvoiceRef = doc(collection(db, "pendingInvoices"));
+            batch.set(pendingInvoiceRef, {
+                id: pendingInvoiceRef.id,
+                engagementId: engagement.id,
+                clientId: engagement.clientId,
+                assignedTo: engagement.assignedTo,
+                reportedTo: engagement.reportedTo,
+                partnerId: client.partnerId,
+            });
+
+            await batch.commit();
+            toast({ title: "Success!", description: "Engagement sent back to billing dashboard." });
+
+        } catch (error) {
+            console.error("Error sending back to billing:", error);
+            toast({ title: "Error", description: "Could not send engagement back to billing.", variant: "destructive" });
+        } finally {
+            setProcessingId(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -125,7 +163,7 @@ export default function PendingCollectionsPage() {
                                     <TableHead>Billed Date</TableHead>
                                     <TableHead>Days Pending</TableHead>
                                     <TableHead className="text-right">Amount (INR)</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -154,7 +192,16 @@ export default function PendingCollectionsPage() {
                                                         onUpdate={handleUpdateFee}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleSendBackToBilling(engagement)}
+                                                        disabled={isProcessing}
+                                                    >
+                                                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SendToBack className="mr-2 h-4 w-4" />}
+                                                        Back to Billing
+                                                    </Button>
                                                     <Button
                                                         size="sm"
                                                         onClick={() => handleMarkAsCollected(engagement.id)}
