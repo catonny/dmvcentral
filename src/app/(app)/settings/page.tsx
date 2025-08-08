@@ -36,6 +36,8 @@ export default function SettingsPage() {
   const [backupFile, setBackupFile] = React.useState<File | null>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = React.useState(false);
   const [loadingMasterBackup, setLoadingMasterBackup] = React.useState(false);
+  const [backupFileInfo, setBackupFileInfo] = React.useState<{type: 'master' | 'transactional' | 'unknown', date?: string} | null>(null);
+
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
 
@@ -90,10 +92,14 @@ export default function SettingsPage() {
     const fileName = `dmv_central_backup_${type}_${new Date().toISOString().split('T')[0]}.json`;
 
     try {
-      const backupData: { [key: string]: any[] } = {
-        backupType: type,
-        backupDate: new Date().toISOString(),
-      };
+      const backupData: { [key: string]: any[] } = {};
+      
+      // Add metadata to the backup file
+      backupData._metadata = [{
+          backupType: type,
+          backupDate: new Date().toISOString(),
+          version: '1.0'
+      }];
 
       for (const collectionName of collectionsToBackup) {
           const snapshot = await getDocs(query(collection(db, collectionName)));
@@ -129,13 +135,27 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRestoreFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/json') {
       setBackupFile(file);
+       try {
+            const fileContent = await file.text();
+            const backupData = JSON.parse(fileContent);
+            if (backupData._metadata && backupData._metadata[0]) {
+                const { backupType, backupDate } = backupData._metadata[0];
+                setBackupFileInfo({ type: backupType, date: backupDate });
+            } else {
+                setBackupFileInfo({ type: 'unknown' });
+            }
+        } catch (e) {
+            setBackupFileInfo({ type: 'unknown' });
+        }
+
     } else {
       toast({ title: 'Invalid File', description: 'Please select a valid JSON backup file.', variant: 'destructive' });
       setBackupFile(null);
+      setBackupFileInfo(null);
     }
   };
 
@@ -150,11 +170,12 @@ export default function SettingsPage() {
         const fileContent = await backupFile.text();
         const backupData = JSON.parse(fileContent);
 
-        if (!backupData.backupType || !backupData.backupDate) {
-            throw new Error("Invalid backup file: missing backupType or backupDate.");
+        const metadata = backupData._metadata?.[0];
+        if (!metadata || !metadata.backupType) {
+            throw new Error("Invalid backup file: missing _metadata.backupType field.");
         }
 
-        const collectionsToRestore = backupData.backupType === 'transactional'
+        const collectionsToRestore = metadata.backupType === 'transactional'
             ? ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog']
             : ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
         
@@ -184,16 +205,18 @@ export default function SettingsPage() {
 
         toast({
             title: 'Restore Successful',
-            description: `Restored ${totalRestoredCount} records for ${backupData.backupType} data.`,
+            description: `Restored ${totalRestoredCount} records for ${metadata.backupType} data.`,
         });
 
     } catch (error) {
         console.error('Error restoring data:', error);
-        toast({ title: 'Restore Failed', description: 'Failed to restore data. Check the console for details.', variant: 'destructive'});
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({ title: 'Restore Failed', description: `Failed to restore data: ${errorMessage}`, variant: 'destructive'});
     } finally {
         setLoadingRestore(false);
         setIsRestoreConfirmOpen(false);
         setBackupFile(null);
+        setBackupFileInfo(null);
     }
   }
 
@@ -358,7 +381,11 @@ export default function SettingsPage() {
                                 <p className="text-sm text-muted-foreground">
                                     Overwrite existing data from a JSON backup file.
                                 </p>
-                                {backupFile && <p className="text-sm text-primary mt-2">Selected: {backupFile.name}</p>}
+                                {backupFile && (
+                                <p className="text-sm text-primary mt-2">
+                                    Selected: {backupFile.name} ({backupFileInfo?.type || '...'})
+                                </p>
+                                )}
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button asChild variant="outline">
@@ -379,7 +406,7 @@ export default function SettingsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                            This will first delete all existing data for the backup type (master or transactional), then restore from the selected file. This cannot be undone.
+                                            This will first delete all existing <span className="font-bold text-destructive">{backupFileInfo?.type}</span> data, then restore from the selected file. This cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
