@@ -15,8 +15,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
-import { sendEmail } from "@/ai/flows/send-email-flow";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -105,23 +103,9 @@ export default function BillingDashboardPage() {
         }
     }, [toast]);
     
-    const handleGenerateInvoice = async (engagementId: string, pendingInvoiceId: string) => {
+    const handleMarkAsBilled = async (engagementId: string, pendingInvoiceId: string) => {
         setProcessingInvoiceId(engagementId);
         try {
-            // 1. AI generates the invoice
-            toast({ title: "Generating Invoice...", description: "The AI is creating the invoice HTML." });
-            const invoiceData = await generateInvoice({ engagementId });
-            
-            // 2. Open the generated HTML in a new tab for manual review/sending
-            const newTab = window.open();
-            if (newTab) {
-                 newTab.document.write(invoiceData.htmlContent);
-                 newTab.document.close();
-            } else {
-                 toast({ title: "Popup Blocked", description: "Please allow popups for this site to view the invoice.", variant: "destructive" });
-            }
-
-            // 3. Update database state
             const batch = writeBatch(db);
             const engagementRef = doc(db, "engagements", engagementId);
             batch.update(engagementRef, { billStatus: "Pending Collection" });
@@ -131,12 +115,12 @@ export default function BillingDashboardPage() {
 
             await batch.commit();
 
-            toast({ title: "Success!", description: "Invoice generated and opened in a new tab." });
+            toast({ title: "Success!", description: "Engagement marked as billed and moved to collections." });
 
         } catch (error) {
             console.error("Error processing invoice:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            toast({ title: "Invoice Processing Failed", description: errorMessage, variant: "destructive" });
+            toast({ title: "Processing Failed", description: errorMessage, variant: "destructive" });
         } finally {
             setProcessingInvoiceId(null);
         }
@@ -200,11 +184,11 @@ export default function BillingDashboardPage() {
 
                                         const button = (
                                             <Button
-                                                onClick={() => handleGenerateInvoice(engagement.id, pendingInvoiceId)}
+                                                onClick={() => handleMarkAsBilled(engagement.id, pendingInvoiceId)}
                                                 disabled={isProcessing || !hasFee}
                                             >
                                                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Generate Invoice
+                                                Mark as Billed
                                             </Button>
                                         );
 
@@ -223,7 +207,7 @@ export default function BillingDashboardPage() {
                                                                 <span>{button}</span>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                <p>Cannot generate invoice: Fee is not set for this engagement.</p>
+                                                                <p>Cannot mark as billed: Fee is not set for this engagement.</p>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     ) : button}
