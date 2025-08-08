@@ -38,20 +38,25 @@ const ReportCard = ({ title, description, icon: Icon, onClick, isDisabled = fals
 );
 
 export default function ReportsPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
     const [hasAccess, setHasAccess] = React.useState(false);
 
     React.useEffect(() => {
-        if (!user) return;
+        if (authLoading) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         
         const checkUserRole = async () => {
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
             const employeeSnapshot = await getDocs(employeeQuery);
             if (!employeeSnapshot.empty) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner")) {
+                // A user has access if they are a partner or admin.
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
                     setHasAccess(true);
                 }
             }
@@ -59,7 +64,7 @@ export default function ReportsPage() {
         };
         checkUserRole();
 
-    }, [user]);
+    }, [user, authLoading]);
 
      if (loading) {
         return (
@@ -76,7 +81,7 @@ export default function ReportsPage() {
                     <CardTitle>Access Denied</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p>You do not have the required permissions to view this page. This view is for Partners only.</p>
+                    <p>You do not have the required permissions to view reports. This view is for Partners and Admins only.</p>
                 </CardContent>
             </Card>
         );
