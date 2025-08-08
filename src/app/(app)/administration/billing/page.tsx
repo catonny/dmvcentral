@@ -104,21 +104,22 @@ export default function BillingDashboardPage() {
         }
     }, [toast]);
     
-    const handleGenerateAndSendInvoice = async (engagementId: string, pendingInvoiceId: string) => {
+    const handleGenerateInvoice = async (engagementId: string, pendingInvoiceId: string) => {
         setProcessingInvoiceId(engagementId);
         try {
             // 1. AI generates the invoice
-            toast({ title: "Generating Invoice...", description: "The AI is creating the invoice." });
+            toast({ title: "Generating Invoice...", description: "The AI is creating the invoice HTML." });
             const invoiceData = await generateInvoice({ engagementId });
-
-            // 2. Send the invoice via email
-            toast({ title: "Sending Email...", description: `Sending invoice to ${invoiceData.recipientEmail}.` });
-            await sendEmail({
-                recipientEmails: [invoiceData.recipientEmail],
-                subject: invoiceData.subject,
-                body: invoiceData.htmlContent,
-            });
             
+            // 2. Open the generated HTML in a new tab for manual review/sending
+            const newTab = window.open();
+            if (newTab) {
+                 newTab.document.write(invoiceData.htmlContent);
+                 newTab.document.close();
+            } else {
+                 toast({ title: "Popup Blocked", description: "Please allow popups for this site to view the invoice.", variant: "destructive" });
+            }
+
             // 3. Update database state
             const batch = writeBatch(db);
             const engagementRef = doc(db, "engagements", engagementId);
@@ -129,7 +130,7 @@ export default function BillingDashboardPage() {
 
             await batch.commit();
 
-            toast({ title: "Success!", description: "Invoice generated and sent to the client." });
+            toast({ title: "Success!", description: "Invoice generated and opened in a new tab." });
 
         } catch (error) {
             console.error("Error processing invoice:", error);
@@ -204,11 +205,11 @@ export default function BillingDashboardPage() {
                                                 <TableCell>{engagement.remarks}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button
-                                                        onClick={() => handleGenerateAndSendInvoice(engagement.id, pendingInvoiceId)}
+                                                        onClick={() => handleGenerateInvoice(engagement.id, pendingInvoiceId)}
                                                         disabled={isProcessing}
                                                     >
                                                         {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                        Generate & Send Invoice
+                                                        Generate Invoice
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -268,4 +269,4 @@ export default function BillingDashboardPage() {
         </div>
     );
 
-    
+  
