@@ -118,27 +118,18 @@ export default function WorkflowPage() {
                     setTeamEngagements(supervisedEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
                 });
 
-
-                const allEngagementIds = [...myEngagements.map(e => e.id), ...teamEngagements.map(e => e.id)];
-                if (allEngagementIds.length > 0) {
-                     const tasksQuery = query(collection(db, "tasks"), where("engagementId", "in", allEngagementIds));
-                     const unsubTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
-                        setTasks(tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
-                     });
-                      return () => {
-                        unsubMyEngagements();
-                        unsubTeamEngagements();
-                        clientsUnsub();
-                        unsubTasks();
-                    }
-                } else {
-                    setTasks([]);
-                }
+                // Fetch all active tasks and filter them client-side to avoid 'IN' query limit.
+                const allTasksQuery = query(collection(db, "tasks"), where("status", "==", "Pending"));
+                const unsubTasks = onSnapshot(allTasksQuery, (tasksSnapshot) => {
+                    const allTasks = tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task));
+                    setTasks(allTasks);
+                });
 
                 return () => {
                     unsubMyEngagements();
                     unsubTeamEngagements();
                     clientsUnsub();
+                    unsubTasks();
                 }
 
              } catch(error) {
@@ -149,7 +140,7 @@ export default function WorkflowPage() {
         
         fetchInitialData();
 
-    }, [user, teamEngagements, myEngagements]);
+    }, [user]);
 
     if (loading) {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Your Workflow...</div>;
