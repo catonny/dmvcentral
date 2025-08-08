@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, where } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, where, addDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee, Firm, SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
+import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee, Firm, SalesItem, TaxRate, HsnSacCode, Invoice, InvoiceLineItem } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle, PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GenerateInvoiceDialog } from "@/components/administration/generate-invoice-dialog";
+import { CreateAdHocInvoiceDialog } from "@/components/administration/create-ad-hoc-invoice-dialog";
 
 interface BillingDashboardEntry {
     engagement: Engagement;
@@ -36,27 +37,37 @@ export default function BillingDashboardPage() {
     const [salesItems, setSalesItems] = React.useState<SalesItem[]>([]);
     const [taxRates, setTaxRates] = React.useState<TaxRate[]>([]);
     const [hsnSacCodes, setHsnSacCodes] = React.useState<HsnSacCode[]>([]);
+    const [allClients, setAllClients] = React.useState<Client[]>([]);
+    const [allEngagementTypes, setAllEngagementTypes] = React.useState<EngagementType[]>([]);
+    const [allEmployees, setAllEmployeesList] = React.useState<Employee[]>([]);
+
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = React.useState(false);
+    const [isAdHocDialogOpen, setIsAdHocDialogOpen] = React.useState(false);
     const [selectedEntry, setSelectedEntry] = React.useState<BillingDashboardEntry | null>(null);
 
     React.useEffect(() => {
         const fetchAndSetStaticData = async () => {
             try {
-                const [employeeSnapshot, firmSnapshot, salesItemSnapshot, taxRateSnapshot, hsnSacSnapshot] = await Promise.all([
+                const [employeeSnapshot, firmSnapshot, salesItemSnapshot, taxRateSnapshot, hsnSacSnapshot, clientSnapshot, engagementTypeSnapshot] = await Promise.all([
                     getDocs(collection(db, "employees")),
                     getDocs(collection(db, "firms")),
                     getDocs(collection(db, "salesItems")),
                     getDocs(collection(db, "taxRates")),
                     getDocs(collection(db, "hsnSacCodes")),
+                    getDocs(collection(db, "clients")),
+                    getDocs(collection(db, "engagementTypes")),
                 ]);
                 setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
                 setFirms(firmSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Firm)));
                 setSalesItems(salesItemSnapshot.docs.map(doc => doc.data() as SalesItem));
                 setTaxRates(taxRateSnapshot.docs.map(doc => doc.data() as TaxRate));
                 setHsnSacCodes(hsnSacSnapshot.docs.map(doc => doc.data() as HsnSacCode));
+                setAllClients(clientSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Client)));
+                setAllEngagementTypes(engagementTypeSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as EngagementType)));
+                setAllEmployeesList(employeeSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Employee)));
 
             } catch (error) {
                  console.error("Error fetching static data:", error);
@@ -134,21 +145,25 @@ export default function BillingDashboardPage() {
         setIsInvoiceDialogOpen(true);
     };
 
-    const handleSaveInvoice = async (engagementId: string, fee: number) => {
+    const handleSaveInvoice = async (engagementId: string, invoiceData: Omit<Invoice, 'id'>) => {
         try {
             const batch = writeBatch(db);
+            
             const engagementRef = doc(db, "engagements", engagementId);
-            batch.update(engagementRef, { billStatus: "Pending Collection", fees: fee });
+            batch.update(engagementRef, { billStatus: "Pending Collection", fees: invoiceData.totalAmount });
             
             const pendingInvoice = billingEntries.find(be => be.engagement.id === engagementId);
             if(pendingInvoice) {
                 const pendingInvoiceRef = doc(db, "pendingInvoices", pendingInvoice.pendingInvoiceId);
                 batch.delete(pendingInvoiceRef);
             }
+            
+            const newInvoiceRef = doc(collection(db, "invoices"));
+            batch.set(newInvoiceRef, { ...invoiceData, id: newInvoiceRef.id });
 
             await batch.commit();
 
-            toast({ title: "Success!", description: "Engagement marked as billed and moved to collections." });
+            toast({ title: "Success!", description: "Invoice created and engagement moved to collections." });
             setIsInvoiceDialogOpen(false);
             setSelectedEntry(null);
 
@@ -158,6 +173,41 @@ export default function BillingDashboardPage() {
             toast({ title: "Processing Failed", description: errorMessage, variant: "destructive" });
         }
     };
+    
+    const handleSaveAdHocInvoice = async (invoiceData: Omit<Invoice, 'id'>, engagementData: Omit<Engagement, 'id'>) => {
+        try {
+             const batch = writeBatch(db);
+
+            // 1. Create the new engagement
+            const newEngagementRef = doc(collection(db, "engagements"));
+            const finalEngagementData = {
+                ...engagementData,
+                id: newEngagementRef.id,
+                status: "Completed",
+                billStatus: "Pending Collection",
+                billSubmissionDate: new Date().toISOString()
+            } as Engagement;
+            batch.set(newEngagementRef, finalEngagementData);
+
+            // 2. Create the new invoice, linking it to the new engagement
+            const newInvoiceRef = doc(collection(db, "invoices"));
+            const finalInvoiceData = {
+                ...invoiceData,
+                id: newInvoiceRef.id,
+                engagementId: newEngagementRef.id,
+            };
+            batch.set(newInvoiceRef, finalInvoiceData);
+
+            await batch.commit();
+            
+            toast({ title: "Success!", description: "Ad-hoc invoice and corresponding engagement created." });
+            setIsAdHocDialogOpen(false);
+        } catch (error) {
+            console.error("Error processing ad-hoc invoice:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ title: "Processing Failed", description: errorMessage, variant: "destructive" });
+        }
+    }
 
     const paginatedEntries = billingEntries.slice(
         pageIndex * pageSize,
@@ -178,17 +228,23 @@ export default function BillingDashboardPage() {
                             <CardTitle>Billing Pending Dashboard</CardTitle>
                             <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
                         </div>
-                        {unbilledCount > 0 && (
-                            <Button variant="outline" className="relative" asChild>
-                            <Link href="/reports/exceptions/unbilled-engagements">
-                                    <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
-                                    Unbilled Engagements
-                                    <Badge variant="destructive" className="absolute -top-2 -right-2">
-                                        {unbilledCount}
-                                    </Badge>
-                            </Link>
+                        <div className="flex items-center gap-2">
+                            {unbilledCount > 0 && (
+                                <Button variant="outline" className="relative" asChild>
+                                <Link href="/reports/exceptions/unbilled-engagements">
+                                        <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
+                                        Unbilled Engagements
+                                        <Badge variant="destructive" className="absolute -top-2 -right-2">
+                                            {unbilledCount}
+                                        </Badge>
+                                </Link>
+                                </Button>
+                            )}
+                             <Button onClick={() => setIsAdHocDialogOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create Ad-Hoc Invoice
                             </Button>
-                        )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <ScrollArea className="w-full whitespace-nowrap">
@@ -289,6 +345,18 @@ export default function BillingDashboardPage() {
                 salesItems={salesItems}
                 taxRates={taxRates}
                 hsnSacCodes={hsnSacCodes}
+            />
+            <CreateAdHocInvoiceDialog
+                isOpen={isAdHocDialogOpen}
+                onClose={() => setIsAdHocDialogOpen(false)}
+                onSave={handleSaveAdHocInvoice}
+                firms={firms}
+                salesItems={salesItems}
+                taxRates={taxRates}
+                hsnSacCodes={hsnSacCodes}
+                clients={allClients}
+                engagementTypes={allEngagementTypes}
+                employees={allEmployees}
             />
         </>
     );

@@ -8,21 +8,70 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CalendarIcon, Download } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Download, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DateRange } from "react-day-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import type { Invoice, Firm } from "@/lib/data";
 
 export default function InvoicesReportPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [firms, setFirms] = React.useState<Firm[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filteredInvoices, setFilteredInvoices] = React.useState<Invoice[]>([]);
+
+  const [selectedFirmId, setSelectedFirmId] = React.useState<string>("all");
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: addDays(new Date(), -90),
     to: new Date(),
   });
+
+  React.useEffect(() => {
+    setLoading(true);
+    const unsubInvoices = onSnapshot(collection(db, "invoices"), (snapshot) => {
+        setInvoices(snapshot.docs.map(doc => doc.data() as Invoice));
+        setLoading(false);
+    }, (error) => {
+        toast({ title: "Error", description: "Failed to fetch invoices.", variant: "destructive" });
+        setLoading(false);
+    });
+
+    const unsubFirms = onSnapshot(collection(db, "firms"), (snapshot) => {
+        setFirms(snapshot.docs.map(doc => doc.data() as Firm));
+    });
+
+    return () => {
+        unsubInvoices();
+        unsubFirms();
+    };
+  }, [toast]);
+  
+  React.useEffect(() => {
+      let filtered = invoices;
+
+      if (selectedFirmId !== "all") {
+          filtered = filtered.filter(inv => inv.firmId === selectedFirmId);
+      }
+
+      if (date?.from && date?.to) {
+           filtered = filtered.filter(inv => {
+               const issueDate = parseISO(inv.issueDate);
+               return issueDate >= date.from! && issueDate <= date.to!;
+           });
+      }
+      
+      setFilteredInvoices(filtered);
+
+  }, [invoices, selectedFirmId, date]);
+
 
   return (
     <div className="space-y-6">
@@ -40,11 +89,11 @@ export default function InvoicesReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div className="grid gap-2">
                         <Label>Firm</Label>
-                        <Select defaultValue="all">
+                        <Select value={selectedFirmId} onValueChange={setSelectedFirmId}>
                             <SelectTrigger><SelectValue/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Firms</SelectItem>
-                                <SelectItem value="dmv">Davis, Martin & Varghese</SelectItem>
+                                {firms.map(firm => <SelectItem key={firm.id} value={firm.id}>{firm.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
@@ -88,28 +137,17 @@ export default function InvoicesReportPage() {
                         </Popover>
                     </div>
                      <div className="flex gap-2 items-end">
-                        <Button variant="outline" className="w-full">This Month</Button>
-                        <Button variant="outline" className="w-full">This Quarter</Button>
-                        <Button variant="outline" className="w-full">FY 24-25</Button>
+                        <Button variant="outline" className="w-full" onClick={() => setDate({from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), to: new Date()})}>This Month</Button>
+                        <Button variant="outline" className="w-full" onClick={() => setDate({from: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1), to: new Date()})}>This Quarter</Button>
                     </div>
-                    <div className="grid gap-2">
-                        <Label>Group By</Label>
-                         <Select defaultValue="none">
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="client">Client</SelectItem>
-                                <SelectItem value="engagementType">Engagement Type</SelectItem>
-                            </SelectContent>
-                        </Select>
+                     <div className="flex justify-end col-span-full lg:col-span-1">
+                        <Button disabled>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export to CSV
+                        </Button>
                     </div>
                 </div>
-                 <div className="flex justify-end">
-                    <Button>
-                        <Download className="mr-2 h-4 w-4" />
-                        Export to CSV
-                    </Button>
-                </div>
+                
                 <ScrollArea className="h-96 w-full rounded-md border">
                     <Table>
                         <TableHeader>
@@ -117,16 +155,30 @@ export default function InvoicesReportPage() {
                                 <TableHead>Invoice #</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Client</TableHead>
-                                <TableHead>Engagement</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                             </TableRow>
                         </TableHeader>
                          <TableBody>
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                                    Data will be loaded here based on your filters.
-                                </TableCell>
-                            </TableRow>
+                             {loading ? (
+                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                             ) : filteredInvoices.length > 0 ? (
+                                 filteredInvoices.map(invoice => (
+                                     <TableRow key={invoice.id}>
+                                         <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                                         <TableCell>{format(parseISO(invoice.issueDate), 'dd MMM, yyyy')}</TableCell>
+                                         <TableCell>{invoice.clientName}</TableCell>
+                                         <TableCell>{invoice.status}</TableCell>
+                                         <TableCell className="text-right font-mono">₹{invoice.totalAmount.toFixed(2)}</TableCell>
+                                     </TableRow>
+                                 ))
+                             ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                        No invoices found for the selected filters.
+                                    </TableCell>
+                                </TableRow>
+                             )}
                         </TableBody>
                     </Table>
                 </ScrollArea>

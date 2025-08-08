@@ -111,6 +111,36 @@ export interface Engagement {
   recurringEngagementId?: string;
 }
 
+export interface InvoiceLineItem {
+    salesItemId: string;
+    description: string;
+    quantity: number;
+    rate: number;
+    discount: number;
+    taxRateId: string;
+    taxAmount: number;
+    sacCodeId: string;
+    total: number;
+}
+
+export interface Invoice {
+    id: string;
+    invoiceNumber: string;
+    clientId: string;
+    clientName: string;
+    engagementId: string;
+    firmId: string;
+    issueDate: string; // ISO 8601
+    dueDate: string; // ISO 8601
+    lineItems: InvoiceLineItem[];
+    subTotal: number;
+    totalDiscount: number;
+    taxableAmount: number;
+    totalTax: number;
+    totalAmount: number;
+    status: 'Draft' | 'Sent' | 'Paid' | 'Cancelled';
+}
+
 export interface RecurringEngagement {
   id: string;
   clientId: string;
