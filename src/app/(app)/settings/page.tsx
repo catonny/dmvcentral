@@ -150,10 +150,12 @@ export default function SettingsPage() {
         let totalRestoredCount = 0;
         for (const collectionName of collectionsToRestore) {
             if (Array.isArray(backupData[collectionName])) {
-                backupData[collectionName].forEach((item: any) => {
+                for(const item of backupData[collectionName]) {
                     const docRef = item.id ? doc(db, collectionName, item.id) : doc(collection(db, collectionName));
-                    batch.set(docRef, item);
-                });
+                     // Ensure the 'id' field is consistent with the document ID
+                    const dataToSet = { ...item, id: docRef.id };
+                    batch.set(docRef, dataToSet);
+                }
                 totalRestoredCount += backupData[collectionName].length;
             }
         }
@@ -359,7 +361,7 @@ export default function SettingsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                            This will first delete all existing <span className="font-bold text-destructive">{backupFileInfo?.type}</span> data, then restore from the selected file. This cannot be undone.
+                                            You are about to restore a <span className="font-bold text-primary">{backupFileInfo?.type}</span> backup. This will first delete all existing <span className="font-bold text-destructive">{backupFileInfo?.type}</span> data and then replace it with data from the backup file. This action cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
