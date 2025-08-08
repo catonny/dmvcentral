@@ -151,9 +151,11 @@ export function GenerateInvoiceDialog({
       let subTotal = 0;
       let cgst = 0;
       let sgst = 0;
+      let igst = 0;
       
       const selectedFirm = firms.find(f => f.id === selectedFirmId);
       const firmHasGst = !!selectedFirm?.gstn;
+      const isInterstate = selectedFirm?.state !== placeOfSupply;
 
       lineItems.forEach(item => {
           const amount = item.quantity * item.rate;
@@ -163,17 +165,21 @@ export function GenerateInvoiceDialog({
               const tax = taxRates.find(t => t.id === item.taxRateId);
               if (tax && tax.rate > 0) {
                   const taxAmount = amount * (tax.rate / 100);
-                  cgst += taxAmount / 2;
-                  sgst += taxAmount / 2;
+                  if (isInterstate) {
+                      igst += taxAmount;
+                  } else {
+                      cgst += taxAmount / 2;
+                      sgst += taxAmount / 2;
+                  }
               }
           }
       });
       
-      const total = subTotal + cgst + sgst;
-      return { subTotal, cgst, sgst, total };
+      const total = subTotal + cgst + sgst + igst;
+      return { subTotal, cgst, sgst, igst, total };
   }
   
-  const { subTotal, cgst, sgst, total } = calculateTotals();
+  const { subTotal, cgst, sgst, igst, total } = calculateTotals();
 
   if (!entry) return null;
 
@@ -259,6 +265,7 @@ export function GenerateInvoiceDialog({
             <div className="flex justify-end">
                 <div className="w-1/3 space-y-2">
                     <div className="flex justify-between font-mono"><span className="text-muted-foreground">Sub Total:</span> <span>{subTotal.toFixed(2)}</span></div>
+                    {igst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">IGST:</span> <span>{igst.toFixed(2)}</span></div>}
                     {cgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">CGST:</span> <span>{cgst.toFixed(2)}</span></div>}
                     {sgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">SGST:</span> <span>{sgst.toFixed(2)}</span></div>}
                     <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2"><span className="text-foreground">Total:</span> <span>₹{total.toFixed(2)}</span></div>
@@ -286,5 +293,3 @@ export function GenerateInvoiceDialog({
     </>
   );
 }
-
-    
