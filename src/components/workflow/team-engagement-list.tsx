@@ -167,7 +167,7 @@ export function TeamEngagementList({
                                 </TableCell>
                             </TableRow>
                             <CollapsibleContent asChild>
-                                <>
+                                <React.Fragment>
                                 {engagementsInGroup.map(eng => (
                                      <TableRow key={eng.id}>
                                         <TableCell></TableCell>
@@ -190,7 +190,7 @@ export function TeamEngagementList({
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                </>
+                                </React.Fragment>
                             </CollapsibleContent>
                         </TableBody>
                     </Collapsible>
