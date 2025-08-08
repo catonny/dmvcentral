@@ -19,82 +19,42 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2 } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loadingDeleteTransactional, setLoadingDeleteTransactional] = React.useState(false);
   const [loadingDeleteMaster, setLoadingDeleteMaster] = React.useState(false);
-  const [loadingBackup, setLoadingBackup] = React.useState(false);
+  const [loadingBackup, setLoadingBackup] = React.useState<string | null>(null);
   const [loadingRestore, setLoadingRestore] = React.useState(false);
-  const [loadingExport, setLoadingExport] = React.useState<string | null>(null);
   const [backupFile, setBackupFile] = React.useState<File | null>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = React.useState(false);
-  const [loadingMasterBackup, setLoadingMasterBackup] = React.useState(false);
-  const [backupFileInfo, setBackupFileInfo] = React.useState<{type: 'master' | 'transactional' | 'unknown', date?: string} | null>(null);
-
+  const [backupFileInfo, setBackupFileInfo] = React.useState<{type: 'master' | 'transactional' | 'full' | 'unknown', date?: string} | null>(null);
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
-
-  const handleExportToCSV = async (collectionName: 'clients' | 'engagements' | 'employees', fileName: string) => {
-    setLoadingExport(collectionName);
-    try {
-        const q = query(collection(db, collectionName));
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        if (data.length === 0) {
-            toast({ title: "No Data", description: `There is no data in the ${collectionName} collection to export.`, variant: "destructive" });
-            return;
-        }
-
-        const csv = Papa.unparse(data);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${fileName}_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        toast({
-            title: 'Export Successful',
-            description: `${data.length} records from ${collectionName} have been exported.`,
-        });
-
-    } catch (error) {
-        console.error(`Error exporting ${collectionName}:`, error);
-        toast({
-            title: 'Export Failed',
-            description: `Could not export ${collectionName} data.`,
-            variant: 'destructive',
-        });
-    } finally {
-        setLoadingExport(null);
-    }
-  };
-
-  const handleBackup = async (type: 'transactional' | 'master') => {
-    if (type === 'transactional') setLoadingBackup(true);
-    if (type === 'master') setLoadingMasterBackup(true);
-
-    const collectionsToBackup = type === 'transactional'
-        ? ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog']
-        : ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+  
+  const handleBackup = async (type: 'transactional' | 'master' | 'full') => {
+    setLoadingBackup(type);
+    
+    const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+    const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
+    
+    let collectionsToBackup: string[] = [];
+    if (type === 'transactional') collectionsToBackup = transactionalCollections;
+    else if (type === 'master') collectionsToBackup = masterCollections;
+    else if (type === 'full') collectionsToBackup = [...masterCollections, ...transactionalCollections];
     
     const fileName = `dmv_central_backup_${type}_${new Date().toISOString().split('T')[0]}.json`;
 
     try {
       const backupData: { [key: string]: any[] } = {};
       
-      // Add metadata to the backup file
       backupData._metadata = [{
           backupType: type,
           backupDate: new Date().toISOString(),
@@ -130,8 +90,7 @@ export default function SettingsPage() {
         variant: 'destructive',
       });
     } finally {
-        if (type === 'transactional') setLoadingBackup(false);
-        if (type === 'master') setLoadingMasterBackup(false);
+        setLoadingBackup(null);
     }
   };
 
@@ -160,8 +119,8 @@ export default function SettingsPage() {
   };
 
   const handleRestoreData = async () => {
-    if (!backupFile) {
-        toast({ title: 'No File', description: 'Please select a backup file to restore.', variant: 'destructive'});
+    if (!backupFile || !backupFileInfo?.type || backupFileInfo.type === 'unknown') {
+        toast({ title: 'No File or Invalid Type', description: 'Please select a valid backup file to restore.', variant: 'destructive'});
         return;
     }
 
@@ -170,26 +129,23 @@ export default function SettingsPage() {
         const fileContent = await backupFile.text();
         const backupData = JSON.parse(fileContent);
 
-        const metadata = backupData._metadata?.[0];
-        if (!metadata || !metadata.backupType) {
-            throw new Error("Invalid backup file: missing _metadata.backupType field.");
-        }
+        const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+        const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
 
-        const collectionsToRestore = metadata.backupType === 'transactional'
-            ? ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog']
-            : ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+        let collectionsToRestore: string[] = [];
+        if (backupFileInfo.type === 'transactional') collectionsToRestore = transactionalCollections;
+        else if (backupFileInfo.type === 'master') collectionsToRestore = masterCollections;
+        else if (backupFileInfo.type === 'full') collectionsToRestore = [...masterCollections, ...transactionalCollections];
         
         const batch = writeBatch(db);
 
-        // Delete existing data from collections being restored
         for (const collectionName of collectionsToRestore) {
-            if (backupData[collectionName]) { // Only delete if data for it exists in backup
+            if (backupData[collectionName]) {
                  const existingDocs = await getDocs(query(collection(db, collectionName)));
                  existingDocs.forEach(doc => batch.delete(doc.ref));
             }
         }
         
-        // Add new data from backup
         let totalRestoredCount = 0;
         for (const collectionName of collectionsToRestore) {
             if (Array.isArray(backupData[collectionName])) {
@@ -205,7 +161,7 @@ export default function SettingsPage() {
 
         toast({
             title: 'Restore Successful',
-            description: `Restored ${totalRestoredCount} records for ${metadata.backupType} data.`,
+            description: `Restored ${totalRestoredCount} records for ${backupFileInfo.type} data.`,
         });
 
     } catch (error) {
@@ -320,64 +276,59 @@ export default function SettingsPage() {
             </Button>
             </CardHeader>
         </Card>
-        <Card>
-            <CardHeader>
-            <CardTitle>Data Management</CardTitle>
-            <CardDescription>
-                Use these options to manage the data in your application.
-            </CardDescription>
-            </CardHeader>
-            <CardContent>
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="rounded-lg border border-border p-4 flex flex-col gap-4">
-                        <h3 className="font-semibold text-lg border-b pb-2">Export Data to CSV</h3>
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">Export all client data.</p>
-                            <Button variant="outline" onClick={() => handleExportToCSV('clients', 'clients_export')} disabled={!!loadingExport}>
-                                {loadingExport === 'clients' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                Export Clients
+
+        <Dialog>
+            <DialogTrigger asChild>
+                 <Card className='cursor-pointer hover:border-primary/80 hover:shadow-primary/20 transition-all group'>
+                    <CardHeader>
+                    <div className="flex justify-between items-start">
+                         <div>
+                            <CardTitle className='flex items-center gap-2'><Database /> Data Management</CardTitle>
+                            <CardDescription>
+                                Export, backup, and restore your firm's data.
+                            </CardDescription>
+                         </div>
+                         <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    </CardHeader>
+                </Card>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Data Management</DialogTitle>
+                    <DialogDescription>
+                        Use these options to manage the data in your application.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                     <div className="rounded-lg border p-4 space-y-4">
+                        <h3 className="font-semibold">Backup Data</h3>
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Master Data (Employees, Types, etc.)</p>
+                            <Button variant="outline" onClick={() => handleBackup('master')} disabled={!!loadingBackup}>
+                                {loadingBackup === 'master' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                Backup Master
                             </Button>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">Export all engagement data.</p>
-                            <Button variant="outline" onClick={() => handleExportToCSV('engagements', 'engagements_export')} disabled={!!loadingExport}>
-                                {loadingExport === 'engagements' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                Export Engagements
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Transactional Data (Clients, Engagements)</p>
+                            <Button variant="outline" onClick={() => handleBackup('transactional')} disabled={!!loadingBackup}>
+                                {loadingBackup === 'transactional' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                Backup Transactional
                             </Button>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">Export all employee data.</p>
-                            <Button variant="outline" onClick={() => handleExportToCSV('employees', 'employees_export')} disabled={!!loadingExport}>
-                                {loadingExport === 'employees' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                Export Employees
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Complete backup of all data.</p>
+                             <Button variant="outline" onClick={() => handleBackup('full')} disabled={!!loadingBackup}>
+                                {loadingBackup === 'full' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                Backup All Data
                             </Button>
                         </div>
                     </div>
-
-                    <div className="rounded-lg border border-border p-4 flex flex-col gap-4">
-                        <h3 className="font-semibold text-lg border-b pb-2">Backup & Restore</h3>
-                         <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold">Backup All Data</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Download JSON files of your data.
-                                </p>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Button variant="outline" onClick={() => handleBackup('transactional')} disabled={loadingBackup}>
-                                    {loadingBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Backup Transactional
-                                </Button>
-                                <Button variant="outline" onClick={() => handleBackup('master')} disabled={loadingMasterBackup}>
-                                    {loadingMasterBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Backup Master
-                                </Button>
-                            </div>
-                        </div>
+                     <div className="rounded-lg border p-4 space-y-4">
+                        <h3 className="font-semibold">Restore Data</h3>
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="font-semibold">Restore Data</h3>
                                 <p className="text-sm text-muted-foreground">
                                     Overwrite existing data from a JSON backup file.
                                 </p>
@@ -391,7 +342,7 @@ export default function SettingsPage() {
                                 <Button asChild variant="outline">
                                     <label htmlFor="restore-file-input">
                                         <Upload className="mr-2 h-4 w-4" />
-                                        Select
+                                        Select File
                                         <Input id="restore-file-input" type="file" accept="application/json" className="hidden" onChange={handleRestoreFileSelect} />
                                     </label>
                                 </Button>
@@ -419,9 +370,8 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-            </div>
-            </CardContent>
-        </Card>
+            </DialogContent>
+        </Dialog>
 
         <Card className="border-destructive">
              <CardHeader>
