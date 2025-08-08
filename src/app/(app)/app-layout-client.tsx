@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Logo } from "@/components/logo";
@@ -166,12 +165,11 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   }, [user, loading, impersonatedUserId, isSuperAdmin, allEmployees]);
 
   useEffect(() => {
-    if (profileLoading || !currentUserEmployeeProfile) return;
-    
-    const userRoles = currentUserEmployeeProfile?.role || [];
+    if (profileLoading) return;
     
     const checkPermission = (feature: FeatureName) => {
         if (isSuperAdmin) return true;
+        const userRoles = currentUserEmployeeProfile?.role || [];
         const permission = permissions.find(p => p.feature === feature);
         if (!permission) return false;
         return userRoles.some(role => permission.departments.includes(role));
