@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Employee } from "@/lib/data";
+import type { Employee, Permission } from "@/lib/data";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowRight, Bot, Mail, Users, CalendarCheck2, FileText, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -91,12 +91,18 @@ export default function AgenticAIPage() {
 
         const checkUserRole = async () => {
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
-            if (!employeeSnapshot.empty) {
+            const [employeeSnapshot, permissionsSnapshot] = await Promise.all([
+                getDocs(employeeQuery),
+                getDocs(collection(db, "permissions"))
+            ]);
+            
+            const permissions = permissionsSnapshot.docs.map(doc => doc.data() as Permission);
+            const agenticAIPermission = permissions.find(p => p.feature === 'agentic-ai');
+            
+            if (!employeeSnapshot.empty && agenticAIPermission) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Admin")) {
-                    setHasAccess(true);
-                }
+                const userHasPermission = employeeData.role.some(role => agenticAIPermission.departments.includes(role));
+                setHasAccess(userHasPermission);
             }
             setLoading(false);
         };
