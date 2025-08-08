@@ -34,6 +34,7 @@ interface LineItem {
     description: string;
     quantity: number;
     rate: number;
+    discount: number;
     taxRateId: string;
     sacCodeId: string;
 }
@@ -67,7 +68,7 @@ export function GenerateInvoiceDialog({
   const [selectedFirmId, setSelectedFirmId] = React.useState<string>("");
   const [placeOfSupply, setPlaceOfSupply] = React.useState<string>("");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [discount, setDiscount] = React.useState<number>(0);
+  const [additionalDiscount, setAdditionalDiscount] = React.useState<number>(0);
   const { toast } = useToast();
   
   const [isSalesItemDialogOpen, setIsSalesItemDialogOpen] = React.useState(false);
@@ -83,13 +84,14 @@ export function GenerateInvoiceDialog({
             description: entry.engagement.remarks,
             quantity: 1,
             rate: entry.engagement.fees || matchingSalesItem?.standardPrice || 0,
+            discount: 0,
             taxRateId: matchingSalesItem?.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || '',
             sacCodeId: matchingSalesItem?.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || ''
         }];
         setLineItems(initialLineItems);
         setSelectedFirmId(entry.client.firmId || (firms.length > 0 ? firms[0].id : ""));
         setPlaceOfSupply(entry.client.State || "");
-        setDiscount(0);
+        setAdditionalDiscount(0);
     }
   }, [entry, firms, salesItems, taxRates, hsnSacCodes]);
 
@@ -137,6 +139,7 @@ export function GenerateInvoiceDialog({
         description: '',
         quantity: 1,
         rate: 0,
+        discount: 0,
         taxRateId: taxRates.find(t => t.isDefault)?.id || '',
         sacCodeId: hsnSacCodes.find(h => h.isDefault)?.id || ''
       }]);
@@ -147,7 +150,8 @@ export function GenerateInvoiceDialog({
   }
   
   const calculateTotals = () => {
-      let subTotal = 0;
+      let grossTotal = 0;
+      let totalLineItemDiscount = 0;
       let cgst = 0;
       let sgst = 0;
       let igst = 0;
@@ -157,32 +161,40 @@ export function GenerateInvoiceDialog({
       const isInterstate = selectedFirm?.state !== placeOfSupply;
 
       lineItems.forEach(item => {
-          const amount = item.quantity * item.rate;
-          subTotal += amount;
+          grossTotal += item.quantity * item.rate;
+          totalLineItemDiscount += item.discount;
       });
-
-      const taxableAmount = subTotal - discount;
       
-      if (firmHasGst) {
+      const subTotal = grossTotal - totalLineItemDiscount;
+      const taxableAmount = subTotal - additionalDiscount;
+      
+      if (firmHasGst && taxableAmount > 0) {
           lineItems.forEach(item => {
-              const itemAmount = item.quantity * item.rate;
-              // Distribute discount proportionally for tax calculation if needed, for now use total taxable amount
-              const itemTaxableAmount = (itemAmount / subTotal) * taxableAmount;
-              const tax = taxRates.find(t => t.id === item.taxRateId);
-              if (tax && tax.rate > 0) {
-                  const taxAmount = itemTaxableAmount * (tax.rate / 100);
-                  if (isInterstate) {
-                      igst += taxAmount;
-                  } else {
-                      cgst += taxAmount / 2;
-                      sgst += taxAmount / 2;
-                  }
+              const itemTotal = item.quantity * item.rate;
+              const itemDiscount = item.discount;
+              const itemTaxableAmount = itemTotal - itemDiscount;
+
+              if (itemTaxableAmount > 0) {
+                const tax = taxRates.find(t => t.id === item.taxRateId);
+                if (tax && tax.rate > 0) {
+                    // Apply additional discount proportionally for tax calculation
+                    const proportionalAdditionalDiscount = (itemTaxableAmount / subTotal) * additionalDiscount;
+                    const finalItemTaxableAmount = itemTaxableAmount - proportionalAdditionalDiscount;
+                    
+                    const taxAmount = finalItemTaxableAmount * (tax.rate / 100);
+                    if (isInterstate) {
+                        igst += taxAmount;
+                    } else {
+                        cgst += taxAmount / 2;
+                        sgst += taxAmount / 2;
+                    }
+                }
               }
           });
       }
       
       const total = taxableAmount + cgst + sgst + igst;
-      return { subTotal, cgst, sgst, igst, total, taxableAmount };
+      return { subTotal, cgst, sgst, igst, total, taxableAmount, grossTotal, totalLineItemDiscount };
   }
   
   const { subTotal, cgst, sgst, igst, total, taxableAmount } = calculateTotals();
@@ -192,7 +204,7 @@ export function GenerateInvoiceDialog({
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Generate Invoice for {entry.client.name}</DialogTitle>
           <DialogDescription>
@@ -224,9 +236,10 @@ export function GenerateInvoiceDialog({
                  <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-2/5">Item</TableHead>
+                            <TableHead className="w-[30%]">Item</TableHead>
                             <TableHead>Qty</TableHead>
                             <TableHead>Rate</TableHead>
+                            <TableHead>Discount</TableHead>
                             <TableHead>Tax</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
@@ -248,6 +261,7 @@ export function GenerateInvoiceDialog({
                                 </TableCell>
                                 <TableCell><Input type="number" value={item.quantity} onChange={(e) => handleLineItemChange(index, 'quantity', Number(e.target.value) || 0)} className="w-16"/></TableCell>
                                 <TableCell><Input type="number" value={item.rate} onChange={(e) => handleLineItemChange(index, 'rate', Number(e.target.value) || 0)} className="w-24"/></TableCell>
+                                <TableCell><Input type="number" value={item.discount} onChange={(e) => handleLineItemChange(index, 'discount', Number(e.target.value) || 0)} className="w-24" placeholder="0.00"/></TableCell>
                                 <TableCell>
                                      <Select value={item.taxRateId} onValueChange={(value) => handleLineItemChange(index, 'taxRateId', value)}>
                                         <SelectTrigger className="w-[120px]"><SelectValue/></SelectTrigger>
@@ -256,7 +270,7 @@ export function GenerateInvoiceDialog({
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
-                                <TableCell className="text-right font-mono">{(item.quantity * item.rate).toFixed(2)}</TableCell>
+                                <TableCell className="text-right font-mono">{((item.quantity * item.rate) - item.discount).toFixed(2)}</TableCell>
                                 <TableCell>
                                     <Button variant="ghost" size="icon" onClick={() => removeLineItem(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                 </TableCell>
@@ -272,12 +286,12 @@ export function GenerateInvoiceDialog({
                 <div className="w-1/3 space-y-2">
                     <div className="flex justify-between font-mono"><span className="text-muted-foreground">Sub Total:</span> <span>{subTotal.toFixed(2)}</span></div>
                     <div className="flex justify-between items-center font-mono">
-                        <Label htmlFor="discount" className="text-muted-foreground">Discount:</Label>
+                        <Label htmlFor="additionalDiscount" className="text-muted-foreground">Additional Discount:</Label>
                         <Input
-                            id="discount"
+                            id="additionalDiscount"
                             type="number"
-                            value={discount || ''}
-                            onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                            value={additionalDiscount || ''}
+                            onChange={(e) => setAdditionalDiscount(Number(e.target.value) || 0)}
                             className="w-24 h-8"
                             placeholder="0.00"
                         />
