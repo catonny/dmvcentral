@@ -3,8 +3,8 @@
 
 import * as React from "react";
 import type { Client, Employee, Todo } from "@/lib/data";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Check, Edit, Loader2, PlusCircle, Send, User, Users } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, Check, ChevronDown, Edit, Loader2, MoreHorizontal, PlusCircle, Send, Trash2, User, Users } from "lucide-react";
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 
 export function TodoSection({ currentUser, allClients, allEmployees }: { currentUser: Employee | null, allClients: Client[], allEmployees: Employee[] }) {
@@ -31,6 +35,8 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
     const [loading, setLoading] = React.useState(true);
     const [isAdding, setIsAdding] = React.useState(false);
     const [newTodoText, setNewTodoText] = React.useState("");
+    const [editingTodo, setEditingTodo] = React.useState<Todo | null>(null);
+    const [editingText, setEditingText] = React.useState("");
     const [incompleteClients, setIncompleteClients] = React.useState<Client[]>([]);
     const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false);
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -45,13 +51,12 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
             return;
         }
 
-        const todosQuery = query(collection(db, "todos"), where("assignedTo", "array-contains", currentUser.id), where("isCompleted", "==", false));
+        const todosQuery = query(collection(db, "todos"), where("assignedTo", "array-contains", currentUser.id));
         const unsubTodos = onSnapshot(todosQuery, (snap) => {
             const fetchedTodos = snap.docs.map(doc => doc.data() as Todo);
             setTodos(fetchedTodos.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         });
 
-        // Separate logic for incomplete clients
         const clientsWithIncompleteData = allClients
             .filter(c => c.partnerId === currentUser.id)
             .filter(c => c.pan === 'PANNOTAVLBL' || c.mailId === 'unassigned' || c.mobileNumber === '1111111111');
@@ -97,10 +102,67 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         }
     };
     
+    const handleToggleTodoComplete = async (todo: Todo) => {
+        if (!currentUser) return;
+        const todoRef = doc(db, "todos", todo.id);
+        const newStatus = !todo.isCompleted;
+        try {
+            await updateDoc(todoRef, {
+                isCompleted: newStatus,
+                completedAt: newStatus ? new Date().toISOString() : null,
+                completedBy: newStatus ? currentUser.id : null,
+            });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not update to-do status.", variant: "destructive"});
+        }
+    };
+
+    const handleEditTodo = (todo: Todo) => {
+        setEditingTodo(todo);
+        setEditingText(todo.text);
+    };
+    
+    const handleUpdateTodo = async () => {
+        if (!editingTodo || !editingText.trim()) return;
+        const todoRef = doc(db, "todos", editingTodo.id);
+        try {
+            await updateDoc(todoRef, { text: editingText });
+            setEditingTodo(null);
+            setEditingText("");
+            toast({ title: "Success", description: "To-Do updated." });
+        } catch (error) {
+             toast({ title: "Error", description: "Could not update to-do.", variant: "destructive"});
+        }
+    };
+
+    const handleDeleteTodo = async (todoId: string) => {
+        try {
+            await deleteDoc(doc(db, "todos", todoId));
+            toast({ title: "Success", description: "To-Do deleted." });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not delete to-do.", variant: "destructive" });
+        }
+    };
+    
+     const handleClearCompleted = async () => {
+        const completedIds = todos.filter(t => t.isCompleted).map(t => t.id);
+        if (completedIds.length === 0) return;
+        const batch = writeBatch(db);
+        completedIds.forEach(id => {
+            batch.delete(doc(db, "todos", id));
+        });
+        try {
+            await batch.commit();
+            toast({ title: "Success", description: "All completed to-dos cleared." });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not clear completed to-dos.", variant: "destructive" });
+        }
+    };
+
     const handleOpenEditSheet = (client: Client) => {
         setSelectedClient(client);
-        setIsDetailsDialogOpen(false); // Close the list dialog
-        setIsSheetOpen(true); // Open the edit sheet
+        setIsDetailsDialogOpen(false);
+        setIsSheetOpen(true);
     };
     
     const handleSaveClient = async (clientData: Partial<Client>) => {
@@ -145,11 +207,13 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         }
     };
 
+    const pendingTodos = todos.filter(t => !t.isCompleted);
+    const completedTodos = todos.filter(t => t.isCompleted);
+    const hasNoPendingItems = pendingTodos.length === 0 && incompleteClients.length === 0;
+
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-6 w-6 animate-spin"/></div>
     }
-
-    const hasNoTodos = todos.length === 0 && incompleteClients.length === 0;
 
     return (
         <>
@@ -174,7 +238,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                     </div>
                     <ScrollArea className="flex-grow pr-4 -mr-4">
                         <div className="space-y-2">
-                            {hasNoTodos ? (
+                            {hasNoPendingItems ? (
                                 <div className="text-center text-muted-foreground pt-8">
                                     <p className="text-lg font-semibold">All Caught Up!</p>
                                     <p>No pending actions required.</p>
@@ -196,24 +260,63 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                                          <Badge variant="destructive">{incompleteClients.length}</Badge>
                                     </button>
                                  )}
-                                {todos.map(todo => (
-                                    <div key={todo.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 mt-1">
-                                        <Check className="h-4 w-4"/>
-                                        </Button>
+                                {pendingTodos.map(todo => (
+                                    <div key={todo.id} className="flex items-start gap-3 p-2 rounded-md bg-muted/50 group">
+                                        <Checkbox
+                                            id={`todo-${todo.id}`}
+                                            checked={todo.isCompleted}
+                                            onCheckedChange={() => handleToggleTodoComplete(todo)}
+                                            className="mt-1"
+                                        />
                                         <div className="flex-grow">
-                                            <p className="text-sm">{todo.text}</p>
+                                            {editingTodo?.id === todo.id ? (
+                                                <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} onBlur={handleUpdateTodo} autoFocus />
+                                            ) : (
+                                                <p className={cn("text-sm", todo.isCompleted && "line-through text-muted-foreground")}>{todo.text}</p>
+                                            )}
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                                 <User className="h-3 w-3"/>
                                                 <span>{allEmployees.find(e => e.id === todo.createdBy)?.name || 'System'}</span>
                                             </div>
                                         </div>
+                                         <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><MoreHorizontal className="h-4 w-4"/></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={() => handleEditTodo(todo)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleDeleteTodo(todo.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 ))}
                                 </>
                             )}
                         </div>
                     </ScrollArea>
+                    {completedTodos.length > 0 && (
+                        <Collapsible className="border-t pt-2">
+                             <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold w-full text-left">
+                                <ChevronDown className="h-4 w-4" />
+                                Completed ({completedTodos.length})
+                                <Button variant="ghost" size="sm" className="ml-auto" onClick={handleClearCompleted}>Clear All</Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                 <ScrollArea className="h-[150px] mt-2 pr-4">
+                                     <div className="space-y-2">
+                                        {completedTodos.map(todo => (
+                                             <div key={todo.id} className="flex items-start gap-3 p-2 rounded-md bg-muted/50 group">
+                                                <Checkbox id={`todo-${todo.id}`} checked={todo.isCompleted} onCheckedChange={() => handleToggleTodoComplete(todo)} className="mt-1"/>
+                                                <div className="flex-grow">
+                                                     <p className={cn("text-sm", todo.isCompleted && "line-through text-muted-foreground")}>{todo.text}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                     </div>
+                                 </ScrollArea>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    )}
                 </CardContent>
             </Card>
             <TodoDetailsDialog 
