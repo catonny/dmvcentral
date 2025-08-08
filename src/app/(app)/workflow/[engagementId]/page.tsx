@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import { EngagementNotes } from "@/components/workspace/engagement-notes";
 import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
+import { EditableStatus } from "@/components/workspace/editable-status";
 
 
 export default function EngagementWorkflowPage() {
@@ -189,6 +190,39 @@ export default function EngagementWorkflowPage() {
     }
   };
 
+  const handleStatusChange = async (engagementId: string, newStatus: EngagementStatus, submitToBilling?: boolean) => {
+    if (!currentUserEmployee || !engagement) return;
+    
+    try {
+        const engagementRef = doc(db, "engagements", engagementId);
+        const updatePayload: Partial<Engagement> = { status: newStatus };
+        if (submitToBilling) {
+            updatePayload.billStatus = "To Bill";
+            updatePayload.billSubmissionDate = new Date().toISOString();
+        }
+        await updateDoc(engagementRef, updatePayload);
+        
+        await logActivity({
+            engagement: { ...engagement, status: newStatus },
+            type: 'STATUS_CHANGE',
+            user: currentUserEmployee,
+            details: { from: engagement.status, to: newStatus }
+        });
+
+        toast({
+            title: "Success",
+            description: `Engagement status changed to ${newStatus}. ${submitToBilling ? 'Submitted for billing.' : ''}`,
+        });
+    } catch (error) {
+        console.error(`Error updating status:`, error);
+        toast({
+            title: "Error",
+            description: `Failed to update the status.`,
+            variant: "destructive",
+        });
+    }
+  };
+
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center">Loading Engagement Workflow...</div>;
@@ -229,10 +263,20 @@ export default function EngagementWorkflowPage() {
 
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline text-2xl">{engagementType?.name || engagement.type}</CardTitle>
-            <CardDescription>
-                Client: {client.Name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
-            </CardDescription>
+            <div className="flex justify-between items-start">
+                 <div>
+                    <CardTitle className="font-headline text-2xl">{engagementType?.name || engagement.type}</CardTitle>
+                    <CardDescription>
+                        Client: {client.Name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
+                    </CardDescription>
+                 </div>
+                 <EditableStatus 
+                    engagement={engagement}
+                    client={client}
+                    engagementType={engagementType}
+                    onStatusChange={handleStatusChange}
+                />
+            </div>
         </CardHeader>
         <CardContent>
             <div className="space-y-2">
