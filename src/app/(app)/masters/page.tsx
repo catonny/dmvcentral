@@ -2,8 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building, UploadCloud } from "lucide-react";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ArrowRight, Eye, PenSquare, PlusCircle, GitBranch, Group, Building, UploadCloud, FileText, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -45,49 +45,80 @@ export default function MastersPage() {
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <ActionCard
-              title="Manage Firms"
-              description="Edit your firm's profile, address, and other details."
-              icon={Building}
-              onClick={() => router.push('/masters/firms')}
-          />
-          <ActionCard
-              title="Manage Employees"
-              description="Add, edit, and manage employee profiles and department assignments."
-              icon={Group}
-              onClick={() => router.push('/masters/employees')}
-          />
-           <ActionCard
-              title="Bulk Import"
-              description="Efficiently add or update data using CSV files."
-              icon={UploadCloud}
-              onClick={() => router.push('/bulk-import')}
-          />
-          <ActionCard
-              title="Edit Engagement Workflows"
-              description="Define the sequence of tasks for different engagement types."
-              icon={GitBranch}
-              onClick={() => router.push('/masters/workflows')}
-          />
-          <ActionCard
-              title="View Master Data"
-              description="Browse through existing master records like clients and engagement types."
-              icon={Eye}
-              onClick={() => router.push('/masters/view')}
-          />
-           <ActionCard
-              title="Create New Entry"
-              description="Add a new record to one of your master data sets."
-              icon={PlusCircle}
-              onClick={() => router.push('/masters/create')}
-          />
-          <ActionCard
-              title="Alter Master Data"
-              description="Edit or delete existing records from your master data sets."
-              icon={PenSquare}
-              onClick={() => router.push('/masters/alter')}
-          />
+      <div className="space-y-8">
+        <section>
+          <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Firm & Team Masters</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <ActionCard
+                  title="Manage Firms"
+                  description="Edit your firm's profile, address, and other details."
+                  icon={Building}
+                  onClick={() => router.push('/masters/firms')}
+              />
+              <ActionCard
+                  title="Manage Employees"
+                  description="Add, edit, and manage employee profiles and department assignments."
+                  icon={Group}
+                  onClick={() => router.push('/masters/employees')}
+              />
+              <ActionCard
+                  title="Edit Engagement Workflows"
+                  description="Define the sequence of tasks for different engagement types."
+                  icon={GitBranch}
+                  onClick={() => router.push('/masters/workflows')}
+              />
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Accounting Masters</h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               <ActionCard
+                  title="Sales Items"
+                  description="Manage reusable line items for invoices, including price and tax."
+                  icon={FileText}
+                  onClick={() => {}}
+                  isDisabled={true}
+              />
+               <ActionCard
+                  title="Taxes"
+                  description="Configure tax rates, HSN, and SAC codes for billing."
+                  icon={Percent}
+                  onClick={() => {}}
+                  isDisabled={true}
+              />
+           </div>
+        </section>
+
+        <section>
+          <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Data Management</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <ActionCard
+                  title="Bulk Import"
+                  description="Efficiently add or update data using CSV files."
+                  icon={UploadCloud}
+                  onClick={() => router.push('/bulk-import')}
+              />
+              <ActionCard
+                  title="View Master Data"
+                  description="Browse through existing master records like clients and engagement types."
+                  icon={Eye}
+                  onClick={() => router.push('/masters/view')}
+              />
+              <ActionCard
+                  title="Create New Entry"
+                  description="Add a new record to one of your master data sets."
+                  icon={PlusCircle}
+                  onClick={() => router.push('/masters/create')}
+              />
+              <ActionCard
+                  title="Alter Master Data"
+                  description="Edit or delete existing records from your master data sets."
+                  icon={PenSquare}
+                  onClick={() => router.push('/masters/alter')}
+              />
+          </div>
+        </section>
       </div>
     </>
   );

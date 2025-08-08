@@ -14,7 +14,8 @@ import {
   timesheets,
   engagementIdMapForTimesheet,
   ALL_FEATURES,
-  firms
+  firms,
+  taxRates
 } from '@/lib/data';
 import type { Task, Permission, Employee } from '@/lib/data';
 
@@ -66,6 +67,9 @@ export const seedDatabase = async () => {
         'permissions',
         'firms',
         'activityLog',
+        'taxRates',
+        'hsnSacCodes',
+        'salesItems'
     ];
 
     console.log('Deleting existing data...');
@@ -146,6 +150,12 @@ export const seedDatabase = async () => {
       batch.set(docRef, { ...department, id: docRef.id });
     });
     
+    console.log('Seeding tax rates...');
+    taxRates.forEach(rate => {
+        const docRef = db.collection('taxRates').doc();
+        batch.set(docRef, {...rate, id: docRef.id });
+    });
+
     console.log('Seeding default permissions...');
     const permissions: Permission[] = [
         { feature: 'reports', departments: ['Admin', 'Partner'] },

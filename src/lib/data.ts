@@ -320,6 +320,28 @@ export interface Country {
     code: string;
 }
 
+export interface TaxRate {
+    id: string;
+    name: string; // e.g., "GST @ 5%"
+    rate: number; // e.g., 5
+}
+
+export interface HsnSacCode {
+    id: string;
+    code: string;
+    description: string;
+    type: 'HSN' | 'SAC';
+}
+
+export interface SalesItem {
+    id: string;
+    name: string;
+    description: string;
+    standardPrice: number;
+    defaultTaxRateId: string;
+    defaultSacId: string;
+}
+
 export const indianStatesAndUTs: string[] = [
     "Andhra Pradesh",
     "Arunachal Pradesh",
@@ -762,6 +784,13 @@ export const engagementTypes: EngagementType[] = [
         subTaskTitles: ["Prepare Board Resolutions", "Hold Board Meeting", "Draft Annual Report", "File AOC-4", "File MGT-7"],
         applicableCategories: ["Corporate", "LLP"]
     },
+];
+
+export const taxRates: Omit<TaxRate, 'id'>[] = [
+    { name: 'GST @ 0%', rate: 0 },
+    { name: 'GST @ 5%', rate: 5 },
+    { name: 'GST @ 12%', rate: 12 },
+    { name: 'GST @ 18%', rate: 18 },
 ];
 
 const getDueDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
