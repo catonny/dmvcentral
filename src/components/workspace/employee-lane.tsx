@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { LogTimeDialog } from "./log-time-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 interface EmployeeLaneProps {
     employee: Employee;
@@ -28,11 +30,14 @@ interface GroupedEngagements {
     [typeId: string]: Engagement[];
 }
 
-export function EmployeeLane({ employee, engagements, engagementTypes, clientMap }: EmployeeLaneProps) {
+export function EmployeeLane({ employee, engagements, engagementTypes, clientMap, onScheduleMeeting }: EmployeeLaneProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: employee.id,
     });
+    const { user } = useAuth();
     const [openCollapsibleId, setOpenCollapsibleId] = React.useState<string | null>(null);
+    const [isLogTimeOpen, setIsLogTimeOpen] = React.useState(false);
+    const [selectedEngagementForLog, setSelectedEngagementForLog] = React.useState<Engagement | null>(null);
 
     const groupedEngagements = React.useMemo(() => {
         return engagements.reduce((acc, eng) => {
@@ -46,9 +51,15 @@ export function EmployeeLane({ employee, engagements, engagementTypes, clientMap
     }, [engagements]);
 
     const engagementTypeMap = React.useMemo(() => new Map(engagementTypes.map(et => [et.id, et.name])), [engagementTypes]);
+    
+    const handleOpenLogTime = (engagement: Engagement) => {
+        setSelectedEngagementForLog(engagement);
+        setIsLogTimeOpen(true);
+    };
 
 
     return (
+        <>
         <div 
             ref={setNodeRef}
             className={cn(
@@ -87,6 +98,7 @@ export function EmployeeLane({ employee, engagements, engagementTypes, clientMap
                                             key={engagement.id}
                                             engagement={engagement}
                                             client={clientMap.get(engagement.clientId)}
+                                            onLogTime={handleOpenLogTime}
                                         />
                                     ))}
                                 </SortableContext>
@@ -96,5 +108,12 @@ export function EmployeeLane({ employee, engagements, engagementTypes, clientMap
                  ))}
             </div>
         </div>
+        <LogTimeDialog
+            isOpen={isLogTimeOpen}
+            onClose={() => setIsLogTimeOpen(false)}
+            engagement={selectedEngagementForLog}
+            currentUser={employee}
+        />
+        </>
     );
 }

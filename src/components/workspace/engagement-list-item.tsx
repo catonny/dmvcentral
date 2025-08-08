@@ -5,17 +5,19 @@ import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Engagement, Client } from "@/lib/data";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Timer } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
+import { Button } from "../ui/button";
 
 interface EngagementListItemProps {
     engagement: Engagement;
     client?: Client;
+    onLogTime: (engagement: Engagement) => void;
 }
 
-export function EngagementListItem({ engagement, client }: EngagementListItemProps) {
+export function EngagementListItem({ engagement, client, onLogTime }: EngagementListItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: engagement.id,
     });
@@ -27,6 +29,12 @@ export function EngagementListItem({ engagement, client }: EngagementListItemPro
     };
 
     const isOverdue = isPast(new Date(engagement.dueDate)) && engagement.status !== 'Completed';
+
+    const handleLogTimeClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onLogTime(engagement);
+    }
 
     return (
          <div ref={setNodeRef} style={style} {...attributes}>
@@ -43,6 +51,9 @@ export function EngagementListItem({ engagement, client }: EngagementListItemPro
                         </span>
                     </div>
                 </Link>
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={handleLogTimeClick}>
+                    <Timer className="h-4 w-4" />
+                </Button>
             </div>
         </div>
     );
