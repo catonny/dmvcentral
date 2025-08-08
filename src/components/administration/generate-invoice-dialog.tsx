@@ -120,6 +120,7 @@ export function GenerateInvoiceDialog({
               value={fee}
               onChange={(e) => setFee(e.target.value)}
               placeholder="Enter professional fees"
+              min="0.01"
             />
           </div>
         </div>
