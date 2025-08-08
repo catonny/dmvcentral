@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -17,8 +16,8 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format, parseISO } from "date-fns";
 import type { Engagement, Client, EngagementType, Employee } from "@/lib/data";
-import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { Edit } from "lucide-react";
 
 interface TodoDetailsDialogProps {
   isOpen: boolean;
@@ -26,9 +25,10 @@ interface TodoDetailsDialogProps {
   title: string;
   engagements?: Engagement[];
   clients?: Client[];
+  onEditClient?: (client: Client) => void;
 }
 
-export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients: incompleteClients }: TodoDetailsDialogProps) {
+export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients: incompleteClients, onEditClient }: TodoDetailsDialogProps) {
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
@@ -79,7 +79,7 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients
                     const reporter = employees.get(engagement.reportedTo);
                     return (
                         <TableRow key={engagement.id}>
-                            <TableCell>{client?.Name || 'Loading...'}</TableCell>
+                            <TableCell>{client?.name || 'Loading...'}</TableCell>
                             <TableCell>{engagement.remarks || engagementType?.name || 'Loading...'}</TableCell>
                             <TableCell>{format(parseISO(engagement.dueDate), 'dd MMM yyyy')}</TableCell>
                             <TableCell>{engagement.status}</TableCell>
@@ -101,22 +101,23 @@ export function TodoDetailsDialog({ isOpen, onClose, title, engagements, clients
                 <TableRow>
                     <TableHead>Client Name</TableHead>
                     <TableHead>Missing Fields</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {incompleteClients && incompleteClients.length > 0 ? incompleteClients.map(client => {
                     return (
                         <TableRow key={client.id}>
-                            <TableCell>{client.Name}</TableCell>
+                            <TableCell>{client.name}</TableCell>
                             <TableCell>
                                 <div className="flex gap-1">
                                     {getMissingFields(client).map(field => <Badge key={field} variant="destructive">{field}</Badge>)}
                                 </div>
                             </TableCell>
-                             <TableCell>
-                                <Button variant="link" asChild size="sm">
-                                    <Link href="/reports/exceptions/incomplete-clients">Go to report</Link>
+                             <TableCell className="text-right">
+                                <Button variant="outline" size="sm" onClick={() => onEditClient?.(client)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Client
                                 </Button>
                              </TableCell>
                         </TableRow>

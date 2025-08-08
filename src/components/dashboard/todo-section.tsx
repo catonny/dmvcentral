@@ -4,17 +4,27 @@
 import * as React from "react";
 import type { Client, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Check, Loader2, PlusCircle, Send, User, Users } from "lucide-react";
-import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc } from "firebase/firestore";
+import { AlertTriangle, Check, Edit, Loader2, PlusCircle, Send, User, Users } from "lucide-react";
+import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { ScrollArea } from "../ui/scroll-area";
 import { TodoDetailsDialog } from "./todo-details-dialog";
 import { Badge } from "../ui/badge";
+import { EditClientSheet } from "./edit-client-sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export function TodoSection({ currentUser, allClients, allEmployees }: { currentUser: Employee | null, allClients: Client[], allEmployees: Employee[] }) {
     const [todos, setTodos] = React.useState<Todo[]>([]);
@@ -23,6 +33,10 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
     const [newTodoText, setNewTodoText] = React.useState("");
     const [incompleteClients, setIncompleteClients] = React.useState<Client[]>([]);
     const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false);
+    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+    const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
+    const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+
     const { toast } = useToast();
 
     React.useEffect(() => {
@@ -80,6 +94,54 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
             toast({ title: "Error", description: "Could not add To-Do item.", variant: "destructive" });
         } finally {
             setIsAdding(false);
+        }
+    };
+    
+    const handleOpenEditSheet = (client: Client) => {
+        setSelectedClient(client);
+        setIsDetailsDialogOpen(false); // Close the list dialog
+        setIsSheetOpen(true); // Open the edit sheet
+    };
+    
+    const handleSaveClient = async (clientData: Partial<Client>) => {
+        if (!selectedClient?.id) return;
+        try {
+            const clientRef = doc(db, "clients", selectedClient.id);
+            await updateDoc(clientRef, { ...clientData, lastUpdated: new Date().toISOString() });
+            toast({ title: "Success", description: "Client updated successfully." });
+            setIsSheetOpen(false);
+            setSelectedClient(null);
+        } catch (error) {
+            console.error("Error saving client:", error);
+            toast({ title: "Error", description: "Failed to save client data.", variant: "destructive" });
+        }
+    };
+
+    const handleConfirmDeleteClient = (client: Client) => {
+        setSelectedClient(client);
+        setIsConfirmDeleteDialogOpen(true);
+    };
+
+    const handleDeleteClient = async () => {
+        if (!selectedClient) return;
+        try {
+            const batch = writeBatch(db);
+            const clientRef = doc(db, "clients", selectedClient.id);
+            batch.delete(clientRef);
+            
+            const engagementsQuery = query(collection(db, 'engagements'), where('clientId', '==', selectedClient.id));
+            const engagementsSnapshot = await getDocs(engagementsQuery);
+            engagementsSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+            await batch.commit();
+            toast({ title: "Success", description: `Client ${selectedClient.name} and all associated engagements have been deleted.` });
+            setIsSheetOpen(false);
+        } catch (error) {
+            console.error("Error deleting client:", error);
+            toast({ title: "Error", description: "Failed to delete client.", variant: "destructive" });
+        } finally {
+            setIsConfirmDeleteDialogOpen(false);
+            setSelectedClient(null);
         }
     };
 
@@ -159,7 +221,31 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                 onClose={() => setIsDetailsDialogOpen(false)}
                 title="Clients with Incomplete Data"
                 clients={incompleteClients}
+                onEditClient={handleOpenEditSheet}
             />
+             <EditClientSheet
+                client={selectedClient}
+                isOpen={isSheetOpen}
+                onClose={() => setIsSheetOpen(false)}
+                onSave={handleSaveClient}
+                onDelete={handleConfirmDeleteClient}
+                allClients={allClients}
+            />
+            <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the client{" "}
+                            <strong>{selectedClient?.name}</strong> and all of their associated engagements.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setSelectedClient(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
