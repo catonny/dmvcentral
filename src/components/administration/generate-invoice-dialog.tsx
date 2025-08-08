@@ -27,6 +27,7 @@ import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SearchableSelectWithCreate } from "../masters/searchable-select-with-create";
 import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
+import { format, parseISO } from "date-fns";
 
 interface LineItem {
     id: string;
@@ -123,7 +124,8 @@ export function GenerateInvoiceDialog({
             taxableAmount: taxableAmount,
             totalTax: totalTax,
             totalAmount: total,
-            status: 'Sent'
+            status: 'Sent',
+            tallyClientLedgerName: entry.client.name, // Default mapping
         };
 
         await onSave(entry.engagement.id, invoiceData);
@@ -244,12 +246,21 @@ export function GenerateInvoiceDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>Generate Invoice for {entry.client.name}</DialogTitle>
-           <DialogDescription className="space-y-1 pt-2">
-                <p><b>Engagement Type:</b> {entry.engagementType.name}</p>
-                <p><b>Done by:</b> {assignedToNames}</p>
-                <p><b>Partner:</b> {partnerName}</p>
-            </DialogDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <DialogTitle>Generate Invoice for {entry.client.name}</DialogTitle>
+                    <DialogDescription className="space-y-1 pt-2">
+                        <p><b>Engagement Type:</b> {entry.engagementType.name}</p>
+                        <p><b>Done by:</b> {assignedToNames}</p>
+                        <p><b>Partner:</b> {partnerName}</p>
+                    </DialogDescription>
+                </div>
+                {entry.engagement.billSubmissionDate && (
+                     <div className="text-sm text-muted-foreground">
+                        <b>Completed on:</b> {format(parseISO(entry.engagement.billSubmissionDate), "dd MMM, yyyy")}
+                    </div>
+                )}
+            </div>
         </DialogHeader>
         <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
