@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [loadingExport, setLoadingExport] = React.useState<string | null>(null);
   const [backupFile, setBackupFile] = React.useState<File | null>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = React.useState(false);
+  const [loadingMasterBackup, setLoadingMasterBackup] = React.useState(false);
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
 
@@ -78,29 +79,33 @@ export default function SettingsPage() {
     }
   };
 
-  const handleBackupTransactionalData = async () => {
-    setLoadingBackup(true);
+  const handleBackup = async (type: 'transactional' | 'master') => {
+    if (type === 'transactional') setLoadingBackup(true);
+    if (type === 'master') setLoadingMasterBackup(true);
+
+    const collectionsToBackup = type === 'transactional'
+        ? ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog']
+        : ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+    
+    const fileName = `dmv_central_backup_${type}_${new Date().toISOString().split('T')[0]}.json`;
+
     try {
-      const clientsQuery = query(collection(db, 'clients'));
-      const engagementsQuery = query(collection(db, 'engagements'));
-
-      const [clientsSnapshot, engagementsSnapshot] = await Promise.all([
-        getDocs(clientsQuery),
-        getDocs(engagementsQuery)
-      ]);
-
-      const backupData = {
-        clients: clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-        engagements: engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      const backupData: { [key: string]: any[] } = {
+        backupType: type,
         backupDate: new Date().toISOString(),
       };
 
-      const jsonString = JSON.stringify(backupData);
+      for (const collectionName of collectionsToBackup) {
+          const snapshot = await getDocs(query(collection(db, collectionName)));
+          backupData[collectionName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      const jsonString = JSON.stringify(backupData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `dmv_central_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -108,18 +113,19 @@ export default function SettingsPage() {
 
       toast({
         title: 'Success',
-        description: 'Backup has been downloaded successfully.',
+        description: `Backup of ${type} data has been downloaded.`,
       });
 
     } catch (error) {
-       console.error('Error backing up transactional data:', error);
+       console.error(`Error backing up ${type} data:`, error);
        toast({
         title: 'Error',
-        description: 'Failed to create backup. Check the console for details.',
+        description: `Failed to create ${type} backup. Check the console for details.`,
         variant: 'destructive',
       });
     } finally {
-        setLoadingBackup(false);
+        if (type === 'transactional') setLoadingBackup(false);
+        if (type === 'master') setLoadingMasterBackup(false);
     }
   };
 
@@ -144,31 +150,41 @@ export default function SettingsPage() {
         const fileContent = await backupFile.text();
         const backupData = JSON.parse(fileContent);
 
-        if (!backupData.clients || !backupData.engagements || !Array.isArray(backupData.clients) || !Array.isArray(backupData.engagements)) {
-            throw new Error("Invalid backup file structure.");
+        if (!backupData.backupType || !backupData.backupDate) {
+            throw new Error("Invalid backup file: missing backupType or backupDate.");
         }
 
+        const collectionsToRestore = backupData.backupType === 'transactional'
+            ? ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog']
+            : ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+        
         const batch = writeBatch(db);
 
-        const existingClients = await getDocs(query(collection(db, 'clients')));
-        existingClients.forEach(doc => batch.delete(doc.ref));
-        const existingEngagements = await getDocs(query(collection(db, 'engagements')));
-        existingEngagements.forEach(doc => batch.delete(doc.ref));
-
-        backupData.clients.forEach((client: Client) => {
-            const docRef = doc(db, 'clients', client.id);
-            batch.set(docRef, client);
-        });
-        backupData.engagements.forEach((engagement: Engagement) => {
-            const docRef = doc(db, 'engagements', engagement.id);
-            batch.set(docRef, engagement);
-        });
+        // Delete existing data from collections being restored
+        for (const collectionName of collectionsToRestore) {
+            if (backupData[collectionName]) { // Only delete if data for it exists in backup
+                 const existingDocs = await getDocs(query(collection(db, collectionName)));
+                 existingDocs.forEach(doc => batch.delete(doc.ref));
+            }
+        }
+        
+        // Add new data from backup
+        let totalRestoredCount = 0;
+        for (const collectionName of collectionsToRestore) {
+            if (Array.isArray(backupData[collectionName])) {
+                backupData[collectionName].forEach((item: any) => {
+                    const docRef = item.id ? doc(db, collectionName, item.id) : doc(collection(db, collectionName));
+                    batch.set(docRef, item);
+                });
+                totalRestoredCount += backupData[collectionName].length;
+            }
+        }
 
         await batch.commit();
 
         toast({
             title: 'Restore Successful',
-            description: `Restored ${backupData.clients.length} clients and ${backupData.engagements.length} engagements.`,
+            description: `Restored ${totalRestoredCount} records for ${backupData.backupType} data.`,
         });
 
     } catch (error) {
@@ -186,7 +202,7 @@ export default function SettingsPage() {
     try {
       const batch = writeBatch(db);
       
-      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets'];
+      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
       
       for (const collectionName of collectionsToDelete) {
           const snapshot = await getDocs(query(collection(db, collectionName)));
@@ -216,7 +232,7 @@ export default function SettingsPage() {
     try {
         const batch = writeBatch(db);
         
-        const otherMasterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions'];
+        const otherMasterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
         for (const collectionName of otherMasterCollections) {
             const snapshot = await getDocs(query(collection(db, collectionName)));
             snapshot.forEach((doc) => batch.delete(doc.ref));
@@ -318,21 +334,27 @@ export default function SettingsPage() {
 
                     <div className="rounded-lg border border-border p-4 flex flex-col gap-4">
                         <h3 className="font-semibold text-lg border-b pb-2">Backup & Restore</h3>
-                        <div className="flex items-center justify-between">
+                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="font-semibold">Backup Transactional Data</h3>
+                                <h3 className="font-semibold">Backup All Data</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Download a JSON file of clients and engagements.
+                                    Download JSON files of your data.
                                 </p>
                             </div>
-                            <Button variant="outline" onClick={handleBackupTransactionalData} disabled={loadingBackup}>
-                                {loadingBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                Backup
-                            </Button>
+                            <div className="flex flex-col gap-2">
+                                <Button variant="outline" onClick={() => handleBackup('transactional')} disabled={loadingBackup}>
+                                    {loadingBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Backup Transactional
+                                </Button>
+                                <Button variant="outline" onClick={() => handleBackup('master')} disabled={loadingMasterBackup}>
+                                    {loadingMasterBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Backup Master
+                                </Button>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="font-semibold">Restore Transactional Data</h3>
+                                <h3 className="font-semibold">Restore Data</h3>
                                 <p className="text-sm text-muted-foreground">
                                     Overwrite existing data from a JSON backup file.
                                 </p>
@@ -357,7 +379,7 @@ export default function SettingsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                            This will first delete all existing clients and engagements, then restore from the backup. This cannot be undone.
+                                            This will first delete all existing data for the backup type (master or transactional), then restore from the selected file. This cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>

@@ -15,7 +15,9 @@ import {
   engagementIdMapForTimesheet,
   ALL_FEATURES,
   firms,
-  taxRates
+  taxRates,
+  HsnSacCode,
+  SalesItem,
 } from '@/lib/data';
 import type { Task, Permission, Employee } from '@/lib/data';
 
@@ -69,7 +71,9 @@ export const seedDatabase = async () => {
         'activityLog',
         'taxRates',
         'hsnSacCodes',
-        'salesItems'
+        'salesItems',
+        'recurringEngagements',
+        'todos'
     ];
 
     console.log('Deleting existing data...');
@@ -154,6 +158,30 @@ export const seedDatabase = async () => {
     taxRates.forEach(rate => {
         const docRef = db.collection('taxRates').doc();
         batch.set(docRef, {...rate, id: docRef.id });
+    });
+
+    console.log('Seeding HSN/SAC codes...');
+    const hsnSacCodes: Omit<HsnSacCode, 'id'>[] = [
+        { code: '998314', description: 'Legal and accounting services', type: 'SAC', isDefault: true },
+        { code: '998221', description: 'Business consulting services', type: 'SAC' },
+    ];
+    const seededHsnSacCodes = hsnSacCodes.map(code => {
+        const docRef = db.collection('hsnSacCodes').doc();
+        const newCode = { ...code, id: docRef.id };
+        batch.set(docRef, newCode);
+        return newCode;
+    });
+
+    console.log('Seeding sales items...');
+    const defaultTaxRate = taxRates.find(t => t.isDefault);
+    const defaultSac = seededHsnSacCodes.find(h => h.isDefault);
+    const salesItems: Omit<SalesItem, 'id'>[] = [
+        { name: 'Statutory Audit Fee', description: 'Fee for statutory audit services.', standardPrice: 50000, defaultTaxRateId: defaultTaxRate?.id || '', defaultSacId: defaultSac?.id || '' },
+        { name: 'ITR Filing Fee', description: 'Fee for income tax return filing.', standardPrice: 5000, defaultTaxRateId: defaultTaxRate?.id || '', defaultSacId: defaultSac?.id || '' },
+    ];
+     salesItems.forEach(item => {
+        const docRef = db.collection('salesItems').doc();
+        batch.set(docRef, { ...item, id: docRef.id });
     });
 
     console.log('Seeding default permissions...');
