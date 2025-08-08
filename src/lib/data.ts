@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -121,6 +120,8 @@ export interface InvoiceLineItem {
     taxAmount: number;
     sacCodeId: string;
     total: number;
+    // --- Fields for Tally Integration ---
+    tallyServiceLedgerName?: string;
 }
 
 export interface Invoice {
@@ -139,6 +140,14 @@ export interface Invoice {
     totalTax: number;
     totalAmount: number;
     status: 'Draft' | 'Sent' | 'Paid' | 'Cancelled';
+    
+    // --- Fields for Tally Integration ---
+    tallyClientLedgerName?: string;
+    tallySalesLedger?: string;
+    tallyCGSTLedger?: string;
+    tallySGSTLedger?: string;
+    tallyIGSTLedger?: string;
+    narration?: string;
 }
 
 export interface RecurringEngagement {

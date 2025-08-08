@@ -20,15 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
+import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode, Invoice } from "@/lib/data";
 import { indianStatesAndUTs } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SearchableSelectWithCreate } from "../masters/searchable-select-with-create";
 import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
-import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
-import { sendEmail } from "@/ai/flows/send-email-flow";
 
 interface LineItem {
     id: string;
@@ -44,7 +42,7 @@ interface LineItem {
 interface GenerateInvoiceDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (engagementId: string, totalAmount: number) => Promise<void>;
+  onSave: (engagementId: string, invoiceData: Omit<Invoice, 'id'>) => Promise<void>;
   entry: {
     engagement: Engagement;
     client: Client;
@@ -99,25 +97,44 @@ export function GenerateInvoiceDialog({
 
   const handleSave = async () => {
     if (!entry) return;
+
+    if (lineItems.length === 0 || lineItems.some(li => !li.salesItemId)) {
+        toast({ title: "Validation Error", description: "Please add at least one valid line item to the invoice.", variant: "destructive"});
+        return;
+    }
+
     setIsSaving(true);
     try {
-        const result = await generateInvoice({ engagementId: entry.engagement.id });
-        await sendEmail({
-            recipientEmails: [result.recipientEmail],
-            subject: result.subject,
-            body: result.htmlContent
-        });
-        const { total } = calculateTotals();
-        await onSave(entry.engagement.id, total);
+        const { total, subTotal, taxableAmount, totalTax, totalLineItemDiscount } = calculateTotals();
+        
+        const invoiceData: Omit<Invoice, 'id'> = {
+            invoiceNumber: `INV-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+            clientId: entry.client.id,
+            clientName: entry.client.name,
+            engagementId: entry.engagement.id,
+            firmId: selectedFirmId,
+            issueDate: new Date().toISOString(),
+            dueDate: new Date().toISOString(),
+            lineItems: lineItems.map(li => ({ ...li, total: (li.quantity * li.rate) - li.discount, taxAmount: 0 })), // taxAmount needs real calc
+            subTotal: subTotal,
+            totalDiscount: totalLineItemDiscount + additionalDiscount,
+            taxableAmount: taxableAmount,
+            totalTax: totalTax,
+            totalAmount: total,
+            status: 'Sent'
+        };
+
+        await onSave(entry.engagement.id, invoiceData);
         toast({
-            title: "Invoice Generated & Sent!",
-            description: `The invoice has been sent to ${result.recipientEmail}.`
+            title: "Invoice Generated!",
+            description: `The invoice has been created successfully.`
         });
+        onClose();
     } catch (error) {
-        console.error("Error generating or sending invoice:", error);
+        console.error("Error generating invoice:", error);
         toast({
             title: "Error",
-            description: "Could not generate or send the invoice.",
+            description: "Could not generate the invoice.",
             variant: "destructive",
         });
     } finally {
@@ -208,8 +225,9 @@ export function GenerateInvoiceDialog({
           });
       }
       
-      const total = taxableAmount + cgst + sgst + igst;
-      return { subTotal, cgst, sgst, igst, total, taxableAmount, grossTotal, totalLineItemDiscount };
+      const totalTax = cgst + sgst + igst;
+      const total = taxableAmount + totalTax;
+      return { subTotal, cgst, sgst, igst, total, taxableAmount, grossTotal, totalLineItemDiscount, totalTax };
   }
   
   const { subTotal, cgst, sgst, igst, total, taxableAmount } = calculateTotals();
@@ -325,7 +343,7 @@ export function GenerateInvoiceDialog({
           </Button>
           <Button type="submit" onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save & Send Invoice
+            Create Invoice
           </Button>
         </DialogFooter>
       </DialogContent>
