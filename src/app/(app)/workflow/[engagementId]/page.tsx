@@ -22,6 +22,7 @@ import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet"
 import { EngagementNotes } from "@/components/workspace/engagement-notes";
 import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
 import { EditableStatus } from "@/components/workspace/editable-status";
+import { EditableAssignees } from "@/components/workspace/editable-assignees";
 
 
 export default function EngagementWorkflowPage() {
@@ -223,6 +224,12 @@ export default function EngagementWorkflowPage() {
     }
   };
 
+    const handleAssigneesChange = (engagementId: string, newAssignees: string[]) => {
+        const engagementRef = doc(db, "engagements", engagementId);
+        updateDoc(engagementRef, { assignedTo: newAssignees });
+        toast({ title: "Success", description: "Assignees updated." });
+    };
+
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center">Loading Engagement Workflow...</div>;
@@ -279,28 +286,38 @@ export default function EngagementWorkflowPage() {
             </div>
         </CardHeader>
         <CardContent>
-            <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="remarks">Engagement Remarks</Label>
-                    {!isEditingRemarks ? (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingRemarks(true)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </Button>
-                    ) : (
-                         <Button variant="ghost" size="sm" onClick={handleUpdateRemarks}>
-                            <Check className="mr-2 h-4 w-4" /> Save
-                        </Button>
-                    )}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="remarks">Engagement Remarks</Label>
+                        {!isEditingRemarks ? (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditingRemarks(true)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </Button>
+                        ) : (
+                             <Button variant="ghost" size="sm" onClick={handleUpdateRemarks}>
+                                <Check className="mr-2 h-4 w-4" /> Save
+                            </Button>
+                        )}
+                    </div>
+                    <Textarea 
+                        id="remarks"
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        placeholder="Add specific details about this engagement..."
+                        disabled={!isEditingRemarks}
+                        className={cn(!isEditingRemarks && "bg-muted border-none")}
+                    />
                 </div>
-                <Textarea 
-                    id="remarks"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Add specific details about this engagement..."
-                    disabled={!isEditingRemarks}
-                    className={cn(!isEditingRemarks && "bg-muted border-none")}
-                />
-            </div>
+                 <div className="space-y-2">
+                    <Label>Assigned To</Label>
+                     <EditableAssignees
+                        engagement={engagement}
+                        allEmployees={allEmployees}
+                        onAssigneesChange={handleAssigneesChange}
+                    />
+                </div>
+             </div>
         </CardContent>
       </Card>
       
