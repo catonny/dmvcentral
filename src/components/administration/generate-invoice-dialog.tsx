@@ -151,15 +151,21 @@ export function GenerateInvoiceDialog({
       let subTotal = 0;
       let cgst = 0;
       let sgst = 0;
+      
+      const selectedFirm = firms.find(f => f.id === selectedFirmId);
+      const firmHasGst = !!selectedFirm?.gstn;
 
       lineItems.forEach(item => {
           const amount = item.quantity * item.rate;
           subTotal += amount;
-          const tax = taxRates.find(t => t.id === item.taxRateId);
-          if (tax && tax.rate > 0) {
-              const taxAmount = amount * (tax.rate / 100);
-              cgst += taxAmount / 2;
-              sgst += taxAmount / 2;
+          
+          if (firmHasGst) {
+              const tax = taxRates.find(t => t.id === item.taxRateId);
+              if (tax && tax.rate > 0) {
+                  const taxAmount = amount * (tax.rate / 100);
+                  cgst += taxAmount / 2;
+                  sgst += taxAmount / 2;
+              }
           }
       });
       
@@ -253,8 +259,8 @@ export function GenerateInvoiceDialog({
             <div className="flex justify-end">
                 <div className="w-1/3 space-y-2">
                     <div className="flex justify-between font-mono"><span className="text-muted-foreground">Sub Total:</span> <span>{subTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-mono"><span className="text-muted-foreground">CGST:</span> <span>{cgst.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-mono"><span className="text-muted-foreground">SGST:</span> <span>{sgst.toFixed(2)}</span></div>
+                    {cgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">CGST:</span> <span>{cgst.toFixed(2)}</span></div>}
+                    {sgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">SGST:</span> <span>{sgst.toFixed(2)}</span></div>}
                     <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2"><span className="text-foreground">Total:</span> <span>₹{total.toFixed(2)}</span></div>
                 </div>
             </div>
@@ -265,7 +271,7 @@ export function GenerateInvoiceDialog({
           </Button>
           <Button type="submit" onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save &amp; Mark as Billed
+            Save & Mark as Billed
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -280,3 +286,5 @@ export function GenerateInvoiceDialog({
     </>
   );
 }
+
+    
