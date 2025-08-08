@@ -50,9 +50,9 @@ export function EngagementListItem({ engagement, client, onLogTime, onScheduleMe
                     <GripVertical className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <Link href={`/workflow/${engagement.id}`} className="flex-grow">
-                    <p className="text-sm font-medium truncate group-hover:text-primary">{engagement.remarks}</p>
+                    <p className="text-sm font-medium truncate group-hover:text-primary">{client?.Name || '...'}</p>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{client?.Name || '...'}</span>
+                        <span className="truncate pr-2">{engagement.remarks}</span>
                         <span className={cn(isOverdue && "text-destructive font-semibold")}>
                             {format(new Date(engagement.dueDate), "dd MMM")}
                         </span>
