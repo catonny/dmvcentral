@@ -1,9 +1,8 @@
-
 "use client";
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -121,6 +120,12 @@ export default function ReportsPage() {
                 description="Access detailed invoice, revenue, and collection reports."
                 icon={LineChart}
                 onClick={() => router.push('/reports/accounts')}
+            />
+             <ReportCard 
+                title="Advanced Report"
+                description="Drill down into engagements with multi-level task and status filters."
+                icon={SlidersHorizontal}
+                onClick={() => router.push('/reports/advanced-engagement-report')}
             />
         </div>
       </section>
