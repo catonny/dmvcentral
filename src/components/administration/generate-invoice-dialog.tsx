@@ -250,9 +250,9 @@ export function GenerateInvoiceDialog({
                 <div>
                     <DialogTitle>Generate Invoice for {entry.client.name}</DialogTitle>
                     <DialogDescription className="space-y-1 pt-2">
-                        <p><b>Engagement Type:</b> {entry.engagementType.name}</p>
-                        <p><b>Done by:</b> {assignedToNames}</p>
-                        <p><b>Partner:</b> {partnerName}</p>
+                        <div><b>Engagement Type:</b> {entry.engagementType.name}</div>
+                        <div><b>Done by:</b> {assignedToNames}</div>
+                        <div><b>Partner:</b> {partnerName}</div>
                     </DialogDescription>
                 </div>
                 {entry.engagement.billSubmissionDate && (
