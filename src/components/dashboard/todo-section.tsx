@@ -5,7 +5,7 @@ import * as React from "react";
 import type { Client, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Check, Edit, Loader2, PlusCircle, Send, User, Users } from "lucide-react";
-import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
@@ -87,7 +87,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                 isCompleted: false,
                 createdAt: new Date().toISOString(),
             };
-            await addDoc(collection(db, "todos"), newTodo);
+            await setDoc(newTodoRef, newTodo);
             toast({ title: "To-Do Added" });
             setNewTodoText("");
         } catch (error) {
