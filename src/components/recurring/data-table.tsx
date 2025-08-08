@@ -29,8 +29,8 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
 interface DataTableProps {
   data: RecurringEngagement[];
-  clients: Map<string, Client>;
-  engagementTypes: Map<string, EngagementType>;
+  clients: Client[];
+  engagementTypes: EngagementType[];
   onUpdate: (id: string, field: keyof RecurringEngagement, value: any, originalValue?: any) => void;
 }
 
@@ -77,11 +77,14 @@ export function RecurringEngagementsTable({ data, clients, engagementTypes, onUp
   ]);
 
   const tableData = React.useMemo(() => {
+    const clientMap = new Map(clients.map(c => [c.id, c]));
+    const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
+
     return data.map(re => ({
         ...re,
-        clientName: clients.get(re.clientId)?.name || 'Unknown',
-        engagementTypeName: engagementTypes.get(re.engagementTypeId)?.name || 'Unknown',
-        recurrence: engagementTypes.get(re.engagementTypeId)?.recurrence || 'N/A'
+        clientName: clientMap.get(re.clientId)?.name || 'Unknown',
+        engagementTypeName: engagementTypeMap.get(re.engagementTypeId)?.name || 'Unknown',
+        recurrence: engagementTypeMap.get(re.engagementTypeId)?.recurrence || 'N/A'
     }));
   }, [data, clients, engagementTypes]);
 
