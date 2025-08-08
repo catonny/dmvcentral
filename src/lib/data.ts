@@ -19,6 +19,7 @@ export interface Firm {
   bankIfscCode?: string;
   billingAddressLine1?: string;
   billingAddressLine2?: string;
+
   billingAddressLine3?: string;
   country?: string;
   state?: string;
@@ -324,6 +325,7 @@ export interface TaxRate {
     id: string;
     name: string; // e.g., "GST @ 5%"
     rate: number; // e.g., 5
+    isDefault?: boolean;
 }
 
 export interface HsnSacCode {
@@ -331,6 +333,7 @@ export interface HsnSacCode {
     code: string;
     description: string;
     type: 'HSN' | 'SAC';
+    isDefault?: boolean;
 }
 
 export interface SalesItem {
@@ -790,7 +793,7 @@ export const taxRates: Omit<TaxRate, 'id'>[] = [
     { name: 'GST @ 0%', rate: 0 },
     { name: 'GST @ 5%', rate: 5 },
     { name: 'GST @ 12%', rate: 12 },
-    { name: 'GST @ 18%', rate: 18 },
+    { name: 'GST @ 18%', rate: 18, isDefault: true },
 ];
 
 const getDueDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
