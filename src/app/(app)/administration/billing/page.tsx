@@ -4,7 +4,7 @@
 import * as React from "react";
 import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee, Firm } from "@/lib/data";
+import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee, Firm, SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +33,9 @@ export default function BillingDashboardPage() {
     const [unbilledCount, setUnbilledCount] = React.useState(0);
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
     const [firms, setFirms] = React.useState<Firm[]>([]);
+    const [salesItems, setSalesItems] = React.useState<SalesItem[]>([]);
+    const [taxRates, setTaxRates] = React.useState<TaxRate[]>([]);
+    const [hsnSacCodes, setHsnSacCodes] = React.useState<HsnSacCode[]>([]);
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
@@ -42,12 +45,18 @@ export default function BillingDashboardPage() {
     React.useEffect(() => {
         const fetchAndSetStaticData = async () => {
             try {
-                const [employeeSnapshot, firmSnapshot] = await Promise.all([
+                const [employeeSnapshot, firmSnapshot, salesItemSnapshot, taxRateSnapshot, hsnSacSnapshot] = await Promise.all([
                     getDocs(collection(db, "employees")),
-                    getDocs(collection(db, "firms"))
+                    getDocs(collection(db, "firms")),
+                    getDocs(collection(db, "salesItems")),
+                    getDocs(collection(db, "taxRates")),
+                    getDocs(collection(db, "hsnSacCodes")),
                 ]);
                 setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
                 setFirms(firmSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Firm)));
+                setSalesItems(salesItemSnapshot.docs.map(doc => doc.data() as SalesItem));
+                setTaxRates(taxRateSnapshot.docs.map(doc => doc.data() as TaxRate));
+                setHsnSacCodes(hsnSacSnapshot.docs.map(doc => doc.data() as HsnSacCode));
 
             } catch (error) {
                  console.error("Error fetching static data:", error);
@@ -277,6 +286,9 @@ export default function BillingDashboardPage() {
                 onSave={handleSaveInvoice}
                 entry={selectedEntry}
                 firms={firms}
+                salesItems={salesItems}
+                taxRates={taxRates}
+                hsnSacCodes={hsnSacCodes}
             />
         </>
     );

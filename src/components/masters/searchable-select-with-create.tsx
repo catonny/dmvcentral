@@ -4,7 +4,7 @@
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandCreate } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,15 @@ export function SearchableSelectWithCreate({
   const showCreateOption = searchQuery && !filteredOptions.some(opt => opt.label.toLowerCase() === searchQuery.toLowerCase());
   
   const selectedLabel = options.find(option => option.value === value)?.label;
+  
+  const handleCreate = () => {
+    onCreateNew(searchQuery);
+    // Maybe don't close popover to allow user to see new item?
+    // For now, we will close it. User can re-open.
+    setIsOpen(false);
+    setSearchQuery("");
+  };
+
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -62,7 +71,7 @@ export function SearchableSelectWithCreate({
             <CommandEmpty>
                 <div className="p-4 text-sm text-center">
                     {emptyResultText} <br/>
-                    <Button variant="link" onClick={() => onCreateNew(searchQuery)} className="h-auto p-1 mt-1">
+                    <Button variant="link" onClick={handleCreate} className="h-auto p-1 mt-1">
                         <PlusCircle className="mr-2" />
                         Create "{searchQuery}"
                     </Button>
@@ -86,9 +95,13 @@ export function SearchableSelectWithCreate({
                 </CommandItem>
               ))}
               {showCreateOption && (
-                <CommandCreate onSelect={() => onCreateNew(searchQuery)}>
+                 <CommandItem
+                    onSelect={handleCreate}
+                    className="cursor-pointer"
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
                     Create "{searchQuery}"
-                </CommandCreate>
+                </CommandItem>
               )}
             </CommandGroup>
           </CommandList>
@@ -97,4 +110,3 @@ export function SearchableSelectWithCreate({
     </Popover>
   );
 }
-
