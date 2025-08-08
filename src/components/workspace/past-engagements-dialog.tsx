@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
 import { addDays, format, parseISO } from "date-fns";
-import { CalendarIcon, Loader2, Search } from "lucide-react";
+import { CalendarIcon, Loader2, Search, Timer } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { ScrollArea } from "../ui/scroll-area";
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { LogTimeDialog } from "./log-time-dialog";
 
 
 interface PastEngagementsDialogProps {
@@ -33,6 +34,7 @@ interface PastEngagementsDialogProps {
   clientName: string;
   employees: Employee[];
   engagementTypes: EngagementType[];
+  currentUser: Employee | null;
 }
 
 const statusColors: { [key: string]: string } = {
@@ -46,7 +48,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 
-export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, employees, engagementTypes }: PastEngagementsDialogProps) {
+export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, employees, engagementTypes, currentUser }: PastEngagementsDialogProps) {
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: addDays(new Date(), -365),
     to: new Date(),
@@ -54,6 +56,9 @@ export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, e
   const [pastEngagements, setPastEngagements] = React.useState<Engagement[]>([]);
   const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
+  
+  const [isLogTimeOpen, setIsLogTimeOpen] = React.useState(false);
+  const [selectedEngagementForLog, setSelectedEngagementForLog] = React.useState<Engagement | null>(null);
 
   const handleFetchEngagements = async () => {
     if (!date?.from || !date?.to) {
@@ -87,8 +92,15 @@ export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, e
   
   const getEmployeeMember = (employeeId: string) => employees.find(s => s.id === employeeId);
   const getEngagementType = (typeId: string) => engagementTypes.find(et => et.id === typeId);
+  
+  const handleOpenLogTime = (engagement: Engagement) => {
+    setSelectedEngagementForLog(engagement);
+    setIsLogTimeOpen(true);
+  };
+
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
         <DialogHeader>
@@ -149,12 +161,13 @@ export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, e
                             <TableHead>Due Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Assigned To</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {pastEngagements.length > 0 ? (
                            pastEngagements.map((eng) => {
-                                const assignedEmployee = getEmployeeMember(eng.assignedTo);
+                                const assignedEmployee = getEmployeeMember(eng.assignedTo[0]);
                                 const engagementType = getEngagementType(eng.type);
                                 return (
                                 <TableRow key={eng.id}>
@@ -175,12 +188,20 @@ export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, e
                                         <span>{assignedEmployee?.name || 'Unassigned'}</span>
                                     </div>
                                     </TableCell>
+                                     <TableCell className="text-right">
+                                        {eng.status === 'Completed' && (
+                                             <Button variant="outline" size="sm" onClick={() => handleOpenLogTime(eng)}>
+                                                <Timer className="mr-2 h-4 w-4" />
+                                                Log Time
+                                            </Button>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                                 );
                             })
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24">
+                                <TableCell colSpan={6} className="text-center h-24">
                                 {loading ? 'Loading...' : 'No past engagements to display for this range. Try fetching new dates.'}
                                 </TableCell>
                             </TableRow>
@@ -191,5 +212,12 @@ export function PastEngagementsDialog({ isOpen, onClose, clientId, clientName, e
         </div>
       </DialogContent>
     </Dialog>
+     <LogTimeDialog
+        isOpen={isLogTimeOpen}
+        onClose={() => setIsLogTimeOpen(false)}
+        engagement={selectedEngagementForLog}
+        currentUser={currentUser}
+      />
+    </>
   );
 }

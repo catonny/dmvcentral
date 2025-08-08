@@ -18,13 +18,16 @@ import { EngagementHistoryDialog } from "@/components/workspace/engagement-histo
 import { EditableDueDate } from "@/components/workspace/editable-due-date";
 import { EditableStatus } from "@/components/workspace/editable-status";
 import { EditableAssignees } from "@/components/workspace/editable-assignees";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ClientWorkspacePage() {
   const params = useParams();
+  const { user } = useAuth();
   const clientId = params.clientId as string;
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isPastEngagementsOpen, setIsPastEngagementsOpen] = React.useState(false);
@@ -40,6 +43,13 @@ export default function ClientWorkspacePage() {
       console.error(`Error fetching ${type}: `, error);
       toast({ title: "Error", description: `Failed to load ${type} data.`, variant: "destructive" });
     };
+    
+    if (user) {
+        getDocs(query(collection(db, "employees"), where("email", "==", user.email)))
+            .then(snap => {
+                if (!snap.empty) setCurrentUserEmployee(snap.docs[0].data() as Employee);
+            });
+    }
 
     // Listen to client document
     const clientUnsub = onSnapshot(doc(db, "clients", clientId), (doc) => {
@@ -82,7 +92,7 @@ export default function ClientWorkspacePage() {
       clientUnsub();
       engagementsUnsub();
     };
-  }, [clientId, toast]);
+  }, [clientId, toast, user]);
   
   const updateEngagementField = async (engagementId: string, field: keyof Engagement, value: any, successMessage?: string) => {
         const engagementRef = doc(db, "engagements", engagementId);
@@ -248,6 +258,7 @@ export default function ClientWorkspacePage() {
         clientName={client.Name}
         employees={employees}
         engagementTypes={engagementTypes}
+        currentUser={currentUserEmployee}
       />
        <EngagementHistoryDialog
         isOpen={isHistoryOpen}
