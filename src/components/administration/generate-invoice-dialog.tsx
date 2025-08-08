@@ -67,15 +67,14 @@ export function GenerateInvoiceDialog({
   const [selectedFirmId, setSelectedFirmId] = React.useState<string>("");
   const [placeOfSupply, setPlaceOfSupply] = React.useState<string>("");
   const [isSaving, setIsSaving] = React.useState(false);
+  const [discount, setDiscount] = React.useState<number>(0);
   const { toast } = useToast();
   
-  // State for the EditSalesItemDialog
   const [isSalesItemDialogOpen, setIsSalesItemDialogOpen] = React.useState(false);
   const [itemToEdit, setItemToEdit] = React.useState<Partial<SalesItem> | null>(null);
 
   React.useEffect(() => {
     if (entry) {
-        // Find a matching sales item
         const matchingSalesItem = salesItems.find(si => si.name.toLowerCase() === entry.engagementType.name.toLowerCase());
         
         const initialLineItems: LineItem[] = [{
@@ -90,6 +89,7 @@ export function GenerateInvoiceDialog({
         setLineItems(initialLineItems);
         setSelectedFirmId(entry.client.firmId || (firms.length > 0 ? firms[0].id : ""));
         setPlaceOfSupply(entry.client.State || "");
+        setDiscount(0);
     }
   }, [entry, firms, salesItems, taxRates, hsnSacCodes]);
 
@@ -117,7 +117,6 @@ export function GenerateInvoiceDialog({
     const updatedItems = [...lineItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
-    // If sales item changed, update defaults
     if (field === 'salesItemId') {
         const selectedItem = salesItems.find(si => si.id === value);
         if (selectedItem) {
@@ -160,11 +159,18 @@ export function GenerateInvoiceDialog({
       lineItems.forEach(item => {
           const amount = item.quantity * item.rate;
           subTotal += amount;
-          
-          if (firmHasGst) {
+      });
+
+      const taxableAmount = subTotal - discount;
+      
+      if (firmHasGst) {
+          lineItems.forEach(item => {
+              const itemAmount = item.quantity * item.rate;
+              // Distribute discount proportionally for tax calculation if needed, for now use total taxable amount
+              const itemTaxableAmount = (itemAmount / subTotal) * taxableAmount;
               const tax = taxRates.find(t => t.id === item.taxRateId);
               if (tax && tax.rate > 0) {
-                  const taxAmount = amount * (tax.rate / 100);
+                  const taxAmount = itemTaxableAmount * (tax.rate / 100);
                   if (isInterstate) {
                       igst += taxAmount;
                   } else {
@@ -172,14 +178,14 @@ export function GenerateInvoiceDialog({
                       sgst += taxAmount / 2;
                   }
               }
-          }
-      });
+          });
+      }
       
-      const total = subTotal + cgst + sgst + igst;
-      return { subTotal, cgst, sgst, igst, total };
+      const total = taxableAmount + cgst + sgst + igst;
+      return { subTotal, cgst, sgst, igst, total, taxableAmount };
   }
   
-  const { subTotal, cgst, sgst, igst, total } = calculateTotals();
+  const { subTotal, cgst, sgst, igst, total, taxableAmount } = calculateTotals();
 
   if (!entry) return null;
 
@@ -265,6 +271,18 @@ export function GenerateInvoiceDialog({
             <div className="flex justify-end">
                 <div className="w-1/3 space-y-2">
                     <div className="flex justify-between font-mono"><span className="text-muted-foreground">Sub Total:</span> <span>{subTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between items-center font-mono">
+                        <Label htmlFor="discount" className="text-muted-foreground">Discount:</Label>
+                        <Input
+                            id="discount"
+                            type="number"
+                            value={discount || ''}
+                            onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                            className="w-24 h-8"
+                            placeholder="0.00"
+                        />
+                    </div>
+                     <div className="flex justify-between font-mono border-t pt-2 mt-2"><span className="text-muted-foreground">Taxable Amount:</span> <span>{taxableAmount.toFixed(2)}</span></div>
                     {igst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">IGST:</span> <span>{igst.toFixed(2)}</span></div>}
                     {cgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">CGST:</span> <span>{cgst.toFixed(2)}</span></div>}
                     {sgst > 0 && <div className="flex justify-between font-mono"><span className="text-muted-foreground">SGST:</span> <span>{sgst.toFixed(2)}</span></div>}
