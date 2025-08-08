@@ -91,7 +91,7 @@ function TeamTimesheetView({
                 <CardHeader>
                     <CardTitle>Weekly Summary</CardTitle>
                     <CardDescription>
-                        Total hours logged for the week of {format(weekStart, 'MMMM dd, yyyy')}. Non-partners with less than 35 hours are highlighted.
+                        Total hours logged for the week of {format(weekStart, 'MMMM dd, yyyy')}. Employees with less than 35 hours are highlighted.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
