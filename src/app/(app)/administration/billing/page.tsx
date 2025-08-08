@@ -4,7 +4,7 @@
 import * as React from "react";
 import { collection, query, onSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee } from "@/lib/data";
+import type { Engagement, Client, BillStatus, PendingInvoice, EngagementType, Employee, Firm } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,13 +17,13 @@ import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-
-const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
+import { GenerateInvoiceDialog } from "@/components/administration/generate-invoice-dialog";
 
 interface BillingDashboardEntry {
     engagement: Engagement;
     pendingInvoiceId: string;
+    client: Client;
+    engagementType: EngagementType;
 }
 
 export default function BillingDashboardPage() {
@@ -31,25 +31,23 @@ export default function BillingDashboardPage() {
     const router = useRouter();
     const [billingEntries, setBillingEntries] = React.useState<BillingDashboardEntry[]>([]);
     const [unbilledCount, setUnbilledCount] = React.useState(0);
-    const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [employees, setEmployees] = React.useState<Map<string, Employee>>(new Map());
-    const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
+    const [firms, setFirms] = React.useState<Firm[]>([]);
     
     const [pageSize, setPageSize] = React.useState(10);
     const [pageIndex, setPageIndex] = React.useState(0);
-    const [processingInvoiceId, setProcessingInvoiceId] = React.useState<string | null>(null);
+    const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = React.useState(false);
+    const [selectedEntry, setSelectedEntry] = React.useState<BillingDashboardEntry | null>(null);
 
     React.useEffect(() => {
         const fetchAndSetStaticData = async () => {
             try {
-                const [clientSnapshot, employeeSnapshot, engagementTypeSnapshot] = await Promise.all([
-                    getDocs(collection(db, "clients")),
+                const [employeeSnapshot, firmSnapshot] = await Promise.all([
                     getDocs(collection(db, "employees")),
-                    getDocs(collection(db, "engagementTypes"))
+                    getDocs(collection(db, "firms"))
                 ]);
-                setClients(new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
                 setEmployees(new Map(employeeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Employee])));
-                setEngagementTypes(new Map(engagementTypeSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as EngagementType])));
+                setFirms(firmSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Firm)));
 
             } catch (error) {
                  console.error("Error fetching static data:", error);
@@ -71,13 +69,32 @@ export default function BillingDashboardPage() {
             const engagementPromises = pendingInvoices.map(pi => getDoc(doc(db, "engagements", pi.engagementId)));
             const engagementSnapshots = await Promise.all(engagementPromises);
 
+            const clientIds = new Set(engagementSnapshots.map(snap => snap.data()?.clientId).filter(Boolean));
+            const engagementTypeIds = new Set(engagementSnapshots.map(snap => snap.data()?.type).filter(Boolean));
+            
+            const [clientSnapshot, engagementTypeSnapshot] = await Promise.all([
+                getDocs(query(collection(db, "clients"), where("id", "in", Array.from(clientIds)))),
+                getDocs(query(collection(db, "engagementTypes"), where("id", "in", Array.from(engagementTypeIds))))
+            ]);
+            
+            const clientMap = new Map(clientSnapshot.docs.map(doc => [doc.id, {id: doc.id, ...doc.data()} as Client]));
+            const engagementTypeMap = new Map(engagementTypeSnapshot.docs.map(doc => [doc.id, {id: doc.id, ...doc.data()} as EngagementType]));
+
             const fetchedEntries: BillingDashboardEntry[] = engagementSnapshots
                 .map((engSnap, index) => {
                     if (engSnap.exists()) {
-                        return {
-                            engagement: { id: engSnap.id, ...engSnap.data() } as Engagement,
-                            pendingInvoiceId: pendingInvoices[index].id,
-                        };
+                        const engagement = { id: engSnap.id, ...engSnap.data() } as Engagement;
+                        const client = clientMap.get(engagement.clientId);
+                        const engagementType = engagementTypeMap.get(engagement.type);
+
+                        if (client && engagementType) {
+                             return {
+                                engagement,
+                                client,
+                                engagementType,
+                                pendingInvoiceId: pendingInvoices[index].id,
+                            };
+                        }
                     }
                     return null;
                 })
@@ -103,26 +120,33 @@ export default function BillingDashboardPage() {
         }
     }, [toast]);
     
-    const handleMarkAsBilled = async (engagementId: string, pendingInvoiceId: string) => {
-        setProcessingInvoiceId(engagementId);
+    const handleGenerateInvoice = (entry: BillingDashboardEntry) => {
+        setSelectedEntry(entry);
+        setIsInvoiceDialogOpen(true);
+    };
+
+    const handleSaveInvoice = async (engagementId: string, fee: number) => {
         try {
             const batch = writeBatch(db);
             const engagementRef = doc(db, "engagements", engagementId);
-            batch.update(engagementRef, { billStatus: "Pending Collection" });
+            batch.update(engagementRef, { billStatus: "Pending Collection", fees: fee });
             
-            const pendingInvoiceRef = doc(db, "pendingInvoices", pendingInvoiceId);
-            batch.delete(pendingInvoiceRef);
+            const pendingInvoice = billingEntries.find(be => be.engagement.id === engagementId);
+            if(pendingInvoice) {
+                const pendingInvoiceRef = doc(db, "pendingInvoices", pendingInvoice.pendingInvoiceId);
+                batch.delete(pendingInvoiceRef);
+            }
 
             await batch.commit();
 
             toast({ title: "Success!", description: "Engagement marked as billed and moved to collections." });
+            setIsInvoiceDialogOpen(false);
+            setSelectedEntry(null);
 
         } catch (error) {
             console.error("Error processing invoice:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             toast({ title: "Processing Failed", description: errorMessage, variant: "destructive" });
-        } finally {
-            setProcessingInvoiceId(null);
         }
     };
 
@@ -133,140 +157,127 @@ export default function BillingDashboardPage() {
     const pageCount = Math.ceil(billingEntries.length / pageSize);
     
     return (
-        <div className="space-y-6">
-            <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Administration
-            </Button>
-            <Card>
-                <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                        <CardTitle>Billing Pending Dashboard</CardTitle>
-                        <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
-                    </div>
-                     {unbilledCount > 0 && (
-                        <Button variant="outline" className="relative" asChild>
-                           <Link href="/reports/exceptions/unbilled-engagements">
-                                <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
-                                Unbilled Engagements
-                                <Badge variant="destructive" className="absolute -top-2 -right-2">
-                                    {unbilledCount}
-                                </Badge>
-                           </Link>
-                        </Button>
-                    )}
-                </CardHeader>
-                <CardContent>
-                    <ScrollArea className="w-full whitespace-nowrap">
-                        <TooltipProvider>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Partner</TableHead>
-                                    <TableHead>Engagement Type</TableHead>
-                                    <TableHead>Assigned To</TableHead>
-                                    <TableHead>Remarks</TableHead>
-                                    <TableHead className="text-right"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {paginatedEntries.length > 0 ? (
-                                    paginatedEntries.map(entry => {
-                                        const { engagement, pendingInvoiceId } = entry;
-                                        const client = clients.get(engagement.clientId);
-                                        const partner = client ? employees.get(client.partnerId) : undefined;
-                                        const assignedToNames = engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
-                                        const engagementType = engagementTypes.get(engagement.type);
-                                        const isProcessing = processingInvoiceId === engagement.id;
-                                        const hasFee = !!engagement.fees && engagement.fees > 0;
-
-                                        const button = (
-                                            <Button
-                                                onClick={() => handleMarkAsBilled(engagement.id, pendingInvoiceId)}
-                                                disabled={isProcessing || !hasFee}
-                                            >
-                                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Mark as Billed
-                                            </Button>
-                                        );
-
-                                        return (
-                                            <TableRow key={engagement.id}>
-                                                <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
-                                                <TableCell>{client?.name || 'Unknown Client'}</TableCell>
-                                                <TableCell>{partner?.name || 'N/A'}</TableCell>
-                                                <TableCell>{engagementType?.name || 'N/A'}</TableCell>
-                                                <TableCell>{assignedToNames || 'N/A'}</TableCell>
-                                                <TableCell>{engagement.remarks}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {!hasFee ? (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span>{button}</span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Cannot mark as billed: Fee is not set for this engagement.</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    ) : button}
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    })
-                                ) : (
+        <>
+            <div className="space-y-6">
+                <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Administration
+                </Button>
+                <Card>
+                    <CardHeader className="flex flex-row items-start justify-between">
+                        <div>
+                            <CardTitle>Billing Pending Dashboard</CardTitle>
+                            <CardDescription>Engagements submitted for billing and awaiting processing.</CardDescription>
+                        </div>
+                        {unbilledCount > 0 && (
+                            <Button variant="outline" className="relative" asChild>
+                            <Link href="/reports/exceptions/unbilled-engagements">
+                                    <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
+                                    Unbilled Engagements
+                                    <Badge variant="destructive" className="absolute -top-2 -right-2">
+                                        {unbilledCount}
+                                    </Badge>
+                            </Link>
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="w-full whitespace-nowrap">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center h-24">No new engagements submitted for billing.</TableCell>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Client</TableHead>
+                                        <TableHead>Partner</TableHead>
+                                        <TableHead>Engagement Type</TableHead>
+                                        <TableHead>Assigned To</TableHead>
+                                        <TableHead>Remarks</TableHead>
+                                        <TableHead className="text-right"></TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                        </TooltipProvider>
-                        <ScrollBar orientation="vertical" />
-                        <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-                </CardContent>
-                <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
-                    <div className="flex-1 text-sm text-muted-foreground">
-                        {billingEntries.length} total row(s).
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedEntries.length > 0 ? (
+                                        paginatedEntries.map(entry => {
+                                            const { engagement } = entry;
+                                            const client = entry.client;
+                                            const partner = employees.get(client.partnerId);
+                                            const assignedToNames = engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
+                                            
+                                            return (
+                                                <TableRow key={engagement.id}>
+                                                    <TableCell>{engagement.billSubmissionDate ? format(parseISO(engagement.billSubmissionDate), "dd MMM, yyyy") : 'N/A'}</TableCell>
+                                                    <TableCell>{client.name || 'Unknown Client'}</TableCell>
+                                                    <TableCell>{partner?.name || 'N/A'}</TableCell>
+                                                    <TableCell>{entry.engagementType?.name || 'N/A'}</TableCell>
+                                                    <TableCell>{assignedToNames || 'N/A'}</TableCell>
+                                                    <TableCell>{engagement.remarks}</TableCell>
+                                                    <TableCell className="text-right">
+                                                         <Button onClick={() => handleGenerateInvoice(entry)}>
+                                                            Generate Invoice
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center h-24">No new engagements submitted for billing.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                            <ScrollBar orientation="vertical" />
+                            <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                    </CardContent>
+                    <div className="flex items-center justify-between space-x-2 py-4 px-6 border-t border-white/10">
+                        <div className="flex-1 text-sm text-muted-foreground">
+                            {billingEntries.length} total row(s).
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium">Rows per page</p>
+                            <Select
+                                value={`${pageSize}`}
+                                onValueChange={(value) => setPageSize(Number(value))}
+                            >
+                                <SelectTrigger className="h-8 w-[70px]">
+                                    <SelectValue placeholder={pageSize} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[10, 25, 50].map((size) => (
+                                        <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPageIndex(p => p - 1)}
+                                disabled={pageIndex === 0}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPageIndex(p => p + 1)}
+                                disabled={pageIndex >= pageCount - 1}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium">Rows per page</p>
-                        <Select
-                            value={`${pageSize}`}
-                            onValueChange={(value) => setPageSize(Number(value))}
-                        >
-                            <SelectTrigger className="h-8 w-[70px]">
-                                <SelectValue placeholder={pageSize} />
-                            </SelectTrigger>
-                            <SelectContent side="top">
-                                {[10, 25, 50].map((size) => (
-                                    <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPageIndex(p => p - 1)}
-                            disabled={pageIndex === 0}
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPageIndex(p => p + 1)}
-                            disabled={pageIndex >= pageCount - 1}
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            </Card>
-        </div>
+                </Card>
+            </div>
+            <GenerateInvoiceDialog
+                isOpen={isInvoiceDialogOpen}
+                onClose={() => setIsInvoiceDialogOpen(false)}
+                onSave={handleSaveInvoice}
+                entry={selectedEntry}
+                firms={firms}
+            />
+        </>
     );
 }
