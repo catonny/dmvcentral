@@ -109,8 +109,8 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         try {
             await updateDoc(todoRef, {
                 isCompleted: newStatus,
-                completedAt: newStatus ? new Date().toISOString() : null,
-                completedBy: newStatus ? currentUser.id : null,
+                completedAt: newStatus ? new Date().toISOString() : undefined,
+                completedBy: newStatus ? currentUser.id : undefined,
             });
         } catch (error) {
             toast({ title: "Error", description: "Could not update to-do status.", variant: "destructive"});
@@ -296,11 +296,15 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                     </ScrollArea>
                     {completedTodos.length > 0 && (
                         <Collapsible className="border-t pt-2">
-                             <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold w-full text-left">
-                                <ChevronDown className="h-4 w-4" />
-                                Completed ({completedTodos.length})
-                                <Button variant="ghost" size="sm" className="ml-auto" onClick={handleClearCompleted}>Clear All</Button>
-                            </CollapsibleTrigger>
+                             <div className="flex items-center justify-between">
+                                <CollapsibleTrigger asChild>
+                                    <Button variant="ghost" className="flex items-center gap-2 text-sm font-semibold w-full justify-start p-2 -ml-2">
+                                        <ChevronDown className="h-4 w-4" />
+                                        Completed ({completedTodos.length})
+                                    </Button>
+                                </CollapsibleTrigger>
+                                <Button variant="ghost" size="sm" onClick={handleClearCompleted}>Clear All</Button>
+                            </div>
                             <CollapsibleContent>
                                  <ScrollArea className="h-[150px] mt-2 pr-4">
                                      <div className="space-y-2">
