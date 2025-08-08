@@ -33,7 +33,7 @@ import * as z from "zod";
 const firmSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Firm name is required"),
-  pan: z.string().min(1, "PAN is required"),
+  pan: z.string().optional(),
   gstn: z.string().optional(),
   pfCode: z.string().optional(),
   esiCode: z.string().optional(),
@@ -110,7 +110,7 @@ export function EditFirmSheet({ firm, isOpen, onSave, onClose }: EditFirmSheetPr
                     </div>
                     
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="pan" className="text-right">PAN*</Label>
+                        <Label htmlFor="pan" className="text-right">PAN</Label>
                          <div className="col-span-3">
                             <Input id="pan" {...register("pan")} />
                             {errors.pan && <p className="text-sm text-destructive mt-1">{errors.pan.message}</p>}
