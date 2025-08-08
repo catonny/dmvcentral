@@ -4,7 +4,7 @@
 import * as React from "react";
 import { collection, query, onSnapshot, where, doc, updateDoc, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Client, Engagement } from "@/lib/data";
+import type { Client, Engagement, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,11 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function IncompleteClientsReportPage() {
+    const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
+    const [hasAccess, setHasAccess] = React.useState(false);
     const [clients, setClients] = React.useState<Client[]>([]);
     
     // State for edit sheet
@@ -36,8 +39,34 @@ export default function IncompleteClientsReportPage() {
     const [allClients, setAllClients] = React.useState<Client[]>([]);
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
 
+    React.useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+        
+        const checkUserRole = async () => {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const employeeSnapshot = await getDocs(employeeQuery);
+            if (!employeeSnapshot.empty) {
+                const employeeData = employeeSnapshot.docs[0].data() as Employee;
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
+                    setHasAccess(true);
+                }
+            }
+        };
+        checkUserRole();
+
+    }, [user]);
 
     React.useEffect(() => {
+        if (!hasAccess) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+
         // Fetch all clients for the edit sheet's "link clients" functionality
         const allClientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
             setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
@@ -70,7 +99,7 @@ export default function IncompleteClientsReportPage() {
             allClientsUnsub();
         }
 
-    }, [toast]);
+    }, [toast, hasAccess]);
     
     const getMissingFields = (client: Client) => {
         const missing = [];
@@ -131,12 +160,24 @@ export default function IncompleteClientsReportPage() {
         }
     };
 
-
     if (loading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
+        );
+    }
+
+    if (!hasAccess) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>You do not have the required permissions to view this page. This view is for Partners only.</p>
+                </CardContent>
+            </Card>
         );
     }
     
@@ -220,4 +261,3 @@ export default function IncompleteClientsReportPage() {
         </div>
     );
 }
-
