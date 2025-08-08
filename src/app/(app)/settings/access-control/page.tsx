@@ -157,7 +157,6 @@ export default function AccessControlPage() {
                                             <Checkbox
                                                 checked={permissions.get(feature.id)?.includes(dept.name)}
                                                 onCheckedChange={(checked) => handlePermissionChange(feature.id, dept.name, !!checked)}
-                                                disabled={dept.name === 'Admin'} // Admins always have access
                                             />
                                         </TableCell>
                                     ))}
