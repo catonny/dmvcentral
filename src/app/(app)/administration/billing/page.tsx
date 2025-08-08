@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { generateInvoice } from "@/ai/flows/generate-invoice-flow";
 import { sendEmail } from "@/ai/flows/send-email-flow";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const BILL_STATUSES: BillStatus[] = ["To Bill", "Pending Collection", "Collected"];
@@ -173,6 +174,7 @@ export default function BillingDashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="w-full whitespace-nowrap">
+                        <TooltipProvider>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -194,6 +196,17 @@ export default function BillingDashboardPage() {
                                         const assignedToNames = engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
                                         const engagementType = engagementTypes.get(engagement.type);
                                         const isProcessing = processingInvoiceId === engagement.id;
+                                        const hasFee = !!engagement.fees && engagement.fees > 0;
+
+                                        const button = (
+                                            <Button
+                                                onClick={() => handleGenerateInvoice(engagement.id, pendingInvoiceId)}
+                                                disabled={isProcessing || !hasFee}
+                                            >
+                                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Generate Invoice
+                                            </Button>
+                                        );
 
                                         return (
                                             <TableRow key={engagement.id}>
@@ -204,13 +217,16 @@ export default function BillingDashboardPage() {
                                                 <TableCell>{assignedToNames || 'N/A'}</TableCell>
                                                 <TableCell>{engagement.remarks}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button
-                                                        onClick={() => handleGenerateInvoice(engagement.id, pendingInvoiceId)}
-                                                        disabled={isProcessing}
-                                                    >
-                                                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                        Generate Invoice
-                                                    </Button>
+                                                    {!hasFee ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span>{button}</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Cannot generate invoice: Fee is not set for this engagement.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : button}
                                                 </TableCell>
                                             </TableRow>
                                         )
@@ -222,6 +238,7 @@ export default function BillingDashboardPage() {
                                 )}
                             </TableBody>
                         </Table>
+                        </TooltipProvider>
                         <ScrollBar orientation="vertical" />
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
@@ -268,5 +285,4 @@ export default function BillingDashboardPage() {
             </Card>
         </div>
     );
-
-  
+}
