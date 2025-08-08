@@ -40,8 +40,6 @@ export function SearchableSelectWithCreate({
   
   const handleCreate = () => {
     onCreateNew(searchQuery);
-    // Maybe don't close popover to allow user to see new item?
-    // For now, we will close it. User can re-open.
     setIsOpen(false);
     setSearchQuery("");
   };
@@ -82,7 +80,7 @@ export function SearchableSelectWithCreate({
                 <CommandItem
                   key={option.value}
                   value={option.label}
-                  onSelect={() => {
+                  onSelect={(currentValue) => {
                     onValueChange(option.value);
                     setIsOpen(false);
                     setSearchQuery("");

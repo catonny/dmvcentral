@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -206,8 +207,8 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   };
 
 
-  const handleEngagementTypeSelect = (value: string) => {
-    const type = engagementTypes.find(et => et.id.toLowerCase() === value.toLowerCase() || et.name.toLowerCase() === value.toLowerCase());
+  const handleEngagementTypeSelect = (value: string, name?: string) => {
+    const type = engagementTypes.find(et => et.id === value);
     
     if (type) {
          setValue("type", type.id, { shouldValidate: true });
@@ -281,9 +282,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                                 <CommandItem
                                 key={client.id}
                                 value={client.Name}
-                                onSelect={() => {
-                                  handleClientSelect(client.id);
-                                }}
+                                onSelect={() => handleClientSelect(client.id)}
                                 >
                                 <Check
                                     className={cn(
@@ -295,9 +294,10 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                                 </CommandItem>
                             ))}
                             {showCreateClientOption && (
-                                <CommandCreate onSelect={handleCreateNewClient}>
+                                <CommandItem onSelect={handleCreateNewClient} className="cursor-pointer">
+                                    <PlusCircle className="mr-2" />
                                     Create "{clientSearchQuery}"
-                                </CommandCreate>
+                                </CommandItem>
                             )}
                             </CommandGroup>
                         </CommandList>
@@ -344,7 +344,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                             <CommandItem
                               key={et.id}
                               value={et.name}
-                              onSelect={() => handleEngagementTypeSelect(et.id)}
+                              onSelect={() => handleEngagementTypeSelect(et.id, et.name)}
                             >
                                <Check
                                 className={cn(
@@ -356,9 +356,10 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                             </CommandItem>
                           ))}
                            {showCreateOption && (
-                                <CommandCreate onSelect={() => handleEngagementTypeSelect(engagementSearchQuery)}>
+                                <CommandItem onSelect={() => handleEngagementTypeSelect(engagementSearchQuery, engagementSearchQuery)} className="cursor-pointer">
+                                    <PlusCircle className="mr-2" />
                                     Create "{engagementSearchQuery}"
-                                </CommandCreate>
+                                </CommandItem>
                             )}
                         </CommandGroup>
                       </CommandList>

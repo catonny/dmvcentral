@@ -99,4 +99,3 @@ export function EditableAssignees({ engagement, allEmployees, onAssigneesChange 
     </Popover>
   );
 }
-
