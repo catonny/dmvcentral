@@ -80,8 +80,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
 
-  // Super admin status depends on role selected at login
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isDeveloper, setIsDeveloper] = useState(false);
 
   useEffect(() => {

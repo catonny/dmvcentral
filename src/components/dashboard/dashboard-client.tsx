@@ -110,18 +110,32 @@ export function DashboardClient() {
   }, [user, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
-    if (!currentUserEmployeeProfile) {
+    if (!currentUserEmployeeProfile || !user) {
         return { isPartner: false, isAdmin: false, userRole: "Employee", dashboardData: null };
     }
 
-    const userIsAdmin = currentUserEmployeeProfile.role.includes("Admin");
-    const userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
+    let userIsAdmin = currentUserEmployeeProfile.role.includes("Admin");
+    let userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
+    let roleForView: "Admin" | "Partner" | "Employee" = "Employee";
 
+    // Special logic for the main developer user
+    if (user.email === 'ca.tonnyvarghese@gmail.com') {
+        const sessionRole = sessionStorage.getItem('userRole');
+        if (sessionRole === 'developer') {
+            userIsAdmin = true;
+            userIsPartner = true; 
+        } else {
+            userIsAdmin = false;
+            userIsPartner = true;
+        }
+    }
+    
     if (userIsAdmin) {
+        roleForView = "Admin";
         return {
             isPartner: userIsPartner,
             isAdmin: true,
-            userRole: "Admin",
+            userRole: roleForView,
             dashboardData: {
                 clients: allClients,
                 engagements: engagements,
@@ -132,6 +146,7 @@ export function DashboardClient() {
     }
     
     if (userIsPartner) {
+        roleForView = "Partner";
         const partnerClients = allClients.filter(c => c.partnerId === currentUserEmployeeProfile.id);
         const partnerClientIds = new Set(partnerClients.map(c => c.id));
         const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
@@ -141,7 +156,7 @@ export function DashboardClient() {
         return {
             isPartner: true,
             isAdmin: false,
-            userRole: "Partner",
+            userRole: roleForView,
             dashboardData: {
                 clients: partnerClients,
                 engagements: partnerEngagements,
@@ -160,7 +175,7 @@ export function DashboardClient() {
     return {
         isPartner: false,
         isAdmin: false,
-        userRole: "Employee",
+        userRole: roleForView,
         dashboardData: {
             clients: employeeClients,
             engagements: employeeEngagements,
@@ -169,7 +184,7 @@ export function DashboardClient() {
         }
     };
 
-  }, [currentUserEmployeeProfile, allClients, engagements, tasks]);
+  }, [currentUserEmployeeProfile, allClients, engagements, tasks, user]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
@@ -226,9 +241,11 @@ export function DashboardClient() {
         <div>
            <div className="flex items-center gap-4">
              <h2 className="text-3xl font-bold tracking-tight font-headline">Dashboard</h2>
-             <Badge variant={isAdmin ? "destructive" : isPartner ? "secondary" : "outline"}>
-                {userRole} View
-            </Badge>
+             {isAdmin && (
+                <Badge variant="destructive">
+                    {userRole} View
+                </Badge>
+             )}
            </div>
           <p className="text-muted-foreground">
             A command center for your firm's engagements and clients.
