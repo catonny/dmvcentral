@@ -99,6 +99,7 @@ export function EmployeeLane({ employee, engagements, engagementTypes, clientMap
                                             engagement={engagement}
                                             client={clientMap.get(engagement.clientId)}
                                             onLogTime={handleOpenLogTime}
+                                            onScheduleMeeting={onScheduleMeeting}
                                         />
                                     ))}
                                 </SortableContext>

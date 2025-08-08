@@ -8,7 +8,7 @@ import { db, logActivity } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote, Edit, Check } from "lucide-react";
+import { ArrowLeft, CheckSquare, MessageSquare, Send, Book, FileText, StickyNote, Edit, Check, Timer } from "lucide-react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Label } from "@/components/ui/label";
 import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import { EngagementNotes } from "@/components/workspace/engagement-notes";
+import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
 
 
 export default function EngagementWorkflowPage() {
@@ -39,6 +40,7 @@ export default function EngagementWorkflowPage() {
   
   const [remarks, setRemarks] = React.useState("");
   const [isEditingRemarks, setIsEditingRemarks] = React.useState(false);
+  const [isLogTimeOpen, setIsLogTimeOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (user) {
@@ -213,10 +215,16 @@ export default function EngagementWorkflowPage() {
                 Back to My Engagements
             </Link>
         </Button>
-         <Button variant="outline" size="sm" onClick={() => setIsSheetOpen(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Engagement
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsLogTimeOpen(true)}>
+                <Timer className="mr-2 h-4 w-4" />
+                Log Time
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsSheetOpen(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Engagement
+            </Button>
+        </div>
       </div>
 
       <Card>
@@ -295,6 +303,12 @@ export default function EngagementWorkflowPage() {
         onSave={handleSaveEngagement}
         engagement={typedSelectedEngagement}
         allEmployees={allEmployees}
+    />
+    <LogTimeDialog
+        isOpen={isLogTimeOpen}
+        onClose={() => setIsLogTimeOpen(false)}
+        engagement={engagement}
+        currentUser={currentUserEmployee}
     />
     </>
   );

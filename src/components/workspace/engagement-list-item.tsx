@@ -5,7 +5,7 @@ import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Engagement, Client } from "@/lib/data";
-import { GripVertical, Timer } from "lucide-react";
+import { GripVertical, Timer, CalendarPlus } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
@@ -15,9 +15,10 @@ interface EngagementListItemProps {
     engagement: Engagement;
     client?: Client;
     onLogTime: (engagement: Engagement) => void;
+    onScheduleMeeting: (engagement: Engagement) => void;
 }
 
-export function EngagementListItem({ engagement, client, onLogTime }: EngagementListItemProps) {
+export function EngagementListItem({ engagement, client, onLogTime, onScheduleMeeting }: EngagementListItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: engagement.id,
     });
@@ -35,6 +36,12 @@ export function EngagementListItem({ engagement, client, onLogTime }: Engagement
         e.stopPropagation();
         onLogTime(engagement);
     }
+    
+    const handleScheduleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onScheduleMeeting(engagement);
+    }
 
     return (
          <div ref={setNodeRef} style={style} {...attributes}>
@@ -51,9 +58,14 @@ export function EngagementListItem({ engagement, client, onLogTime }: Engagement
                         </span>
                     </div>
                 </Link>
-                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={handleLogTimeClick}>
-                    <Timer className="h-4 w-4" />
-                </Button>
+                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleScheduleClick}>
+                        <CalendarPlus className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleLogTimeClick}>
+                        <Timer className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
         </div>
     );
