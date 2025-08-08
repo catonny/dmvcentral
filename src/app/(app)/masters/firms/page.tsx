@@ -60,13 +60,22 @@ export default function FirmsPage() {
 
     const handleSaveFirm = async (firmData: Partial<Firm>) => {
         try {
-            if (firmData.id) {
-                const firmRef = doc(db, "firms", firmData.id);
-                const { id, ...dataToUpdate } = firmData;
+            // Clean the data to remove undefined values
+            const cleanData = Object.entries(firmData).reduce((acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc[key as keyof Firm] = value;
+                }
+                return acc;
+            }, {} as Partial<Firm>);
+
+
+            if (cleanData.id) {
+                const firmRef = doc(db, "firms", cleanData.id);
+                const { id, ...dataToUpdate } = cleanData;
                 await updateDoc(firmRef, dataToUpdate);
                 toast({ title: "Success", description: "Firm details updated." });
             } else {
-                const docRef = await addDoc(collection(db, "firms"), firmData);
+                const docRef = await addDoc(collection(db, "firms"), cleanData);
                 await updateDoc(docRef, {id: docRef.id});
                 toast({ title: "Success", description: "New firm added." });
             }
