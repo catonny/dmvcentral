@@ -43,7 +43,7 @@ type FormData = z.infer<typeof salesItemSchema>;
 interface EditSalesItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  salesItem: SalesItem | null;
+  salesItem: Partial<SalesItem> | null;
   taxRates: TaxRate[];
   hsnSacCodes: HsnSacCode[];
 }
@@ -64,7 +64,14 @@ export function EditSalesItemDialog({
     React.useEffect(() => {
         if (isOpen) {
             if (salesItem) {
-                reset(salesItem);
+                const defaultValues = {
+                    name: salesItem.name || "",
+                    description: salesItem.description || "",
+                    standardPrice: salesItem.standardPrice || 0,
+                    defaultTaxRateId: salesItem.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || "",
+                    defaultSacId: salesItem.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || "",
+                };
+                reset(defaultValues);
             } else {
                  const defaultTax = taxRates.find(t => t.isDefault);
                  const defaultHsn = hsnSacCodes.find(h => h.isDefault);
@@ -106,9 +113,9 @@ export function EditSalesItemDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{salesItem ? "Edit" : "Create"} Sales Item</DialogTitle>
+          <DialogTitle>{salesItem?.id ? "Edit" : "Create"} Sales Item</DialogTitle>
           <DialogDescription>
-            {salesItem ? "Update the details for this line item." : "Add a new reusable line item for your invoices."}
+            {salesItem?.id ? "Update the details for this line item." : "Add a new reusable line item for your invoices."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(handleSave)} className="space-y-4">

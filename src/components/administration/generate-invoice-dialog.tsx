@@ -26,8 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SearchableSelectWithCreate } from "../masters/searchable-select-with-create";
-import { collection, doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
 
 interface LineItem {
     id: string;
@@ -69,6 +68,10 @@ export function GenerateInvoiceDialog({
   const [placeOfSupply, setPlaceOfSupply] = React.useState<string>("");
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
+  
+  // State for the EditSalesItemDialog
+  const [isSalesItemDialogOpen, setIsSalesItemDialogOpen] = React.useState(false);
+  const [itemToEdit, setItemToEdit] = React.useState<Partial<SalesItem> | null>(null);
 
   React.useEffect(() => {
     if (entry) {
@@ -105,20 +108,9 @@ export function GenerateInvoiceDialog({
     setIsSaving(false);
   };
   
-  const handleCreateNewSalesItem = async (itemName: string) => {
-    const newDocRef = doc(collection(db, "salesItems"));
-    const newItem: SalesItem = {
-        id: newDocRef.id,
-        name: itemName,
-        description: `New item: ${itemName}`,
-        standardPrice: 0,
-        defaultTaxRateId: taxRates.find(t => t.isDefault)?.id || '',
-        defaultSacId: hsnSacCodes.find(h => h.isDefault)?.id || ''
-    };
-    await setDoc(newDocRef, newItem);
-    // Note: In a real app, you'd want to refetch the salesItems or update the state.
-    // For now, the user will have to close and reopen to see the new item.
-    toast({ title: "Success", description: `New sales item "${itemName}" created.`});
+  const handleCreateNewSalesItem = (itemName: string) => {
+    setItemToEdit({ name: itemName });
+    setIsSalesItemDialogOpen(true);
   }
 
   const handleLineItemChange = (index: number, field: keyof LineItem, value: any) => {
@@ -180,6 +172,7 @@ export function GenerateInvoiceDialog({
   if (!entry) return null;
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
@@ -277,5 +270,13 @@ export function GenerateInvoiceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <EditSalesItemDialog
+        isOpen={isSalesItemDialogOpen}
+        onClose={() => setIsSalesItemDialogOpen(false)}
+        salesItem={itemToEdit}
+        taxRates={taxRates}
+        hsnSacCodes={hsnSacCodes}
+    />
+    </>
   );
 }
