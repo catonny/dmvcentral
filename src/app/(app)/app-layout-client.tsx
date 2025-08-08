@@ -255,14 +255,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
     : user?.displayName?.split(' ')[0] || 'there';
   
-  const checkPermission = (feature: FeatureName) => {
-    if (isSuperAdmin) return true;
-    const userRoles = currentUserEmployeeProfile?.role || [];
-    const permission = permissions.find(p => p.feature === feature);
-    if (!permission) return false;
-    return userRoles.some(role => permission.departments.includes(role));
-  }
-  
   return (
       <SidebarProvider isPinned={isPinned}>
           <Sidebar>
@@ -297,21 +289,12 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                     <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                         <Link href="/workspace"><Briefcase />Workspace</Link>
                     </Button>
-                    {checkPermission('inbox') && (
-                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
-                            <Link href="/inbox"><Mail />Inbox</Link>
-                        </Button>
-                    )}
-                    {checkPermission('calendar') && (
-                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
-                            <Link href="/calendar"><Calendar />Calendar</Link>
-                        </Button>
-                    )}
-                     {checkPermission('agentic-ai') && (
-                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
-                            <Link href="/agentic-ai"><Bot />Agentic AI</Link>
-                        </Button>
-                    )}
+                    <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                        <Link href="/inbox"><Mail />Inbox</Link>
+                    </Button>
+                    <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                        <Link href="/calendar"><Calendar />Calendar</Link>
+                    </Button>
 
                     <div className="h-6 w-px bg-white/20 mx-2"></div>
                     

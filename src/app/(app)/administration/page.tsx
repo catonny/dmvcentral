@@ -109,7 +109,6 @@ export default function AdministrationPage() {
                     description="Generate and send templated, AI-powered emails to clients."
                     icon={Mail}
                     onClick={() => router.push('/administration/email-center')}
-                    isDisabled={true}
                 />
                  <ActionCard 
                     title="Bulk Engagement Scheduler"
