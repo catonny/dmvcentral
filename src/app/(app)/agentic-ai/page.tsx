@@ -89,6 +89,13 @@ export default function AgenticAIPage() {
             return;
         }
 
+        const isDeveloper = user.email === 'ca.tonnyvarghese@gmail.com' && sessionStorage.getItem('userRole') === 'developer';
+        if (isDeveloper) {
+            setHasAccess(true);
+            setLoading(false);
+            return;
+        }
+
         const checkUserRole = async () => {
             const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
             const [employeeSnapshot, permissionsSnapshot] = await Promise.all([
@@ -121,7 +128,9 @@ export default function AgenticAIPage() {
         return (
             <Card>
                 <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
-                <CardDescription>You do not have the required permissions to view this page.</CardDescription>
+                <CardContent>
+                    <p>You do not have the required permissions to view this page.</p>
+                </CardContent>
             </Card>
         );
     }
