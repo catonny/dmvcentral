@@ -28,6 +28,8 @@ import { Checkbox } from "../ui/checkbox";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 
 
 export function TodoSection({ currentUser, allClients, allEmployees }: { currentUser: Employee | null, allClients: Client[], allEmployees: Employee[] }) {
@@ -42,6 +44,11 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
     const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+
+    // State for @mention functionality
+    const [mentionQuery, setMentionQuery] = React.useState<string | null>(null);
+    const [isMentionPopoverOpen, setIsMentionPopoverOpen] = React.useState(false);
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
     const { toast } = useToast();
 
@@ -207,6 +214,47 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         }
     };
 
+    const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const text = e.target.value;
+        setNewTodoText(text);
+
+        const cursorPos = e.target.selectionStart;
+        const textBeforeCursor = text.slice(0, cursorPos);
+        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+        if (mentionMatch) {
+            setMentionQuery(mentionMatch[1].toLowerCase());
+            setIsMentionPopoverOpen(true);
+        } else {
+            setIsMentionPopoverOpen(false);
+            setMentionQuery(null);
+        }
+    };
+    
+    const handleMentionSelect = (employeeName: string) => {
+        const text = newTodoText;
+        const cursorPos = textareaRef.current?.selectionStart || 0;
+        const textBeforeCursor = text.slice(0, cursorPos);
+        
+        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+        if (mentionMatch) {
+            const mentionStartIndex = mentionMatch.index || 0;
+            const newText = 
+                text.slice(0, mentionStartIndex) + 
+                `@${employeeName.replace(/\s/g, '')}` +
+                text.slice(cursorPos);
+            
+            setNewTodoText(newText);
+        }
+        setIsMentionPopoverOpen(false);
+        setMentionQuery(null);
+        textareaRef.current?.focus();
+    };
+
+    const filteredEmployees = mentionQuery !== null 
+        ? allEmployees.filter(e => e.name.toLowerCase().includes(mentionQuery))
+        : [];
+
     const pendingTodos = todos.filter(t => !t.isCompleted);
     const completedTodos = todos.filter(t => t.isCompleted);
     const hasNoPendingItems = pendingTodos.length === 0 && incompleteClients.length === 0;
@@ -226,14 +274,38 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                     <CardDescription>Action items that require your attention. Mention users with @.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-4 flex flex-col min-h-0">
-                    <div className="flex gap-2">
-                        <Textarea 
-                            placeholder="Add a new to-do..."
-                            value={newTodoText}
-                            onChange={(e) => setNewTodoText(e.target.value)}
-                        />
-                        <Button onClick={handleAddTodo} disabled={isAdding}>
-                            {isAdding ? <Loader2 className="animate-spin"/> : <Send/>}
+                    <div className="relative">
+                         <Popover open={isMentionPopoverOpen} onOpenChange={setIsMentionPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Textarea 
+                                    ref={textareaRef}
+                                    placeholder="Add a new to-do..."
+                                    value={newTodoText}
+                                    onChange={handleTextChange}
+                                />
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0" align="start">
+                                <Command>
+                                    <CommandInput placeholder="Search employee..." value={mentionQuery || ''} onValueChange={setMentionQuery} />
+                                    <CommandList>
+                                        <CommandEmpty>No employee found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {filteredEmployees.map(employee => (
+                                                <CommandItem
+                                                    key={employee.id}
+                                                    value={employee.name}
+                                                    onSelect={() => handleMentionSelect(employee.name)}
+                                                >
+                                                    {employee.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={handleAddTodo} disabled={isAdding} className="absolute bottom-2 right-2 h-7 w-7" size="icon">
+                            {isAdding ? <Loader2 className="animate-spin h-4 w-4"/> : <Send className="h-4 w-4"/>}
                         </Button>
                     </div>
                     <ScrollArea className="flex-grow pr-4 -mr-4">
@@ -296,10 +368,10 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                     </ScrollArea>
                     {completedTodos.length > 0 && (
                         <Collapsible className="border-t pt-2">
-                             <div className="flex items-center justify-between">
-                                <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between">
+                                 <CollapsibleTrigger asChild>
                                     <Button variant="ghost" className="flex items-center gap-2 text-sm font-semibold w-full justify-start p-2 -ml-2">
-                                        <ChevronDown className="h-4 w-4" />
+                                        <ChevronDown className="h-4 w-4 data-[state=open]:rotate-180" />
                                         Completed ({completedTodos.length})
                                     </Button>
                                 </CollapsibleTrigger>
