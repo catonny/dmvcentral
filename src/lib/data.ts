@@ -153,6 +153,7 @@ export interface PendingInvoice {
 export interface TimesheetEntry {
     engagementId: string;
     hours: number;
+    description?: string;
 }
 
 export interface Timesheet {

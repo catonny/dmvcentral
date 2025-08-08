@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Engagement, Employee, Timesheet, TimesheetEntry } from "@/lib/data";
 import { startOfWeek, format } from 'date-fns';
 import { Loader2 } from "lucide-react";
+import { Textarea } from "../ui/textarea";
 
 interface LogTimeDialogProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface LogTimeDialogProps {
 export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogTimeDialogProps) {
     const { toast } = useToast();
     const [hours, setHours] = React.useState<number | string>("");
+    const [description, setDescription] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
     const [currentWeekHours, setCurrentWeekHours] = React.useState(0);
 
@@ -53,9 +55,11 @@ export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogT
                  setCurrentWeekHours(data.totalHours);
                  const entry = data.entries.find(e => e.engagementId === engagement?.id);
                  setHours(entry?.hours || "");
+                 setDescription(entry?.description || "");
              } else {
                  setCurrentWeekHours(0);
                  setHours("");
+                 setDescription("");
              }
         }
         
@@ -87,7 +91,7 @@ export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogT
                 const otherEntries = existingData.entries.filter(e => e.engagementId !== engagement.id);
                 const newTotalHours = otherEntries.reduce((sum, e) => sum + e.hours, 0) + loggedHours;
                 
-                const newEntries: TimesheetEntry[] = [...otherEntries, { engagementId: engagement.id, hours: loggedHours }];
+                const newEntries: TimesheetEntry[] = [...otherEntries, { engagementId: engagement.id, hours: loggedHours, description: description }];
                 
                 await updateDoc(timesheetRef, {
                     entries: newEntries,
@@ -103,7 +107,7 @@ export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogT
                     isPartner: currentUser.role.includes("Partner"),
                     weekStartDate: new Date(weekStartDate).toISOString(),
                     totalHours: loggedHours,
-                    entries: [{ engagementId: engagement.id, hours: loggedHours }],
+                    entries: [{ engagementId: engagement.id, hours: loggedHours, description: description }],
                 };
                 await setDoc(timesheetRef, newTimesheet);
             }
@@ -119,6 +123,7 @@ export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogT
 
     const handleDialogClose = () => {
         setHours("");
+        setDescription("");
         onClose();
     }
     
@@ -145,7 +150,19 @@ export function LogTimeDialog({ isOpen, onClose, engagement, currentUser }: LogT
                             placeholder="e.g., 2.5"
                         />
                     </div>
-                     <div className="text-sm text-center text-muted-foreground">
+                     <div className="grid grid-cols-4 items-start gap-4">
+                        <Label htmlFor="description" className="text-right pt-2">
+                            Description
+                        </Label>
+                        <Textarea
+                            id="description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="col-span-3"
+                            placeholder="What did you work on? (Optional)"
+                        />
+                    </div>
+                     <div className="text-sm text-center text-muted-foreground col-span-4">
                         Total hours logged this week: <span className="font-bold">{currentWeekHours.toFixed(1)}</span>
                     </div>
                 </div>
