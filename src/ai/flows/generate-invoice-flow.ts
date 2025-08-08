@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for generating an HTML invoice for a completed engagement.
@@ -72,28 +73,157 @@ const invoiceGeneratorPrompt = ai.definePrompt({
   Your task is to create a well-formatted, professional HTML invoice based on the provided data.
 
   **INSTRUCTIONS:**
-  1. Use the provided Client, Firm, and Engagement details to populate the invoice.
-  2. The invoice should be a complete HTML document, styled with inline CSS for maximum email client compatibility. Use a clean, professional, two-column layout.
-  3. The "Bill To" section must contain the client's name and address.
-  4. The invoice table must list the engagement remarks as the line item and the engagement fees as the amount.
-  5. The subject line for the email should be "Invoice from [Firm Name] - [Invoice Number]".
-  6. The recipient's email is the client's email address.
-  
-  **INVOICE DETAILS:**
+  1.  **Strictly adhere to the provided HTML template.** Do not change the structure, classes, or styles.
+  2.  Use the provided Firm, Client, and Engagement details to populate the invoice placeholders.
+  3.  The main service line item will be the engagement remarks and the rate will be the engagement fees. Quantity is 1.
+  4.  Assume a placeholder HSN/SAC code of "998314" for professional services.
+  5.  Assume a CGST and SGST rate of 9% each (total 18% GST). Calculate the CGST and SGST amounts based on the engagement fees.
+  6.  Calculate the Sub Total, CGST, SGST, and Total amount.
+  7.  The recipient's email is the client's email address.
+  8.  The subject line for the email should be "Invoice from [Firm Name] - [Invoice Number]".
+  9.  For the "Total in Words", convert the total amount into Indian English words (e.g., "Indian Rupee Seven Hundred Five and Sixty Paise Only").
+  10. "Payment Made" and "Balance Due" should be "0.00" unless specified otherwise.
+
+  **DATA:**
   - **Firm Name:** {{{firm.name}}}
   - **Firm Address:** {{{firm.billingAddressLine1}}}, {{{firm.billingAddressLine2}}}, {{{firm.billingAddressLine3}}}
-  - **Firm PAN:** {{{firm.pan}}}
   - **Firm GSTN:** {{{firm.gstn}}}
-  
   - **Client Name:** {{{client.Name}}}
   - **Client Address:** {{{client.billingAddressLine1}}}, {{{client.billingAddressLine2}}}, {{{client.billingAddressLine3}}}
-  
+  - **Client GSTN:** {{{client.gstin}}}
+  - **Client State:** {{{client.State}}}
   - **Invoice Number:** {{{invoiceNumber}}}
   - **Invoice Date:** {{{currentDate}}}
-  - **Due Date:** {{{engagement.dueDate}}}
-  
+  - **Due Date:** {{{currentDate}}}
   - **Engagement Description:** {{{engagement.remarks}}}
   - **Amount:** {{{engagement.fees}}}
+
+  **HTML TEMPLATE:**
+  \`\`\`html
+  <!DOCTYPE html>
+  <html>
+  <head>
+      <title>Invoice</title>
+      <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; }
+          .container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+          .header .firm-details { text-align: left; }
+          .header .invoice-title { text-align: right; }
+          .addresses { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .addresses .address-block { width: 48%; }
+          .address-block h4 { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; font-size: 14px; color: #555; }
+          .invoice-info { display: flex; justify-content: space-between; border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 20px; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
+          th { background-color: #f9f9f9; font-size: 12px; }
+          .totals { display: flex; justify-content: flex-end; margin-top: 20px; }
+          .totals table { width: 40%; }
+          .totals td { border: none; }
+          .totals tr.total-row td { border-top: 2px solid #eee; font-weight: bold; }
+          .footer { margin-top: 30px; font-size: 12px; }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="header">
+              <div class="firm-details">
+                  <h3>{{{firm.name}}}</h3>
+                  <p>{{{firm.billingAddressLine1}}}<br>{{{firm.billingAddressLine2}}}<br>{{{firm.billingAddressLine3}}}</p>
+                  <p>GSTIN: {{{firm.gstn}}}</p>
+              </div>
+              <div class="invoice-title">
+                  <h2>TAX INVOICE</h2>
+                  <p><strong>Invoice#:</strong> {{{invoiceNumber}}}</p>
+              </div>
+          </div>
+          <div class="addresses">
+              <div class="address-block">
+                  <h4>Bill To</h4>
+                  <p><strong>{{{client.Name}}}</strong><br>{{{client.billingAddressLine1}}}<br>{{{client.billingAddressLine2}}}<br>{{{client.billingAddressLine3}}}</p>
+                  <p>GSTIN: {{{client.gstin}}}</p>
+              </div>
+              <div class="address-block">
+                  <h4>Ship To</h4>
+                   <p><strong>{{{client.Name}}}</strong><br>{{{client.billingAddressLine1}}}<br>{{{client.billingAddressLine2}}}<br>{{{client.billingAddressLine3}}}</p>
+                  <p>GSTIN: {{{client.gstin}}}</p>
+              </div>
+          </div>
+           <p style="font-size: 12px; margin-bottom: 20px;"><strong>Place Of Supply:</strong> {{{client.State}}}</p>
+          <div class="invoice-info">
+              <div><strong>Invoice Date:</strong> {{{currentDate}}}</div>
+              <div><strong>Terms:</strong> Due on Receipt</div>
+              <div><strong>Due Date:</strong> {{{currentDate}}}</div>
+          </div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>#</th>
+                      <th>Item & Description</th>
+                      <th>HSN/SAC</th>
+                      <th>Qty</th>
+                      <th>Rate</th>
+                      <th>CGST</th>
+                      <th>SGST</th>
+                      <th>Amount</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr>
+                      <td>1</td>
+                      <td>
+                          <strong>{{{engagement.remarks}}}</strong>
+                          <br>
+                          <small>Professional services rendered.</small>
+                      </td>
+                      <td>998314</td>
+                      <td>1.00</td>
+                      <td>{{engagement.fees}}</td>
+                      <td>{{#with (multiply (divide engagement.fees 100) 9)}}~{{this}}{{/with}}</td>
+                      <td>{{#with (multiply (divide engagement.fees 100) 9)}}~{{this}}{{/with}}</td>
+                      <td>{{engagement.fees}}</td>
+                  </tr>
+              </tbody>
+          </table>
+          <div class="totals">
+              <table>
+                  <tr>
+                      <td>Sub Total</td>
+                      <td style="text-align: right;">{{engagement.fees}}</td>
+                  </tr>
+                  <tr>
+                      <td>CGST (9.00%)</td>
+                      <td style="text-align: right;">{{#with (multiply (divide engagement.fees 100) 9)}}~{{this}}{{/with}}</td>
+                  </tr>
+                   <tr>
+                      <td>SGST (9.00%)</td>
+                      <td style="text-align: right;">{{#with (multiply (divide engagement.fees 100) 9)}}~{{this}}{{/with}}</td>
+                  </tr>
+                  <tr class="total-row">
+                      <td>Total</td>
+                      <td style="text-align: right;">₹{{#with (add engagement.fees (multiply (divide engagement.fees 100) 18))}}~{{this}}{{/with}}</td>
+                  </tr>
+                  <tr>
+                      <td>Payment Made</td>
+                      <td style="text-align: right;">(-) 0.00</td>
+                  </tr>
+                   <tr class="total-row">
+                      <td>Balance Due</td>
+                      <td style="text-align: right;">₹{{#with (add engagement.fees (multiply (divide engagement.fees 100) 18))}}~{{this}}{{/with}}</td>
+                  </tr>
+              </table>
+          </div>
+          <div class="footer">
+              <p><strong>Total In Words:</strong> {{#toWords (add engagement.fees (multiply (divide engagement.fees 100) 18))}}{{/toWords}}</p>
+              <br>
+              <p><strong>Notes:</strong> Thanks for your business.</p>
+              <br><br><br>
+              <p><strong>CA {{{firm.name}}}</strong><br>Authorized Signature</p>
+          </div>
+      </div>
+  </body>
+  </html>
+  \`\`\`
 
   Now, generate the JSON output for the invoice.
   `,
@@ -126,11 +256,11 @@ const generateInvoiceFlow = ai.defineFlow(
         engagement,
         client,
         firm,
-        currentDate: format(new Date(), "dd MMM, yyyy"),
+        currentDate: format(new Date(), "dd/MM/yyyy"),
         invoiceNumber,
     });
     
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     if (!output) {
       throw new Error("The AI model failed to produce a valid invoice.");
     }
@@ -138,9 +268,49 @@ const generateInvoiceFlow = ai.defineFlow(
     // Ensure the recipient email is correctly set from the client data
     output.recipientEmail = client.mailId;
     
+    // Replace ~{{...}}~ with calculated values
+    let finalHtml = output.htmlContent;
+    const fee = engagement.fees || 0;
+    const gst = fee * 0.09;
+    const total = fee + gst * 2;
+    
+    finalHtml = finalHtml.replace(/~{{#with \(multiply \(divide engagement.fees 100\) 9\)}}~{{this}}{{\/with}}~/g, gst.toFixed(2));
+    finalHtml = finalHtml.replace(/~{{#with \(add engagement.fees \(multiply \(divide engagement.fees 100\) 18\)\)}}~{{this}}{{\/with}}~/g, total.toFixed(2));
+    finalHtml = finalHtml.replace(/{{#toWords \S+}}{{/toWords}}/, `Indian Rupee ${numberToWords(total)} Only`);
+
+
+    output.htmlContent = finalHtml;
+
     return output;
   }
 );
+
+// Basic number to words converter
+function numberToWords(num: number): string {
+    const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+    const inWords = (n: number): string => {
+        let str = '';
+        if (n > 99) {
+            str += a[Math.floor(n / 100)] + 'hundred ';
+            n %= 100;
+        }
+        if (n > 19) {
+            str += b[Math.floor(n / 10)] + ' ' + a[n % 10];
+        } else {
+            str += a[n];
+        }
+        return str;
+    };
+    
+    const [integerPart, decimalPart] = num.toFixed(2).split('.').map(s => parseInt(s));
+    let words = inWords(integerPart);
+    if (decimalPart > 0) {
+        words += 'and ' + inWords(decimalPart) + 'paise ';
+    }
+    return words.replace(/\s+/g, ' ').trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 
 export async function generateInvoice(input: GenerateInvoiceInput): Promise<GenerateInvoiceOutput> {
