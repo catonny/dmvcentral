@@ -1,15 +1,17 @@
+
 "use client";
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Employee } from "@/lib/data";
+import type { Employee, Engagement } from "@/lib/data";
 import { Loader2 } from "lucide-react";
+import { WorkloadDistribution } from "@/components/dashboard/workload-distribution";
 
 const ReportCard = ({ title, description, icon: Icon, onClick, isDisabled = false }: { title: string, description: string, icon: React.ElementType, onClick: () => void, isDisabled?: boolean }) => (
   <Card
@@ -41,6 +43,8 @@ export default function ReportsPage() {
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
     const [hasAccess, setHasAccess] = React.useState(false);
+    const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+    const [employees, setEmployees] = React.useState<Employee[]>([]);
 
     React.useEffect(() => {
         if (authLoading) return;
@@ -58,11 +62,39 @@ export default function ReportsPage() {
                     setHasAccess(true);
                 }
             }
-            setLoading(false);
         };
         checkUserRole();
 
     }, [user, authLoading]);
+
+    React.useEffect(() => {
+        if (!hasAccess) {
+            setLoading(false);
+            return;
+        }
+        
+        const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
+            setEngagements(snapshot.docs.map(doc => doc.data() as Engagement));
+            checkDataLoaded();
+        });
+        
+        const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+            setEmployees(snapshot.docs.map(doc => doc.data() as Employee));
+            checkDataLoaded();
+        });
+
+        const checkDataLoaded = () => {
+            if (engagements.length > 0 && employees.length > 0) {
+                 setLoading(false);
+            }
+        }
+        
+        return () => {
+            unsubEngagements();
+            unsubEmployees();
+        }
+
+    }, [hasAccess, engagements, employees]);
 
      if (loading) {
         return (
@@ -93,15 +125,27 @@ export default function ReportsPage() {
           Select a report to view detailed information.
         </p>
       </div>
+
+       <WorkloadDistribution engagements={engagements} employees={employees} />
       
-      <section className="space-y-4">
-        <h3 className="text-2xl font-semibold tracking-tight font-headline">Standard Reports</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ReportCard 
-                title="Engagement Summary"
-                description="High-level overview of active engagements by status and type."
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ReportCard 
+                title="Engagement Reports"
+                description="High-level summary and a detailed list of all engagements."
                 icon={FileText}
-                onClick={() => router.push('/reports/engagement-summary')}
+                onClick={() => router.push('/reports/engagements')}
+            />
+            <ReportCard 
+                title="Exception Reports"
+                description="Find clients and engagements that require immediate attention."
+                icon={AlertTriangle}
+                onClick={() => router.push('/reports/exceptions')}
+            />
+             <ReportCard 
+                title="Accounts Reports"
+                description="Access detailed invoice, revenue, and collection reports."
+                icon={LineChart}
+                onClick={() => router.push('/reports/accounts')}
             />
              <ReportCard 
                 title="Firm Analytics (KPIs)"
@@ -109,53 +153,13 @@ export default function ReportsPage() {
                 icon={BarChart}
                 onClick={() => router.push('/reports/kpi-dashboard')}
             />
-             <ReportCard 
-                title="All Engagements"
-                description="A sortable and filterable list of every engagement in the firm."
-                icon={Users}
-                onClick={() => router.push('/reports/all-engagements')}
-            />
             <ReportCard 
-                title="Accounts Reports"
-                description="Access detailed invoice, revenue, and collection reports."
-                icon={LineChart}
-                onClick={() => router.push('/reports/accounts')}
-            />
-             <ReportCard 
-                title="Advanced Report"
+                title="Custom Reports"
                 description="Drill down into engagements with multi-level task and status filters."
                 icon={SlidersHorizontal}
                 onClick={() => router.push('/reports/advanced-engagement-report')}
             />
         </div>
-      </section>
-
-       <section className="space-y-4">
-        <h3 className="text-2xl font-semibold tracking-tight font-headline flex items-center gap-2">
-            <AlertTriangle className="text-destructive"/>
-            Exception Reports
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ReportCard 
-                title="Incomplete Client Data"
-                description="Find clients with missing mandatory information like PAN or email."
-                icon={Users}
-                onClick={() => router.push('/reports/exceptions/incomplete-clients')}
-            />
-             <ReportCard 
-                title="Unbilled Engagements"
-                description="Engagements marked 'Completed' but not yet submitted for billing."
-                icon={FileText}
-                onClick={() => router.push('/reports/exceptions/unbilled-engagements')}
-            />
-             <ReportCard 
-                title="Overdue Engagements"
-                description="Active engagements that have passed their due date."
-                icon={FileText}
-                onClick={() => router.push('/reports/exceptions/overdue-engagements')}
-            />
-        </div>
-      </section>
     </div>
   );
 }

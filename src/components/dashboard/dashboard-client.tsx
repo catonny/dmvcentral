@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { TodoSection } from "@/components/dashboard/todo-section";
 import { Badge } from "@/components/ui/badge";
-import { WorkloadDistribution } from "@/components/dashboard/workload-distribution";
 import { GripVertical, Grip } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
@@ -189,8 +188,7 @@ export function DashboardClient() {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements across the team.', component: WorkloadDistribution, condition: isAdmin || isPartner, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 12, h: 12 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
@@ -226,8 +224,6 @@ export function DashboardClient() {
       switch (id) {
           case 'status-cards':
               return { data: dashboardData, userRole };
-          case 'workload-distribution':
-              return { engagements: engagements, employees: allEmployees };
           case 'todo-section':
               return { currentUser: currentUserEmployeeProfile, allClients, allEmployees };
           default:
