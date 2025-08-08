@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -55,8 +55,7 @@ export default function ReportsPage() {
             const employeeSnapshot = await getDocs(employeeQuery);
             if (!employeeSnapshot.empty) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                // A user has access if they are a partner or admin.
-                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
+                if (employeeData.role.includes("Partner")) {
                     setHasAccess(true);
                 }
             }
@@ -81,7 +80,7 @@ export default function ReportsPage() {
                     <CardTitle>Access Denied</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p>You do not have the required permissions to view reports. This view is for Partners and Admins only.</p>
+                    <p>You do not have the required permissions to view reports. This view is for Partners only.</p>
                 </CardContent>
             </Card>
         );
@@ -116,6 +115,12 @@ export default function ReportsPage() {
                 description="A sortable and filterable list of every engagement in the firm."
                 icon={Users}
                 onClick={() => router.push('/reports/all-engagements')}
+            />
+            <ReportCard 
+                title="Accounts Reports"
+                description="Access detailed invoice, revenue, and collection reports."
+                icon={LineChart}
+                onClick={() => router.push('/reports/accounts')}
             />
         </div>
       </section>
