@@ -361,7 +361,7 @@ export default function SettingsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                            You are about to restore a <span className="font-bold text-primary">{backupFileInfo?.type}</span> backup. This will first delete all existing <span className="font-bold text-destructive">{backupFileInfo?.type}</span> data and then replace it with data from the backup file. This action cannot be undone.
+                                              This action is irreversible. It will first <strong className='text-destructive'>DELETE ALL</strong> current <strong className='text-destructive uppercase'>{backupFileInfo?.type}</strong> data and then replace it with the data from the backup file. Any changes made since the backup date will be lost.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
