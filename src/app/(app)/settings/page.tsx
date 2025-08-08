@@ -375,89 +375,106 @@ export default function SettingsPage() {
             </DialogContent>
         </Dialog>
 
-        <Card className="border-destructive">
-             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap /> Danger Zone</CardTitle>
-                <CardDescription>
-                    These are destructive actions that permanently delete data. Use them with extreme caution.
-                </CardDescription>
-            </CardHeader>
-             <CardContent className="space-y-4">
-                 <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
-                    <div>
-                        <h3 className="font-semibold">Delete Transactional Data</h3>
-                        <p className="text-sm text-muted-foreground">
-                        Permanently delete all **clients, engagements, tasks, timesheets, and communications**. Master data will not be affected.
-                        </p>
+        <Dialog>
+            <DialogTrigger asChild>
+                 <Card className='cursor-pointer hover:border-destructive/80 hover:shadow-destructive/20 transition-all group border-destructive/50'>
+                    <CardHeader>
+                    <div className="flex justify-between items-start">
+                         <div>
+                            <CardTitle className='flex items-center gap-2 text-destructive'><DatabaseZap /> Danger Zone</CardTitle>
+                            <CardDescription>
+                                These are destructive actions that permanently delete data.
+                            </CardDescription>
+                         </div>
+                         <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={loadingDeleteTransactional}>
-                            {loadingDeleteTransactional ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Delete Transactional Data
-                        </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                            This action cannot be undone. To confirm, please type{" "}
-                            <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-destructive">
-                                delete transactional data
-                            </code>{" "}
-                            below.
-                            </AlertDialogDescription>
-                             <Input
-                                id="delete-confirm"
-                                value={deleteTransactionalConfirmText}
-                                onChange={(e) => setDeleteTransactionalConfirmText(e.target.value)}
-                                className="mt-2"
-                                placeholder="delete transactional data"
-                            />
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setDeleteTransactionalConfirmText('')}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                                onClick={handleDeleteTransactionalData} 
-                                className="bg-destructive hover:bg-destructive/90"
-                                disabled={deleteTransactionalConfirmText !== 'delete transactional data'}
-                            >
-                                Continue
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
-                 <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
-                    <div>
-                        <h3 className="font-semibold">Delete Master Data</h3>
-                        <p className="text-sm text-muted-foreground">
-                        Permanently delete all **employees, departments, permissions, and engagement types**. This will reset the app's core configuration.
-                        </p>
+                    </CardHeader>
+                </Card>
+            </DialogTrigger>
+            <DialogContent>
+                 <DialogHeader>
+                    <DialogTitle className='flex items-center gap-2'><DatabaseZap /> Danger Zone</DialogTitle>
+                    <DialogDescription>
+                        These are destructive actions that permanently delete data. Use them with extreme caution.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                    <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+                        <div>
+                            <h3 className="font-semibold">Delete Transactional Data</h3>
+                            <p className="text-sm text-muted-foreground">
+                            Permanently delete all **clients, engagements, tasks, timesheets, and communications**. Master data will not be affected.
+                            </p>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={loadingDeleteTransactional}>
+                                {loadingDeleteTransactional ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete
+                            </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                This action cannot be undone. To confirm, please type{" "}
+                                <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-destructive">
+                                    delete transactional data
+                                </code>{" "}
+                                below.
+                                </AlertDialogDescription>
+                                <Input
+                                    id="delete-confirm"
+                                    value={deleteTransactionalConfirmText}
+                                    onChange={(e) => setDeleteTransactionalConfirmText(e.target.value)}
+                                    className="mt-2"
+                                    placeholder="delete transactional data"
+                                />
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setDeleteTransactionalConfirmText('')}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                    onClick={handleDeleteTransactionalData} 
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    disabled={deleteTransactionalConfirmText !== 'delete transactional data'}
+                                >
+                                    Continue
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={loadingDeleteMaster}>
-                            {loadingDeleteMaster ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Delete Master Data
-                        </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all master data (employees, departments, etc.). The app may not function correctly for other users until you re-seed the database.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteMasterData} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+                        <div>
+                            <h3 className="font-semibold">Delete Master Data</h3>
+                            <p className="text-sm text-muted-foreground">
+                            Permanently delete all **employees, departments, permissions, and engagement types**. This will reset the app's core configuration.
+                            </p>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={loadingDeleteMaster}>
+                                {loadingDeleteMaster ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete
+                            </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete all master data (employees, departments, etc.). The app may not function correctly for other users until you re-seed the database.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteMasterData} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                 </div>
-            </CardContent>
-        </Card>
+            </DialogContent>
+        </Dialog>
       </div>
     </>
   );
