@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode, Invoice } from "@/lib/data";
+import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode, Invoice, Employee } from "@/lib/data";
 import { indianStatesAndUTs } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
@@ -52,6 +52,7 @@ interface GenerateInvoiceDialogProps {
   salesItems: SalesItem[];
   taxRates: TaxRate[];
   hsnSacCodes: HsnSacCode[];
+  employees: Map<string, Employee>;
 }
 
 export function GenerateInvoiceDialog({
@@ -63,6 +64,7 @@ export function GenerateInvoiceDialog({
   salesItems,
   taxRates,
   hsnSacCodes,
+  employees
 }: GenerateInvoiceDialogProps) {
   const [lineItems, setLineItems] = React.useState<LineItem[]>([]);
   const [selectedFirmId, setSelectedFirmId] = React.useState<string>("");
@@ -233,6 +235,9 @@ export function GenerateInvoiceDialog({
   const { subTotal, cgst, sgst, igst, total, taxableAmount } = calculateTotals();
 
   if (!entry) return null;
+  
+  const assignedToNames = entry.engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
+  const partnerName = employees.get(entry.client.partnerId)?.name || 'N/A';
 
   return (
     <>
@@ -240,9 +245,11 @@ export function GenerateInvoiceDialog({
       <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Generate Invoice for {entry.client.name}</DialogTitle>
-          <DialogDescription>
-            Construct the invoice by adding line items. All calculations are handled automatically.
-          </DialogDescription>
+           <DialogDescription className="space-y-1 pt-2">
+                <p><b>Engagement Type:</b> {entry.engagementType.name}</p>
+                <p><b>Done by:</b> {assignedToNames}</p>
+                <p><b>Partner:</b> {partnerName}</p>
+            </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

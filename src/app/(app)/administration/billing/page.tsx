@@ -345,6 +345,7 @@ export default function BillingDashboardPage() {
                 salesItems={salesItems}
                 taxRates={taxRates}
                 hsnSacCodes={hsnSacCodes}
+                employees={employees}
             />
             <CreateAdHocInvoiceDialog
                 isOpen={isAdHocDialogOpen}
