@@ -120,7 +120,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight font-headline">Reports Dashboard</h2>
+        <h2 className="text-3xl font-bold tracking-tight font-headline">Reports</h2>
         <p className="text-muted-foreground">
           Select a report to view detailed information.
         </p>
