@@ -14,6 +14,41 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const EditableFeeCell = ({
+  engagementId,
+  initialValue,
+  onUpdate,
+}: {
+  engagementId: string;
+  initialValue: number;
+  onUpdate: (engagementId: string, newValue: number) => void;
+}) => {
+  const [value, setValue] = React.useState(initialValue);
+  const debouncedValue = useDebounce(value, 500);
+
+  React.useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  React.useEffect(() => {
+    if (debouncedValue !== initialValue) {
+      onUpdate(engagementId, debouncedValue);
+    }
+  }, [debouncedValue, initialValue, engagementId, onUpdate]);
+
+  return (
+    <Input
+      type="number"
+      value={value}
+      onChange={(e) => setValue(Number(e.target.value) || 0)}
+      className="w-32 text-right font-mono"
+    />
+  );
+};
+
 
 export default function PendingCollectionsPage() {
     const { toast } = useToast();
@@ -43,6 +78,17 @@ export default function PendingCollectionsPage() {
 
         return () => unsubscribe();
     }, [toast]);
+    
+     const handleUpdateFee = async (engagementId: string, newFee: number) => {
+        const engagementRef = doc(db, "engagements", engagementId);
+        try {
+            await updateDoc(engagementRef, { fees: newFee });
+            toast({ title: "Success", description: "Engagement fee updated successfully." });
+        } catch (error) {
+            console.error("Error updating fee:", error);
+            toast({ title: "Error", description: "Could not update the fee.", variant: "destructive" });
+        }
+    };
 
     const handleMarkAsCollected = async (engagementId: string) => {
         setProcessingId(engagementId);
@@ -78,7 +124,7 @@ export default function PendingCollectionsPage() {
                                     <TableHead>Engagement</TableHead>
                                     <TableHead>Billed Date</TableHead>
                                     <TableHead>Days Pending</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Amount (INR)</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -101,7 +147,13 @@ export default function PendingCollectionsPage() {
                                                 <TableCell>
                                                     <Badge variant={daysPending > 30 ? "destructive" : "secondary"}>{daysPending} days</Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono">₹{engagement.fees?.toLocaleString('en-IN') || '0.00'}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <EditableFeeCell
+                                                        engagementId={engagement.id}
+                                                        initialValue={engagement.fees || 0}
+                                                        onUpdate={handleUpdateFee}
+                                                    />
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button
                                                         size="sm"
