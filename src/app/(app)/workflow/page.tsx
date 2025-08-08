@@ -6,13 +6,15 @@ import { collection, query, where, onSnapshot, getDocs } from "firebase/firestor
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Task, Client, Engagement, EngagementStatus, Employee } from "@/lib/data";
-import { Loader2 } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 
 function EngagementGrid({ engagements, tasks, clients }: { engagements: Engagement[], tasks: Task[], clients: Map<string, Client> }) {
     if (engagements.length === 0) {
@@ -68,7 +70,9 @@ export default function WorkflowPage() {
     const [teamEngagements, setTeamEngagements] = React.useState<Engagement[]>([]);
     const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
     const [loading, setLoading] = React.useState(true);
+    const [teamLoading, setTeamLoading] = React.useState(false);
     const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
+    const [isTeamSectionExpanded, setIsTeamSectionExpanded] = React.useState(false);
 
     React.useEffect(() => {
         if (!user) {
@@ -95,7 +99,6 @@ export default function WorkflowPage() {
 
                 const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
                 
-                // Fetch engagements assigned to me
                 const myEngagementsQuery = query(
                    collection(db, "engagements"), 
                    where("assignedTo", "array-contains", currentUserProfile.id), 
@@ -104,21 +107,9 @@ export default function WorkflowPage() {
                 const unsubMyEngagements = onSnapshot(myEngagementsQuery, (engagementsSnapshot) => {
                     const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
                     setMyEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
-                    setLoading(false); // Can set loading to false after personal engagements load
+                    setLoading(false);
                 }, () => setLoading(false));
                 
-                 // Fetch engagements reported to me
-                const teamEngagementsQuery = query(
-                   collection(db, "engagements"), 
-                   where("reportedTo", "==", currentUserProfile.id), 
-                   where("status", "in", activeStatuses)
-               );
-                const unsubTeamEngagements = onSnapshot(teamEngagementsQuery, (engagementsSnapshot) => {
-                    const supervisedEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-                    setTeamEngagements(supervisedEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
-                });
-
-                // Fetch all active tasks and filter them client-side to avoid 'IN' query limit.
                 const allTasksQuery = query(collection(db, "tasks"), where("status", "==", "Pending"));
                 const unsubTasks = onSnapshot(allTasksQuery, (tasksSnapshot) => {
                     const allTasks = tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task));
@@ -127,7 +118,6 @@ export default function WorkflowPage() {
 
                 return () => {
                     unsubMyEngagements();
-                    unsubTeamEngagements();
                     clientsUnsub();
                     unsubTasks();
                 }
@@ -141,6 +131,29 @@ export default function WorkflowPage() {
         fetchInitialData();
 
     }, [user]);
+
+    // Fetch team engagements only when the section is expanded
+    React.useEffect(() => {
+        if (!isTeamSectionExpanded || !currentUser || teamEngagements.length > 0) return;
+
+        setTeamLoading(true);
+        const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+
+        const teamEngagementsQuery = query(
+            collection(db, "engagements"), 
+            where("reportedTo", "==", currentUser.id), 
+            where("status", "in", activeStatuses)
+        );
+
+        const unsubTeamEngagements = onSnapshot(teamEngagementsQuery, (engagementsSnapshot) => {
+            const supervisedEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+            setTeamEngagements(supervisedEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+            setTeamLoading(false);
+        }, () => setTeamLoading(false));
+
+        return () => unsubTeamEngagements();
+
+    }, [isTeamSectionExpanded, currentUser, teamEngagements]);
 
     if (loading) {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Your Workflow...</div>;
@@ -161,13 +174,26 @@ export default function WorkflowPage() {
             {showTeamSection && (
                  <>
                     <Separator />
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight font-headline">Team Engagements</h2>
-                        <p className="text-muted-foreground">
+                     <Collapsible open={isTeamSectionExpanded} onOpenChange={setIsTeamSectionExpanded}>
+                        <CollapsibleTrigger asChild>
+                             <div className="flex items-center gap-2 cursor-pointer group">
+                                <h2 className="text-3xl font-bold tracking-tight font-headline">Team Engagements</h2>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 group-hover:bg-muted">
+                                    <ChevronRight className={cn("transition-transform", isTeamSectionExpanded && "rotate-90")} />
+                                </Button>
+                            </div>
+                        </CollapsibleTrigger>
+                         <p className="text-muted-foreground">
                            Engagements you are supervising.
                         </p>
-                       <EngagementGrid engagements={teamEngagements} tasks={tasks} clients={clients} />
-                    </div>
+                        <CollapsibleContent className="mt-4">
+                            {teamLoading ? (
+                                <div className="flex h-48 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Team Engagements...</div>
+                            ) : (
+                                <EngagementGrid engagements={teamEngagements} tasks={tasks} clients={clients} />
+                            )}
+                        </CollapsibleContent>
+                    </Collapsible>
                 </>
             )}
         </div>
