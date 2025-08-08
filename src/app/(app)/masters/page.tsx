@@ -74,18 +74,10 @@ export default function MastersPage() {
           <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Accounting Masters</h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                <ActionCard
-                  title="Sales Items"
-                  description="Manage reusable line items for invoices, including price and tax."
-                  icon={FileText}
-                  onClick={() => {}}
-                  isDisabled={true}
-              />
-               <ActionCard
-                  title="Taxes"
-                  description="Configure tax rates, HSN, and SAC codes for billing."
+                  title="Sales & Tax Items"
+                  description="Manage reusable line items, tax rates, and HSN/SAC codes."
                   icon={Percent}
-                  onClick={() => {}}
-                  isDisabled={true}
+                  onClick={() => router.push('/masters/accounting')}
               />
            </div>
         </section>
