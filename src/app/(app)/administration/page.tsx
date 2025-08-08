@@ -104,6 +104,19 @@ export default function AdministrationPage() {
                     icon={Repeat}
                     onClick={() => router.push('/administration/recurring')}
                 />
+                 <ActionCard 
+                    title="Email Center"
+                    description="Generate and send templated, AI-powered emails to clients."
+                    icon={Mail}
+                    onClick={() => router.push('/administration/email-center')}
+                    isDisabled={true}
+                />
+                 <ActionCard 
+                    title="Bulk Engagement Scheduler"
+                    description="Use AI to create and assign new engagements for many clients at once."
+                    icon={Bot}
+                    onClick={() => router.push('/administration/scheduler')}
+                />
             </div>
         </div>
     )
