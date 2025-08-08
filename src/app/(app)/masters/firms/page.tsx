@@ -66,7 +66,8 @@ export default function FirmsPage() {
                 await updateDoc(firmRef, dataToUpdate);
                 toast({ title: "Success", description: "Firm details updated." });
             } else {
-                await addDoc(collection(db, "firms"), firmData);
+                const docRef = await addDoc(collection(db, "firms"), firmData);
+                await updateDoc(docRef, {id: docRef.id});
                 toast({ title: "Success", description: "New firm added." });
             }
             handleCloseSheet();
