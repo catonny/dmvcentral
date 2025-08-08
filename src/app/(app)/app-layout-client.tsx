@@ -178,7 +178,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     const defaultItems: NavItem[] = [
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
-        { id: 'agentic-ai', href: '/agentic-ai', icon: Bot, tooltip: 'Agentic AI', label: 'Agentic AI', condition: checkPermission('agentic-ai') },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'leave-management', href: '/leave-management', icon: UserCog, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
@@ -306,6 +305,11 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                     {checkPermission('calendar') && (
                         <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                             <Link href="/calendar"><Calendar />Calendar</Link>
+                        </Button>
+                    )}
+                     {checkPermission('agentic-ai') && (
+                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
+                            <Link href="/agentic-ai"><Bot />Agentic AI</Link>
                         </Button>
                     )}
 
