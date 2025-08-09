@@ -77,6 +77,16 @@ export default function CalendarPage() {
         arg.revert();
     }
   }
+  
+  const cleanUndefinedFields = (obj: any) => {
+    const newObj: any = {};
+    Object.keys(obj).forEach(key => {
+      if (obj[key] !== undefined) {
+        newObj[key] = obj[key];
+      }
+    });
+    return newObj;
+  };
 
   const handleSaveEvent = async (eventData: Partial<CalendarEvent>) => {
     if (!user) {
@@ -85,15 +95,17 @@ export default function CalendarPage() {
     }
 
     try {
-        if (eventData.id) { // Update existing event
-            const eventRef = doc(db, "events", eventData.id);
-            await updateDoc(eventRef, eventData);
+        const cleanData = cleanUndefinedFields(eventData);
+
+        if (cleanData.id) { // Update existing event
+            const eventRef = doc(db, "events", cleanData.id);
+            await updateDoc(eventRef, cleanData);
             toast({ title: "Success", description: "Event updated." });
         } else { // Create new event
             const newEventRef = doc(collection(db, "events"));
             await setDoc(newEventRef, {
-                ...eventData,
-                id: newEventRef.id, // Ensure ID is set
+                ...cleanData,
+                id: newEventRef.id,
                 createdBy: user.uid,
             });
             toast({ title: "Success", description: "Event created." });
