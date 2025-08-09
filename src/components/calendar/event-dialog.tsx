@@ -17,12 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarEvent, Employee } from "@/lib/data";
 import { User } from "firebase/auth";
-import { format, parse, parseISO, setHours, setMinutes } from "date-fns";
+import { format, parse, parseISO, setHours, setMinutes, setSeconds } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface EventDialogProps {
   isOpen: boolean;
@@ -34,11 +35,13 @@ interface EventDialogProps {
   currentUser: User | null;
 }
 
+const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+const minutes = ['00', '15', '30', '45'];
+
 export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, employees, currentUser }: EventDialogProps) {
   const [formData, setFormData] = React.useState<Partial<CalendarEvent>>({});
-  const [startTime, setStartTime] = React.useState("09:00");
-  const [endTime, setEndTime] = React.useState("10:00");
-
+  const [startTime, setStartTime] = React.useState({ hour: '09', minute: '00', period: 'AM' });
+  const [endTime, setEndTime] = React.useState({ hour: '10', minute: '00', period: 'AM' });
 
   React.useEffect(() => {
     if (eventInfo) {
@@ -58,30 +61,48 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
-        createdBy: eventInfo.createdBy || (isNew ? currentUser?.uid : undefined),
+        createdBy: eventInfo.id ? eventInfo.createdBy : (isNew ? currentUser?.uid : undefined),
       });
 
-      setStartTime(format(startDate, 'HH:mm'));
-      setEndTime(format(endDate, 'HH:mm'));
+      setStartTime({
+        hour: format(startDate, 'hh'),
+        minute: format(startDate, 'mm'),
+        period: format(startDate, 'a').toUpperCase(),
+      });
+      setEndTime({
+        hour: format(endDate, 'hh'),
+        minute: format(endDate, 'mm'),
+        period: format(endDate, 'a').toUpperCase(),
+      });
 
     }
   }, [eventInfo, currentUser, employees]);
   
-  const handleTimeChange = (type: 'start' | 'end', timeValue: string) => {
-    const [hours, minutes] = timeValue.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return;
+  const handleTimeChange = (
+    type: 'start' | 'end', 
+    part: 'hour' | 'minute' | 'period', 
+    value: string
+  ) => {
+    const timeSetter = type === 'start' ? setStartTime : setEndTime;
+    const currentFormDataDate = type === 'start' ? formData.start : formData.end;
 
-    if (type === 'start') {
-        setStartTime(timeValue);
-        const currentDate = formData.start ? parseISO(formData.start) : new Date();
-        const newDate = setMinutes(setHours(currentDate, hours), minutes);
-        setFormData(prev => ({ ...prev, start: newDate.toISOString() }));
-    } else {
-        setEndTime(timeValue);
-        const currentDate = formData.end ? parseISO(formData.end) : new Date();
-        const newDate = setMinutes(setHours(currentDate, hours), minutes);
-        setFormData(prev => ({ ...prev, end: newDate.toISOString() }));
-    }
+    timeSetter(prev => {
+        const newTime = { ...prev, [part]: value };
+        const dateToUpdate = currentFormDataDate ? parseISO(currentFormDataDate) : new Date();
+
+        let hour24 = parseInt(newTime.hour, 10);
+        if (newTime.period === 'PM' && hour24 < 12) {
+            hour24 += 12;
+        } else if (newTime.period === 'AM' && hour24 === 12) {
+            hour24 = 0;
+        }
+        
+        const updatedDate = setSeconds(setMinutes(setHours(dateToUpdate, hour24), parseInt(newTime.minute, 10)), 0);
+        
+        setFormData(prevData => ({ ...prevData, [type]: updatedDate.toISOString() }));
+
+        return newTime;
+    });
   }
 
   const handleSave = () => {
@@ -131,27 +152,56 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
           {!formData.allDay && (
               <div className="grid grid-cols-2 gap-4">
                  <div className="grid gap-2">
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input
-                        id="startTime"
-                        type="time"
-                        value={startTime}
-                        onChange={e => handleTimeChange('start', e.target.value)}
-                        disabled={!canEdit}
-                    />
+                    <Label>Start Time</Label>
+                    <div className="flex gap-1">
+                        <Select value={startTime.hour} onValueChange={(v) => handleTimeChange('start', 'hour', v)} disabled={!canEdit}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{hours.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={startTime.minute} onValueChange={(v) => handleTimeChange('start', 'minute', v)} disabled={!canEdit}>
+                             <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{minutes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                        </Select>
+                         <Select value={startTime.period} onValueChange={(v) => handleTimeChange('start', 'period', v)} disabled={!canEdit}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="AM">AM</SelectItem>
+                                <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                  </div>
                  <div className="grid gap-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                        id="endTime"
-                        type="time"
-                        value={endTime}
-                        onChange={e => handleTimeChange('end', e.target.value)}
-                        disabled={!canEdit}
-                    />
+                    <Label>End Time</Label>
+                    <div className="flex gap-1">
+                         <Select value={endTime.hour} onValueChange={(v) => handleTimeChange('end', 'hour', v)} disabled={!canEdit}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{hours.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={endTime.minute} onValueChange={(v) => handleTimeChange('end', 'minute', v)} disabled={!canEdit}>
+                             <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{minutes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                        </Select>
+                         <Select value={endTime.period} onValueChange={(v) => handleTimeChange('end', 'period', v)} disabled={!canEdit}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="AM">AM</SelectItem>
+                                <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                  </div>
               </div>
           )}
+           <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="allDay" 
+                checked={formData.allDay} 
+                onCheckedChange={(checked) => setFormData({...formData, allDay: !!checked})}
+                disabled={!canEdit}
+              />
+              <Label htmlFor="allDay">All-day event</Label>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -207,15 +257,6 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
                     </Command>
                 </PopoverContent>
             </Popover>
-          </div>
-           <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="allDay" 
-                checked={formData.allDay} 
-                onCheckedChange={(checked) => setFormData({...formData, allDay: !!checked})}
-                disabled={!canEdit}
-              />
-              <Label htmlFor="allDay">All-day event</Label>
           </div>
         </div>
         <DialogFooter>
