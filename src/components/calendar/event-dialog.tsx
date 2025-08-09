@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -44,8 +45,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
       const isNew = !eventInfo.id;
       const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
 
-      const startDate = eventInfo.start ? parseISO(eventInfo.start) : new Date();
-      const endDate = eventInfo.end ? parseISO(eventInfo.end) : new Date(new Date().getTime() + 60*60*1000);
+      const startDate = eventInfo.start ? parseISO(eventInfo.start) : (eventInfo.startStr ? parseISO(eventInfo.startStr) : new Date());
+      const endDate = eventInfo.end ? parseISO(eventInfo.end) : (eventInfo.endStr ? parseISO(eventInfo.endStr) : new Date(new Date().getTime() + 60*60*1000));
 
       setFormData({
         id: eventInfo.id || undefined,
@@ -57,6 +58,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
+        createdBy: eventInfo.createdBy, // Pass existing creator ID
       });
 
       setStartTime(format(startDate, 'HH:mm'));
