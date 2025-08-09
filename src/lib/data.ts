@@ -1,4 +1,5 @@
 
+
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -289,6 +290,7 @@ export interface CalendarEvent {
   attendees?: string[]; // Array of Employee IDs
   location?: string; // For meeting links
   engagementId?: string; // To link back to an engagement
+  timezone?: string;
 }
 
 export interface LeaveRequest {

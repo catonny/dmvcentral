@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -19,11 +20,12 @@ import { CalendarEvent, Employee } from "@/lib/data";
 import { User } from "firebase/auth";
 import { format, parse, parseISO, setHours, setMinutes, setSeconds } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Globe } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface EventDialogProps {
   isOpen: boolean;
@@ -37,6 +39,20 @@ interface EventDialogProps {
 
 const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 const minutes = ['00', '15', '30', '45'];
+
+// Abridged list of IANA timezones for the selector
+const timezones = [
+    "UTC",
+    "Asia/Kolkata",
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "Europe/London",
+    "Europe/Paris",
+    "Asia/Tokyo",
+    "Australia/Sydney"
+];
 
 export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, employees, currentUser }: EventDialogProps) {
   const [formData, setFormData] = React.useState<Partial<CalendarEvent>>({});
@@ -61,7 +77,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
-        createdBy: eventInfo.id ? eventInfo.createdBy : (isNew ? currentUser?.uid : undefined),
+        createdBy: eventInfo.createdBy || (isNew ? currentUser?.uid : undefined),
+        timezone: eventInfo.timezone || (isNew ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'),
       });
 
       setStartTime({
@@ -202,6 +219,19 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
               />
               <Label htmlFor="allDay">All-day event</Label>
           </div>
+           <div className="grid gap-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                 <Select value={formData.timezone} onValueChange={(v) => setFormData({...formData, timezone: v})} disabled={!canEdit}>
+                    <SelectTrigger id="timezone">
+                        <SelectValue placeholder="Select a timezone..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <ScrollArea className="h-48">
+                            {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                        </ScrollArea>
+                    </SelectContent>
+                </Select>
+           </div>
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
