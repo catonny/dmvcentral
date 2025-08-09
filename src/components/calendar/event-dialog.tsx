@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -17,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarEvent, Employee } from "@/lib/data";
 import { User } from "firebase/auth";
-import { format, parseISO } from "date-fns";
+import { format, parse, parseISO, setHours, setMinutes } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
@@ -36,25 +35,52 @@ interface EventDialogProps {
 
 export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, employees, currentUser }: EventDialogProps) {
   const [formData, setFormData] = React.useState<Partial<CalendarEvent>>({});
+  const [startTime, setStartTime] = React.useState("09:00");
+  const [endTime, setEndTime] = React.useState("10:00");
+
 
   React.useEffect(() => {
     if (eventInfo) {
       const isNew = !eventInfo.id;
       const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
 
+      const startDate = eventInfo.start ? parseISO(eventInfo.start) : new Date();
+      const endDate = eventInfo.end ? parseISO(eventInfo.end) : new Date(new Date().getTime() + 60*60*1000);
+
       setFormData({
         id: eventInfo.id || undefined,
         title: eventInfo.title || "",
-        start: eventInfo.startStr || eventInfo.start,
-        end: eventInfo.endStr || eventInfo.end,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
         allDay: eventInfo.allDay || false,
         description: eventInfo.description || "",
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
       });
+
+      setStartTime(format(startDate, 'HH:mm'));
+      setEndTime(format(endDate, 'HH:mm'));
+
     }
   }, [eventInfo, currentUser, employees]);
+  
+  const handleTimeChange = (type: 'start' | 'end', timeValue: string) => {
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return;
+
+    if (type === 'start') {
+        setStartTime(timeValue);
+        const currentDate = formData.start ? parseISO(formData.start) : new Date();
+        const newDate = setMinutes(setHours(currentDate, hours), minutes);
+        setFormData(prev => ({ ...prev, start: newDate.toISOString() }));
+    } else {
+        setEndTime(timeValue);
+        const currentDate = formData.end ? parseISO(formData.end) : new Date();
+        const newDate = setMinutes(setHours(currentDate, hours), minutes);
+        setFormData(prev => ({ ...prev, end: newDate.toISOString() }));
+    }
+  }
 
   const handleSave = () => {
     onSave(formData);
@@ -100,6 +126,30 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
               disabled={!canEdit}
             />
           </div>
+          {!formData.allDay && (
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                    <Label htmlFor="startTime">Start Time</Label>
+                    <Input
+                        id="startTime"
+                        type="time"
+                        value={startTime}
+                        onChange={e => handleTimeChange('start', e.target.value)}
+                        disabled={!canEdit}
+                    />
+                 </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="endTime">End Time</Label>
+                    <Input
+                        id="endTime"
+                        type="time"
+                        value={endTime}
+                        onChange={e => handleTimeChange('end', e.target.value)}
+                        disabled={!canEdit}
+                    />
+                 </div>
+              </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
