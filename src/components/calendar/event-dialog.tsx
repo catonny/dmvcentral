@@ -58,7 +58,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
-        createdBy: eventInfo.createdBy, // Pass existing creator ID
+        createdBy: eventInfo.createdBy || (isNew ? currentUser?.uid : undefined),
       });
 
       setStartTime(format(startDate, 'HH:mm'));
