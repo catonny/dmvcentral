@@ -40,6 +40,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
   React.useEffect(() => {
     if (eventInfo) {
       const isNew = !eventInfo.id;
+      const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
+
       setFormData({
         id: eventInfo.id || undefined,
         title: eventInfo.title || "",
@@ -47,12 +49,12 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         end: eventInfo.endStr || eventInfo.end,
         allDay: eventInfo.allDay || false,
         description: eventInfo.description || "",
-        attendees: eventInfo.attendees || (isNew && currentUser ? [currentUser.uid] : []),
+        attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
       });
     }
-  }, [eventInfo, currentUser]);
+  }, [eventInfo, currentUser, employees]);
 
   const handleSave = () => {
     onSave(formData);
@@ -82,8 +84,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         <DialogHeader>
           <DialogTitle>{formData.id ? "Edit Event" : "Create Event"}</DialogTitle>
           <DialogDescription>
-            {formData.id 
-                ? `Viewing event on ${format(parseISO(formData.start!), 'PPP')}`
+            {formData.id && formData.start
+                ? `Viewing event on ${format(parseISO(formData.start), 'PPP')}`
                 : "Add a new event to the shared calendar."
             }
           </DialogDescription>
