@@ -6,7 +6,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { CalendarEvent, Employee } from "@/lib/data";
@@ -90,8 +90,10 @@ export default function CalendarPage() {
             await updateDoc(eventRef, eventData);
             toast({ title: "Success", description: "Event updated." });
         } else { // Create new event
-            await addDoc(collection(db, "events"), {
+            const newEventRef = doc(collection(db, "events"));
+            await setDoc(newEventRef, {
                 ...eventData,
+                id: newEventRef.id, // Ensure ID is set
                 createdBy: user.uid,
             });
             toast({ title: "Success", description: "Event created." });
