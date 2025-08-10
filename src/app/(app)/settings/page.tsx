@@ -131,7 +131,7 @@ export default function SettingsPage() {
                 const collectionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const xmlString = toXML(collectionName, collectionData);
                 
-                const blob = new Blob([xmlString], { type: 'application/xml' });
+                const blob = new Blob([xmlString], { type: 'text/xml' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
