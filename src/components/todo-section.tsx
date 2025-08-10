@@ -241,7 +241,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
             const mentionStartIndex = mentionMatch.index || 0;
             const newText = 
                 text.slice(0, mentionStartIndex) + 
-                `@${employeeName.replace(/\s/g, '')}` +
+                `@${employeeName.replace(/\s/g, '')} ` +
                 text.slice(cursorPos);
             
             setNewTodoText(newText);
@@ -265,7 +265,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
 
     return (
         <>
-            <Card className="h-full flex flex-col">
+            <Card className="h-full flex flex-col shadow-none border-none">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
