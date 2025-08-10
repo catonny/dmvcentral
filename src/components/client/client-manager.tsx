@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -24,14 +23,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { BulkEmailDialog } from "./bulk-email-dialog";
 
 interface ClientManagerProps {
-    clients: Client[];
-    isPartner: boolean;
+    initialData: {
+        clients: Client[];
+        employees: Employee[];
+        departments: Department[];
+    };
 }
 
-export function ClientManager({ clients, isPartner }: ClientManagerProps) {
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
-  const [allClients, setAllClients] = React.useState<Client[]>([]);
-  const [departments, setDepartments] = React.useState<Department[]>([]);
+export function ClientManager({ initialData }: ClientManagerProps) {
+  const [allClients, setAllClients] = React.useState<Client[]>(initialData.clients);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialData.employees);
+  const [departments, setDepartments] = React.useState<Department[]>(initialData.departments);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = React.useState(false);
   const [isConfirmPartnerChangeOpen, setIsConfirmPartnerChangeOpen] = React.useState(false);
@@ -58,37 +60,11 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
   }, [user]);
 
   React.useEffect(() => {
-    // These are master data, so we can fetch them once.
-    const fetchMasterData = async () => {
-        try {
-            const employeeQuery = query(collection(db, "employees"));
-            const deptsQuery = query(collection(db, "departments"));
-            const clientsQuery = query(collection(db, "clients"));
-
-
-            const [employeeSnapshot, deptsSnapshot, clientsSnapshot] = await Promise.all([
-                getDocs(employeeQuery),
-                getDocs(deptsQuery),
-                getDocs(clientsQuery)
-            ]);
-
-            const employeeData = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-            setAllEmployees(employeeData);
-
-            const deptsData = deptsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-            setDepartments(deptsData);
-            
-            const clientsData = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-            setAllClients(clientsData);
-
-
-        } catch (error) {
-            console.error("Error fetching master data for Client Manager:", error);
-            toast({ title: "Error", description: `Failed to fetch master data.`, variant: "destructive" });
-        }
-    }
-    fetchMasterData();
-  }, [toast]);
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+        setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+    });
+    return () => unsubClients();
+  }, []);
 
 
   const handleUpdateClientField = async (clientId: string, field: keyof Client, value: any) => {
@@ -240,12 +216,14 @@ export function ClientManager({ clients, isPartner }: ClientManagerProps) {
 
   return (
     <>
-      <DataTable 
-          columns={columns} 
-          data={clients}
-          openEditSheet={handleOpenEditSheet}
-          onBulkEmail={handleBulkEmail}
-      />
+      <div className="p-4 flex-grow flex flex-col min-h-0">
+          <DataTable 
+              columns={columns} 
+              data={allClients}
+              openEditSheet={handleOpenEditSheet}
+              onBulkEmail={handleBulkEmail}
+          />
+      </div>
       <EditClientSheet
         client={selectedClient}
         isOpen={isSheetOpen}
