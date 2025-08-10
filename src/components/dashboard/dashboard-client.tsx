@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -24,57 +23,49 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+    initialData: {
+        clients: any[];
+        employees: any[];
+        engagements: any[];
+        tasks: any[];
+    };
+}
+
+export function DashboardClient({ initialData }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
-  const [clients, setClients] = React.useState<Client[]>([]);
-  const [employees, setEmployees] = React.useState<Employee[]>([]);
-  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [loadingData, setLoadingData] = React.useState(true);
+  
+  const [clients, setClients] = React.useState<Client[]>(initialData.clients as Client[]);
+  const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees as Employee[]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements as Engagement[]);
+  const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks as Task[]);
+
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
   const { toast } = useToast();
+  
+  React.useEffect(() => {
+    if (user) {
+       const userProfile = (initialData.employees as Employee[]).find(e => e.email === user.email) || null;
+       setCurrentUser(userProfile);
+    }
+  }, [user, initialData.employees]);
 
   React.useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-        setLoadingData(false);
-        return;
-    }
+    if (!user) return;
 
-    const unsubscribers: (() => void)[] = [];
-
-    const fetchAndSetData = async () => {
-        setLoadingData(true);
-        try {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
-
-            if (!employeeSnapshot.empty) {
-                 const userProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-                 setCurrentUser(userProfile);
-            }
-            
-            unsubscribers.push(onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => d.data() as Client))));
-            unsubscribers.push(onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(d => d.data() as Employee))));
-            unsubscribers.push(onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => d.data() as Engagement))));
-            unsubscribers.push(onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(d => d.data() as Task))));
-
-        } catch (error) {
-            console.error("Error fetching dashboard data:", error);
-            toast({ title: "Error", description: "Could not fetch dashboard data.", variant: "destructive" });
-        } finally {
-            setLoadingData(false);
-        }
-    };
+    // Set up real-time listeners to keep data fresh after initial load
+    const unsubs: (() => void)[] = [];
+    unsubs.push(onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => d.data() as Client))));
+    unsubs.push(onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(d => d.data() as Employee))));
+    unsubs.push(onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => d.data() as Engagement))));
+    unsubs.push(onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(d => d.data() as Task))));
     
-    fetchAndSetData();
+    return () => unsubs.forEach(unsub => unsub());
+  }, [user]);
 
-    return () => unsubscribers.forEach(unsub => unsub());
-
-  }, [user, authLoading, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
     if (!currentUser || !user) {
@@ -178,7 +169,7 @@ export function DashboardClient() {
       }
   };
 
-  if (authLoading || loadingData) {
+  if (authLoading) {
      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
