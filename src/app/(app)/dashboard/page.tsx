@@ -10,8 +10,19 @@ import type { Client, Employee, Engagement, Task } from "@/lib/data";
 
 async function getDashboardData() {
   try {
+    const adminApp = getAdminApp();
+    if (!adminApp) {
+        console.warn("Admin SDK not initialized. Skipping server-side auth check.");
+        return { allClients: [], allEngagements: [], allEmployees: [], allTasks: [], currentUser: null };
+    }
+
     const sessionCookie = cookies().get("session")?.value || "";
-    const decodedToken = await auth(getAdminApp()).verifySessionCookie(sessionCookie);
+    // If there's no session cookie, we can't authenticate on the server.
+    if (!sessionCookie) {
+         return { allClients: [], allEngagements: [], allEmployees: [], allTasks: [], currentUser: null };
+    }
+
+    const decodedToken = await auth(adminApp).verifySessionCookie(sessionCookie, true);
     
     if (!decodedToken.email) {
       return null;
@@ -46,6 +57,11 @@ async function getDashboardData() {
     return { allClients, allEngagements, allEmployees, allTasks, currentUser };
     
   } catch (error) {
+    // This can happen if the cookie is expired or invalid.
+    // We'll return null and let the client-side handle redirection.
+    if ((error as any).code === 'auth/session-cookie-expired' || (error as any).code === 'auth/session-cookie-revoked') {
+      return null;
+    }
     console.error("Error fetching dashboard data on server:", error);
     return null;
   }

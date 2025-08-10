@@ -5,21 +5,32 @@ import 'dotenv/config';
 // This will be automatically populated by the Firebase environment
 const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 
-if (!serviceAccountString) {
-    throw new Error('Firebase Admin SDK service account is not defined or is invalid. Make sure the FIREBASE_SERVICE_ACCOUNT environment variable is set correctly.');
-}
+let app: App | null = null;
 
-const serviceAccount = JSON.parse(serviceAccountString);
-
-let app: App;
-
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  app = initializeApp({
-    credential: cert(serviceAccount),
-  });
+// Initialize Firebase Admin SDK only if the service account is available
+if (serviceAccountString) {
+    try {
+        const serviceAccount = JSON.parse(serviceAccountString);
+        if (!getApps().length) {
+          app = initializeApp({
+            credential: cert(serviceAccount),
+          });
+        } else {
+          app = getApps()[0];
+        }
+    } catch (e) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid JSON string.", e);
+    }
 } else {
-  app = getApps()[0];
+    console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Firebase Admin SDK not initialized.");
 }
 
-export const getAdminApp = () => app;
+
+export const getAdminApp = () => {
+    if (!app) {
+        // This function will now return null if the admin app isn't initialized,
+        // allowing parts of the app to proceed without crashing.
+        return null;
+    }
+    return app;
+};
