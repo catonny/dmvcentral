@@ -1,34 +1,27 @@
 
 import * as React from 'react';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from '@/lib/db';
 import type { Client, Employee, Department } from "@/lib/data";
 import { ClientManager } from "@/components/client/client-manager";
-import { getAdminApp } from '@/lib/firebase-admin';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 
 async function getClientData() {
-    const adminApp = getAdminApp();
-    if (!adminApp) {
-        throw new Error("Firebase admin SDK not configured.");
-    }
-    const db = getFirestore(adminApp);
-    
     try {
-        const [clientsSnap, employeesSnap, departmentsSnap] = await Promise.all([
-            db.collection('clients').get(),
-            db.collection('employees').get(),
-            db.collection('departments').get(),
+        const [clientsResult, employeesResult, departmentsResult] = await Promise.all([
+            db.query('SELECT * FROM clients'),
+            db.query('SELECT * FROM employees'),
+            db.query('SELECT * FROM departments'),
         ]);
 
-        const clients = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        const employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-        const departments = departmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
+        const clients = clientsResult.rows as Client[];
+        const employees = employeesResult.rows as Employee[];
+        const departments = departmentsResult.rows as Department[];
 
         return { clients, employees, departments };
     } catch (error) {
-        console.error("Error fetching client data from Firestore:", error);
-        throw new Error("Could not fetch data from Firestore.");
+        console.error("Error fetching client data from relational database:", error);
+        throw new Error("Could not fetch data from the database. Ensure the database is running and credentials are set.");
     }
 }
 
@@ -48,7 +41,7 @@ export default async function ClientsPage() {
                 </CardHeader>
                 <CardContent>
                     <p>{errorMessage}</p>
-                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading client data from the server. Please check your Firebase configuration.</p>
+                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading client data from the server. Please check your database connection.</p>
                 </CardContent>
             </Card>
         )
