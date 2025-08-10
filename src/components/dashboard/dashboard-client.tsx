@@ -25,21 +25,12 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-interface DashboardClientProps {
-    initialData: {
-        clients: Client[];
-        engagements: Engagement[];
-        tasks: Task[];
-        allEmployees: Employee[];
-    }
-}
-
-export function DashboardClient({ initialData }: DashboardClientProps) {
+export function DashboardClient() {
   const { user } = useAuth();
-  const [allClients, setAllClients] = React.useState<Client[]>(initialData.clients);
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialData.allEmployees);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements);
-  const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
   const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   
@@ -54,12 +45,20 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         return;
     }
     
-    // Set current user from the pre-fetched employee list
-    const profile = allEmployees.find(e => e.email === user.email);
-    setCurrentUserEmployeeProfile(profile || null);
+    const fetchProfileAndData = async () => {
+        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+        const employeeSnapshot = await getDocs(employeeQuery);
+
+        if (employeeSnapshot.empty) {
+            setLoading(false);
+            return;
+        }
+
+        const profile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+        setCurrentUserEmployeeProfile(profile);
+    }
+    fetchProfileAndData();
     
-    // Although we have initial data, we set up listeners for real-time updates
-    // for the user's ongoing session.
     const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
     const unsubEngagements = onSnapshot(query(collection(db, "engagements"), where("status", "in", activeStatuses)), (snapshot) => {
       setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
@@ -68,19 +67,24 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
       setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
     });
+
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+        setAllEmployees(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Employee)));
+    });
     
     const unsubTasks = onSnapshot(collection(db, "tasks"), (snapshot) => {
         setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
     });
-
-    setLoading(false); // We have initial data, so we can set loading to false quickly
+    
+    setLoading(false);
 
     return () => {
         unsubEngagements();
         unsubClients();
         unsubTasks();
+        unsubEmployees();
     };
-}, [user, allEmployees]);
+}, [user]);
 
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
