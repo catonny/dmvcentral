@@ -4,7 +4,7 @@
 import * as React from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
+import type { Client, Employee, Engagement, EngagementStatus, Task, CalendarEvent } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { TodoSection } from "@/components/dashboard/todo-section";
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { WorkloadDistribution } from "./workload-distribution";
+import { WeeklyPlans } from "./weekly-plans";
 
 interface Widget {
   id: string;
@@ -30,6 +30,7 @@ interface DashboardClientProps {
         employees: Employee[];
         engagements: Engagement[];
         tasks: Task[];
+        events: CalendarEvent[];
     };
 }
 
@@ -41,6 +42,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees);
   const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements);
   const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
+  const [events, setEvents] = React.useState<CalendarEvent[]>(initialData.events);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
@@ -68,12 +70,14 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const unsubEmployees = onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(doc => doc.data() as Employee)));
     const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(doc => doc.data() as Engagement)));
     const unsubTasks = onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(doc => doc.data() as Task)));
+    const unsubEvents = onSnapshot(collection(db, "events"), (snap) => setEvents(snap.docs.map(doc => doc.data() as CalendarEvent)));
 
     return () => {
       unsubClients();
       unsubEmployees();
       unsubEngagements();
       unsubTasks();
+      unsubEvents();
     };
   }, []);
 
@@ -104,7 +108,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             isPartner: userIsPartner,
             isAdmin: true,
             userRole: roleForView,
-            dashboardData: { clients, engagements, tasks, currentUser }
+            dashboardData: { clients, engagements, tasks, events, currentUser }
         };
     }
     
@@ -115,12 +119,14 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
         const partnerEngagementIds = new Set(partnerEngagements.map(e => e.id));
         const partnerTasks = tasks.filter(t => t.engagementId && partnerEngagementIds.has(t.engagementId));
+        const partnerEvents = events.filter(e => e.attendees?.some(attendeeId => partnerClientIds.has(attendeeId)));
+
 
         return {
             isPartner: true,
             isAdmin: false,
             userRole: roleForView,
-            dashboardData: { clients: partnerClients, engagements: partnerEngagements, tasks: partnerTasks, currentUser }
+            dashboardData: { clients: partnerClients, engagements: partnerEngagements, tasks: partnerTasks, events: partnerEvents, currentUser }
         };
     }
     
@@ -129,20 +135,22 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const employeeClients = clients.filter(c => employeeClientIds.has(c.id));
     const employeeEngagementIds = new Set(employeeEngagements.map(e => e.id));
     const employeeTasks = tasks.filter(t => t.engagementId && employeeEngagementIds.has(t.engagementId));
+    const employeeEvents = events.filter(e => e.attendees?.includes(currentUser.id));
     
     return {
         isPartner: false,
         isAdmin: false,
         userRole: roleForView,
-        dashboardData: { clients: employeeClients, engagements: employeeEngagements, tasks: employeeTasks, currentUser }
+        dashboardData: { clients: employeeClients, engagements: employeeEngagements, tasks: employeeTasks, events: employeeEvents, currentUser }
     };
 
-  }, [user, currentUser, clients, engagements, tasks]);
+  }, [user, currentUser, clients, engagements, tasks, events]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 12, h: 12 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
+        { id: 'weekly-plans', title: 'Weekly Plans', description: 'Your upcoming events for the week.', component: WeeklyPlans, condition: true, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
@@ -178,6 +186,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               return { data: dashboardData, userRole };
           case 'todo-section':
               return { currentUser: currentUser, allClients: clients, allEmployees: employees };
+          case 'weekly-plans':
+              return { currentUser: currentUser, events: dashboardData?.events || [] };
           default:
               return {};
       }
