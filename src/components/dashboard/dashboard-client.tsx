@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { WeeklyPlans } from "./weekly-plans";
 
 interface Widget {
   id: string;
@@ -148,8 +147,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
-        { id: 'weekly-plans', title: 'Weekly Plans', description: 'Your upcoming events for the week.', component: WeeklyPlans, condition: true, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 12, h: 12 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
@@ -185,8 +183,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               return { data: dashboardData, userRole };
           case 'todo-section':
               return { currentUser: currentUser, allClients: clients, allEmployees: employees };
-          case 'weekly-plans':
-              return { currentUser: currentUser, events: dashboardData?.events || [] };
           default:
               return {};
       }
