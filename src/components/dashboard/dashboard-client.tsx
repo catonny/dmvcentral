@@ -40,72 +40,50 @@ export function DashboardClient() {
 
   React.useEffect(() => {
     if (!user) return;
-
     setLoading(true);
 
-    let profileFetched = false;
-    let clientsFetched = false;
-    let engagementsFetched = false;
-    let employeesFetched = false;
-    let tasksFetched = false;
+    const fetchData = async () => {
+        try {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const [
+                profileSnapshot,
+                clientsSnapshot,
+                engagementsSnapshot,
+                employeesSnapshot,
+                tasksSnapshot
+            ] = await Promise.all([
+                getDocs(employeeQuery),
+                getDocs(collection(db, "clients")),
+                getDocs(query(collection(db, "engagements"), where("status", "in", ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"]))),
+                getDocs(collection(db, "employees")),
+                getDocs(collection(db, "tasks"))
+            ]);
 
-    const checkAllDataFetched = () => {
-        if (profileFetched && clientsFetched && engagementsFetched && employeesFetched && tasksFetched) {
+            if (!profileSnapshot.empty) {
+                const profile = { id: profileSnapshot.docs[0].id, ...profileSnapshot.docs[0].data() } as Employee;
+                setCurrentUserEmployeeProfile(profile);
+            }
+
+            setAllClients(clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+            setEngagements(engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+            setAllEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+            setTasks(tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
+            
+        } catch (error) {
+            console.error("Error fetching dashboard data:", error);
+            toast({ title: "Error", description: "Could not load dashboard data.", variant: "destructive" });
+        } finally {
             setLoading(false);
         }
-    }
-
-    const handleError = (error: Error, type: string) => {
-        console.error(`Error fetching real-time ${type}:`, error);
-        toast({ title: "Real-time Update Error", description: `Could not sync ${type}.`, variant: "destructive" });
-    }
-
-    const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-    const unsubProfile = onSnapshot(employeeQuery, (snapshot) => {
-        if (!snapshot.empty) {
-            const profile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee;
-            setCurrentUserEmployeeProfile(profile);
-        }
-        profileFetched = true;
-        checkAllDataFetched();
-    }, (error) => handleError(error, 'employee profile'));
-
-
-    const unsubClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
-        setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-        clientsFetched = true;
-        checkAllDataFetched();
-    }, (error) => handleError(error, "clients"));
-
-    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-    const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
-    const unsubEngagements = onSnapshot(engagementsQuery, (snapshot) => {
-        setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
-        engagementsFetched = true;
-        checkAllDataFetched();
-    }, (error) => handleError(error, "engagements"));
-
-    const unsubEmployees = onSnapshot(query(collection(db, "employees")), (snapshot) => {
-        setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
-        employeesFetched = true;
-        checkAllDataFetched();
-    }, (error) => handleError(error, "employees"));
-    
-    const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snapshot) => {
-        setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-        tasksFetched = true;
-        checkAllDataFetched();
-    }, (error) => {
-        handleError(error, "tasks");
-    });
-    
-    return () => {
-        unsubProfile();
-        unsubClients();
-        unsubEngagements();
-        unsubEmployees();
-        unsubTasks();
     };
+    
+    fetchData();
+
+    // Still keep a real-time listener for To-Dos as they are more dynamic
+    const todosQuery = query(collection(db, "todos"), where("assignedTo", "array-contains", user.uid));
+    const unsubTodos = onSnapshot(todosQuery, () => {}); // This is just to trigger updates in the TodoSection, which has its own listener
+    return () => unsubTodos();
+
   }, [user, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
