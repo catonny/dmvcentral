@@ -432,8 +432,9 @@ export const indianStatesAndUTs: string[] = [
 
 export const clientCategories: string[] = ["Corporate", "Individual", "LLP", "Partnership", "Trust"];
 
-export const firms: Omit<Firm, 'id'>[] = [
+export const firms: Firm[] = [
     {
+        id: "firm_davis_martin_varghese",
         name: "Davis, Martin & Varghese",
         pan: "FIRMABC123D",
         gstn: "22FIRMABC123D1Z5",
@@ -737,7 +738,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9876543210",
         mailId: "contact@innovate.com",
         partnerId: "S006", // Dojo Davis
-        firmId: "firm_id_placeholder",
+        firmId: "firm_davis_martin_varghese",
         category: "Corporate",
         country: "India",
         gstin: "22AABCI1234F1Z5",
@@ -750,7 +751,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9988776655",
         mailId: "accounts@greenfuture.com",
         partnerId: "S006", // Dojo Davis
-        firmId: "firm_id_placeholder",
+        firmId: "firm_davis_martin_varghese",
         category: "LLP",
         country: "India",
         contactPerson: "Emily White",
@@ -762,7 +763,7 @@ export const clients: Omit<Client, 'id' | 'lastUpdated' | 'createdAt'>[] = [
         mobileNumber: "9654321098",
         mailId: "trust@hopefoundation.org",
         partnerId: "S001", // Tonny Varghese
-        firmId: "firm_id_placeholder",
+        firmId: "firm_davis_martin_varghese",
         category: "Trust",
         country: "India",
         contactPerson: "Riya Singh",

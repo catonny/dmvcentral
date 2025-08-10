@@ -25,6 +25,8 @@ if (!process.env.SUPABASE_POSTGRES_URL) {
     throw new Error('Database connection string is not set. Please set SUPABASE_POSTGRES_URL in your .env file.');
 }
 
+const clientNameToIdMap = new Map<string, string>();
+
 export const seedDatabase = async () => {
   console.log('Starting database seed for PostgreSQL...');
   const client = await db.connect();
@@ -51,9 +53,10 @@ export const seedDatabase = async () => {
 
     // Seed Firms
     console.log('Seeding firms...');
+    const firmData = firms[0];
     const firmResult = await client.query(
-      `INSERT INTO firms (name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
+      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
     );
     const firmId = firmResult.rows[0].id;
 
@@ -98,22 +101,22 @@ export const seedDatabase = async () => {
     console.log('Seeding tax rates...');
     const taxRateResults = [];
     for (const rate of taxRates) {
-        const res = await client.query('INSERT INTO tax_rates (name, rate, "isDefault") VALUES ($1, $2, $3) RETURNING id', [rate.name, rate.rate, rate.isDefault || false]);
+        const res = await client.query('INSERT INTO tax_rates (id, name, rate, "isDefault") VALUES ($1, $2, $3, $4) RETURNING id', [rate.name, rate.rate, rate.isDefault || false, rate.name]);
         taxRateResults.push({ ...rate, id: res.rows[0].id });
     }
     const defaultTaxRateId = taxRateResults.find(r => r.isDefault)?.id;
     
     // Seed HSN/SAC Codes
     console.log('Seeding HSN/SAC codes...');
-    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (code, description, type, "isDefault") VALUES ('998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
+    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (id, code, description, type, "isDefault") VALUES ('SAC01', '998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
     const defaultSacId = hsnSacResult.rows[0].id;
     
     // Seed Sales Items
     console.log('Seeding sales items...');
     for (const item of salesItems) {
         await client.query(
-            `INSERT INTO sales_items (name, description, standard_price, "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5)`,
-            [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
+            `INSERT INTO sales_items (id, name, description, standard_price, "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5, $6)`,
+            [item.name, item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
     }
     
@@ -124,7 +127,7 @@ export const seedDatabase = async () => {
         const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
         const clientResult = await client.query(
             `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-            [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
+            [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, c.firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
         );
         const newClientId = clientResult.rows[0].id;
         
@@ -134,7 +137,7 @@ export const seedDatabase = async () => {
         clientNameToIdMap.set(placeholderId, newClientId);
     }
     const allClientsResult = await client.query('SELECT id, name FROM clients');
-    const clientNameToIdMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
+    const clientNameMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
 
 
     // Seed Engagements and Tasks
@@ -142,7 +145,7 @@ export const seedDatabase = async () => {
     
     for (const eng of engagements) {
         const clientName = clientMapForEngagement(eng.clientId);
-        const clientId = clientName ? clientNameToIdMap.get(clientName) : undefined;
+        const clientId = clientName ? clientNameMap.get(clientName) : undefined;
         if (clientId) {
             const engagementResult = await client.query(
                 `INSERT INTO engagements ("clientId", remarks, type, "assignedTo", "reportedTo", "dueDate", status, fees, "billStatus") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
