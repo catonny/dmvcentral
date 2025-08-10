@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Client, Employee, Engagement, EngagementStatus, Task, CalendarEvent } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -24,22 +24,16 @@ interface Widget {
 }
 
 interface DashboardClientProps {
-    initialData: {
-        clients: Client[];
-        employees: Employee[];
-        engagements: Engagement[];
-        tasks: Task[];
-    };
+    clients: Client[];
+    employees: Employee[];
+    engagements: Engagement[];
+    tasks: Task[];
 }
 
-export function DashboardClient({ initialData }: DashboardClientProps) {
+export function DashboardClient({ clients, employees, engagements, tasks }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
   
-  const [clients, setClients] = React.useState<Client[]>(initialData.clients);
-  const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements);
-  const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
@@ -49,34 +43,16 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   
   React.useEffect(() => {
     if (user) {
-        const q = query(collection(db, "employees"), where("email", "==", user.email));
-        const unsub = onSnapshot(q, (snapshot) => {
-            if (!snapshot.empty) {
-                const userProfile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee;
-                setCurrentUser(userProfile);
-            } else {
-                setCurrentUser(null);
-            }
-        });
-        return () => unsub();
+        const userInDb = employees.find(e => e.email === user.email);
+        if (userInDb) {
+            setCurrentUser(userInDb);
+        }
     }
-  }, [user]);
+  }, [user, employees]);
 
-  // Set up real-time listeners to keep the dashboard live
   React.useEffect(() => {
-    const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(doc => doc.data() as Client)));
-    const unsubEmployees = onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(doc => doc.data() as Employee)));
-    const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(doc => doc.data() as Engagement)));
-    const unsubTasks = onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(doc => doc.data() as Task)));
     const unsubEvents = onSnapshot(collection(db, "events"), (snap) => setEvents(snap.docs.map(doc => doc.data() as CalendarEvent)));
-
-    return () => {
-      unsubClients();
-      unsubEmployees();
-      unsubEngagements();
-      unsubTasks();
-      unsubEvents();
-    };
+    return () => unsubEvents();
   }, []);
 
   

@@ -30,7 +30,7 @@ async function getDashboardData() {
 export default async function DashboardPage() {
     try {
         const { clients, employees, engagements, tasks } = await getDashboardData();
-        return <DashboardClient initialData={{ clients, employees, engagements, tasks }} />;
+        return <DashboardClient clients={clients} employees={employees} engagements={engagements} tasks={tasks} />;
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return (
