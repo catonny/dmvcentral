@@ -56,15 +56,16 @@ export const seedDatabase = async () => {
     const firmData = firms[0];
     await client.query(
       `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contact_number, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
+      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
     );
 
     // Seed Departments
     console.log('Seeding departments...');
     for (const dept of departments) {
-      await client.query('INSERT INTO departments (id, name, "order") VALUES ($1, $2, $3)', [dept.name, dept.name, dept.order]);
+      const deptResult = await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2) RETURNING id', [dept.name, dept.order]);
+      await client.query('UPDATE departments SET id = $1 WHERE id = $1', [deptResult.rows[0].id]);
     }
-
+    
     // Seed Employees
     console.log('Seeding employees...');
     const employees = [...defaultEmployees];
@@ -91,7 +92,7 @@ export const seedDatabase = async () => {
     console.log('Seeding engagement types...');
     for (const et of engagementTypes) {
       await client.query(
-        'INSERT INTO engagement_types (id, name, description, sub_task_titles, recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO engagement_types (id, name, description, "sub_task_titles", recurrence, "applicable_categories") VALUES ($1, $2, $3, $4, $5, $6)',
         [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
       );
     }
@@ -100,23 +101,28 @@ export const seedDatabase = async () => {
     console.log('Seeding tax rates...');
     const taxRateResults = [];
     for (const rate of taxRates) {
-        const res = await client.query('INSERT INTO tax_rates (id, name, rate, "is_default") VALUES ($1, $2, $3, $4) RETURNING id', [rate.name, rate.rate, rate.isDefault || false, rate.name]);
-        taxRateResults.push({ ...rate, id: res.rows[0].id });
+        const res = await client.query('INSERT INTO tax_rates (name, rate, "is_default") VALUES ($1, $2, $3) RETURNING id', [rate.name, rate.rate, rate.isDefault || false]);
+        const newId = res.rows[0].id;
+        await client.query('UPDATE tax_rates SET id = $1 WHERE id = $1', [newId]);
+        taxRateResults.push({ ...rate, id: newId });
     }
     const defaultTaxRateId = taxRateResults.find(r => r.isDefault)?.id;
     
     // Seed HSN/SAC Codes
     console.log('Seeding HSN/SAC codes...');
-    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (id, code, description, type, "is_default") VALUES ('SAC01', '998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
+    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (code, description, type, "is_default") VALUES ('998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
     const defaultSacId = hsnSacResult.rows[0].id;
-    
+     await client.query('UPDATE hsn_sac_codes SET id = $1 WHERE id = $1', [defaultSacId]);
+
     // Seed Sales Items
     console.log('Seeding sales items...');
     for (const item of salesItems) {
-        await client.query(
-            `INSERT INTO sales_items (id, name, description, standard_price, "default_tax_rate_id", "default_sac_id") VALUES ($1, $2, $3, $4, $5, $6)`,
-            [item.name, item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
+        const salesItemResult = await client.query(
+            `INSERT INTO sales_items (name, description, "standard_price", "default_tax_rate_id", "default_sac_id") VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
+        const newSalesItemId = salesItemResult.rows[0].id;
+        await client.query('UPDATE sales_items SET id = $1 WHERE id = $1', [newSalesItemId]);
     }
     
     // Seed Clients
@@ -173,7 +179,7 @@ export const seedDatabase = async () => {
         if (!employee) continue;
 
         const timesheetResult = await client.query(
-            `INSERT INTO timesheets (id, user_id, user_name, is_partner, week_start_date, total_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            `INSERT INTO timesheets (id, user_id, user_name, "is_partner", "week_start_date", total_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
             [timesheetId, sheet.userId, employee.name, employee.role.includes("Partner"), sheet.weekStartDate, sheet.totalHours]
         );
         const newTimesheetId = timesheetResult.rows[0].id;
