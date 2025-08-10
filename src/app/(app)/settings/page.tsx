@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, FileJson, FileXml } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
@@ -39,12 +39,12 @@ export default function SettingsPage() {
   const [deleteTransactionalConfirmText, setDeleteTransactionalConfirmText] = React.useState('');
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
+
+  const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
+  const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
   
   const handleBackup = async (type: 'transactional' | 'master' | 'full') => {
     setLoadingBackup(type);
-    
-    const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
-    const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
     
     let collectionsToBackup: string[] = [];
     if (type === 'transactional') collectionsToBackup = transactionalCollections;
@@ -95,6 +95,76 @@ export default function SettingsPage() {
     }
   };
 
+  const handleXmlExport = async (type: 'transactional' | 'master' | 'full') => {
+    setLoadingBackup(`xml-${type}`);
+
+    let collectionsToExport: string[] = [];
+    if (type === 'transactional') collectionsToExport = transactionalCollections;
+    else if (type === 'master') collectionsToExport = masterCollections;
+    else if (type === 'full') collectionsToExport = [...masterCollections, ...transactionalCollections];
+
+    const fileName = `dmv_central_export_${type}_${new Date().toISOString().split('T')[0]}.xml`;
+
+    const toXML = (collectionName: string, data: any[]): string => {
+        const items = data.map(item => {
+            const fields = Object.entries(item)
+                .map(([key, value]) => {
+                    if (value === undefined || value === null) return '';
+                    const sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '');
+                    if (sanitizedKey === '') return '';
+
+                    const serializedValue = Array.isArray(value)
+                        ? value.map(v => `<item>${String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</item>`).join('')
+                        : String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `    <${sanitizedKey}>${serializedValue}</${sanitizedKey}>`;
+                })
+                .join('\n');
+            const singularCollectionName = collectionName.endsWith('s') ? collectionName.slice(0, -1) : collectionName;
+            return `  <${singularCollectionName}>\n${fields}\n  </${singularCollectionName}>`;
+        }).join('\n');
+        return `<${collectionName}>\n${items}\n</${collectionName}>`;
+    };
+
+    try {
+        let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<data>\n';
+
+        for (const collectionName of collectionsToExport) {
+            const snapshot = await getDocs(query(collection(db, collectionName)));
+            if (!snapshot.empty) {
+                const collectionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                xmlString += toXML(collectionName, collectionData) + '\n';
+            }
+        }
+
+        xmlString += '</data>';
+
+        const blob = new Blob([xmlString], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+            title: 'Success',
+            description: `XML export of ${type} data has been downloaded.`,
+        });
+
+    } catch (error) {
+        console.error(`Error exporting ${type} data to XML:`, error);
+        toast({
+            title: 'Error',
+            description: `Failed to create ${type} XML export.`,
+            variant: 'destructive',
+        });
+    } finally {
+        setLoadingBackup(null);
+    }
+  };
+
   const handleRestoreFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/json') {
@@ -129,10 +199,7 @@ export default function SettingsPage() {
     try {
         const fileContent = await backupFile.text();
         const backupData = JSON.parse(fileContent);
-
-        const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
-        const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
-
+        
         let collectionsToRestore: string[] = [];
         if (backupFileInfo.type === 'transactional') collectionsToRestore = transactionalCollections;
         else if (backupFileInfo.type === 'master') collectionsToRestore = masterCollections;
@@ -152,7 +219,6 @@ export default function SettingsPage() {
             if (Array.isArray(backupData[collectionName])) {
                 for(const item of backupData[collectionName]) {
                     const docRef = item.id ? doc(db, collectionName, item.id) : doc(collection(db, collectionName));
-                     // Ensure the 'id' field is consistent with the document ID
                     const dataToSet = { ...item, id: docRef.id };
                     batch.set(docRef, dataToSet);
                 }
@@ -184,9 +250,7 @@ export default function SettingsPage() {
     try {
       const batch = writeBatch(db);
       
-      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
-      
-      for (const collectionName of collectionsToDelete) {
+      for (const collectionName of transactionalCollections) {
           const snapshot = await getDocs(query(collection(db, collectionName)));
           snapshot.forEach((doc) => batch.delete(doc.ref));
       }
@@ -215,8 +279,7 @@ export default function SettingsPage() {
     try {
         const batch = writeBatch(db);
         
-        const otherMasterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
-        for (const collectionName of otherMasterCollections) {
+        for (const collectionName of masterCollections) {
             const snapshot = await getDocs(query(collection(db, collectionName)));
             snapshot.forEach((doc) => batch.delete(doc.ref));
         }
@@ -289,7 +352,7 @@ export default function SettingsPage() {
                          <div>
                             <CardTitle className='flex items-center gap-2'><Database /> Data Management</CardTitle>
                             <CardDescription>
-                                Export, backup, and restore your firm's data.
+                                Backup, restore, export, and manage your firm's data.
                             </CardDescription>
                          </div>
                          <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
@@ -306,26 +369,43 @@ export default function SettingsPage() {
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                      <div className="rounded-lg border p-4 space-y-4">
-                        <h3 className="font-semibold">Backup Data</h3>
+                        <h3 className="font-semibold">Backup Data (JSON)</h3>
                         <div className="flex justify-between items-center">
                             <p className="text-sm text-muted-foreground">Master Data (Employees, Types, etc.)</p>
                             <Button variant="outline" onClick={() => handleBackup('master')} disabled={!!loadingBackup}>
-                                {loadingBackup === 'master' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                {loadingBackup === 'master' ? <Loader2 className="mr-2 animate-spin" /> : <FileJson className="mr-2" />}
                                 Backup Master
                             </Button>
                         </div>
                         <div className="flex justify-between items-center">
                             <p className="text-sm text-muted-foreground">Transactional Data (Clients, Engagements)</p>
                             <Button variant="outline" onClick={() => handleBackup('transactional')} disabled={!!loadingBackup}>
-                                {loadingBackup === 'transactional' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                {loadingBackup === 'transactional' ? <Loader2 className="mr-2 animate-spin" /> : <FileJson className="mr-2" />}
                                 Backup Transactional
                             </Button>
                         </div>
                         <div className="flex justify-between items-center">
                             <p className="text-sm text-muted-foreground">Complete backup of all data.</p>
                              <Button variant="outline" onClick={() => handleBackup('full')} disabled={!!loadingBackup}>
-                                {loadingBackup === 'full' ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                                {loadingBackup === 'full' ? <Loader2 className="mr-2 animate-spin" /> : <FileJson className="mr-2" />}
                                 Backup All Data
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="rounded-lg border p-4 space-y-4">
+                        <h3 className="font-semibold">Export Data (XML)</h3>
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Master Data</p>
+                            <Button variant="outline" onClick={() => handleXmlExport('master')} disabled={!!loadingBackup}>
+                                {loadingBackup === 'xml-master' ? <Loader2 className="mr-2 animate-spin" /> : <FileXml className="mr-2" />}
+                                Export Master
+                            </Button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Transactional Data</p>
+                            <Button variant="outline" onClick={() => handleXmlExport('transactional')} disabled={!!loadingBackup}>
+                                {loadingBackup === 'xml-transactional' ? <Loader2 className="mr-2 animate-spin" /> : <FileXml className="mr-2" />}
+                                Export Transactional
                             </Button>
                         </div>
                     </div>
