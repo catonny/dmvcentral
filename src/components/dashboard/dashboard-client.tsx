@@ -28,14 +28,14 @@ interface DashboardClientProps {
         employees: Employee[];
         engagements: Engagement[];
         tasks: Task[];
-        currentUser: Employee | null;
     } | null;
     error?: string;
 }
 
 
 export function DashboardClient({ serverData, error }: DashboardClientProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
@@ -50,13 +50,20 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
         })
     }
   }, [error, toast]);
+
+  React.useEffect(() => {
+      if (user && serverData) {
+          const userProfile = serverData.employees.find(e => e.email === user.email);
+          setCurrentUser(userProfile || null);
+      }
+  }, [user, serverData]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
-    if (!serverData || !serverData.currentUser || !user) {
+    if (!serverData || !currentUser || !user) {
         return { isPartner: false, isAdmin: false, userRole: "Employee", dashboardData: null };
     }
     
-    const { clients, engagements, tasks, employees, currentUser } = serverData;
+    const { clients, engagements, tasks } = serverData;
 
     let userIsAdmin = currentUser.role.includes("Admin");
     let userIsPartner = currentUser.role.includes("Partner");
@@ -126,7 +133,7 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
         }
     };
 
-  }, [serverData, user]);
+  }, [serverData, user, currentUser]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
@@ -164,11 +171,15 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
           case 'status-cards':
               return { data: dashboardData, userRole };
           case 'todo-section':
-              return { currentUser: serverData?.currentUser, allClients: serverData?.clients, allEmployees: serverData?.employees };
+              return { currentUser: currentUser, allClients: serverData?.clients, allEmployees: serverData?.employees };
           default:
               return {};
       }
   };
+
+  if (authLoading) {
+     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
   
   if (!serverData) {
      return (

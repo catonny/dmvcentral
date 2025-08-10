@@ -1,101 +1,61 @@
 
 
-"use client";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/hooks/use-auth";
-import type { Employee, Client, Engagement, Task } from "@/lib/data";
-import { useEffect, useState, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { collection, query, getDocs } from "firebase/firestore";
+import { getFirestore } from 'firebase-admin/firestore';
+import type { Client, Employee, Engagement, Task } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { getAdminApp } from "@/lib/firebase-admin";
 
-// This is now a client component that fetches data
-export default function DashboardPage() {
-    const { user, loading: authLoading } = useAuth();
-    const [serverData, setServerData] = useState<{
-        clients: Client[];
-        employees: Employee[];
-        engagements: Engagement[];
-        tasks: Task[];
-        currentUser: Employee | null;
-    } | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            setLoading(false);
-            setError("You are not logged in.");
-            return;
-        }
-
-        const unsubs: (() => void)[] = [];
-
-        const fetchData = async () => {
-            try {
-                const employeesSnapshot = await getDocs(collection(db, "employees"));
-                const allEmployees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-                const currentUserProfile = allEmployees.find(e => e.email === user.email);
-
-                if (!currentUserProfile) {
-                    setError("Could not find your employee profile.");
-                    setLoading(false);
-                    return;
-                }
-                
-                const clientsQuery = query(collection(db, "clients"));
-                unsubs.push(onSnapshot(clientsQuery, (snap) => {
-                    const clients = snap.docs.map(doc => doc.data() as Client);
-                    setServerData(prev => ({...prev!, clients}));
-                }));
-
-                const engagementsQuery = query(collection(db, "engagements"));
-                 unsubs.push(onSnapshot(engagementsQuery, (snap) => {
-                    const engagements = snap.docs.map(doc => doc.data() as Engagement);
-                    setServerData(prev => ({...prev!, engagements}));
-                }));
-                
-                 unsubs.push(onSnapshot(collection(db, "tasks"), (snap) => {
-                    const tasks = snap.docs.map(doc => doc.data() as Task);
-                    setServerData(prev => ({ ...prev!, tasks, employees: allEmployees, currentUser: currentUserProfile, loading: false }));
-                    setLoading(false);
-                }));
-
-            } catch (err) {
-                console.error("Error fetching dashboard data:", err);
-                setError("Failed to fetch dashboard data.");
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-
-        return () => {
-            unsubs.forEach(unsub => unsub());
-        };
-
-    }, [user, authLoading]);
-
-    if (loading || authLoading) {
-        return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
+async function getDashboardData() {
+    const adminApp = getAdminApp();
+    if (!adminApp) {
+        throw new Error("Firebase admin SDK not configured.");
     }
-    
-    if (error && !serverData) {
+    const db = getFirestore(adminApp);
+
+    try {
+        const [clientsSnap, employeesSnap, engagementsSnap, tasksSnap] = await Promise.all([
+            getDocs(collection(db, "clients")),
+            getDocs(collection(db, "employees")),
+            getDocs(collection(db, "engagements")),
+            getDocs(collection(db, "tasks")),
+        ]);
+
+        const clients = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+        const employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        const engagements = engagementsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+        const tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+
+        return { clients, employees, engagements, tasks };
+    } catch (error) {
+        console.error("Error fetching data on server:", error);
+        // This will be caught by the error boundary
+        throw new Error("Failed to fetch dashboard data from server.");
+    }
+}
+
+
+export default async function DashboardPage() {
+    try {
+        const { clients, employees, engagements, tasks } = await getDashboardData();
+        return (
+            <DashboardClient 
+                serverData={{ clients, employees, engagements, tasks }} 
+            />
+        );
+    } catch (error) {
+         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
          return (
              <Card>
                 <CardHeader>
                     <CardTitle>Dashboard Error</CardTitle>
-                    <CardDescription>{error}</CardDescription>
+                    <CardDescription>{errorMessage}</CardDescription>
                 </CardHeader>
+                <CardContent>
+                    <p>There was an issue loading the dashboard data from the server. Please ensure your Firebase Admin SDK is configured correctly in your environment variables.</p>
+                </CardContent>
              </Card>
          )
     }
-
-    return <DashboardClient serverData={serverData} />;
 }

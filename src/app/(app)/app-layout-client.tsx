@@ -98,19 +98,17 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   
   // Effect to fetch all data for Universal Search
   useEffect(() => {
-    const fetchData = async () => {
-        const [employeesSnapshot, clientsSnapshot, engagementsSnapshot, engagementTypesSnapshot] = await Promise.all([
-            getDocs(collection(db, "employees")),
-            getDocs(collection(db, "clients")),
-            getDocs(collection(db, "engagements")),
-            getDocs(collection(db, "engagementTypes")),
-        ]);
-        setAllEmployees(employeesSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Employee)));
-        setAllClients(clientsSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Client)));
-        setAllEngagements(engagementsSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Engagement)));
-        setAllEngagementTypes(engagementTypesSnapshot.docs.map(d => ({id: d.id, ...d.data()} as EngagementType)));
-    };
-    fetchData();
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snap) => setAllEmployees(snap.docs.map(d => ({id: d.id, ...d.data()} as Employee))));
+    const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setAllClients(snap.docs.map(d => ({id: d.id, ...d.data()} as Client))));
+    const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setAllEngagements(snap.docs.map(d => ({id: d.id, ...d.data()} as Engagement))));
+    const unsubEngTypes = onSnapshot(collection(db, "engagementTypes"), (snap) => setAllEngagementTypes(snap.docs.map(d => ({id: d.id, ...d.data()} as EngagementType))));
+
+    return () => {
+        unsubEmployees();
+        unsubClients();
+        unsubEngagements();
+        unsubEngTypes();
+    }
   }, []);
 
 
