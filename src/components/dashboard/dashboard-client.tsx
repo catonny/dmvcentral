@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -24,16 +23,24 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+    initialData: {
+        clients: Client[];
+        employees: Employee[];
+        engagements: Engagement[];
+        tasks: Task[];
+    } | null;
+}
+
+export function DashboardClient({ initialData }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
   
-  const [clients, setClients] = React.useState<Client[]>([]);
-  const [employees, setEmployees] = React.useState<Employee[]>([]);
-  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [dataLoading, setDataLoading] = React.useState(true);
-
+  const [clients, setClients] = React.useState<Client[]>(initialData?.clients || []);
+  const [employees, setEmployees] = React.useState<Employee[]>(initialData?.employees || []);
+  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData?.engagements || []);
+  const [tasks, setTasks] = React.useState<Task[]>(initialData?.tasks || []);
+  
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
@@ -52,26 +59,6 @@ export function DashboardClient() {
         });
         return () => unsub();
     }
-  }, [user]);
-
-  React.useEffect(() => {
-    if (!user) {
-        setDataLoading(false);
-        return;
-    };
-    
-    setDataLoading(true);
-
-    const unsubs: (() => void)[] = [];
-    unsubs.push(onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => d.data() as Client))));
-    unsubs.push(onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(d => d.data() as Employee))));
-    unsubs.push(onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => d.data() as Engagement))));
-    unsubs.push(onSnapshot(collection(db, "tasks"), (snap) => {
-        setTasks(snap.docs.map(d => d.data() as Task));
-        setDataLoading(false); // Mark loading as false after the last query completes
-    }));
-    
-    return () => unsubs.forEach(unsub => unsub());
   }, [user]);
 
   
@@ -177,23 +164,17 @@ export function DashboardClient() {
       }
   };
 
-  if (authLoading || dataLoading) {
+  if (authLoading) {
      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
+  if (!initialData) {
+      // This case is handled by the page.tsx, but as a fallback:
+      return <p>Error loading data...</p>;
+  }
+
   if (!dashboardData) {
-     return (
-        <Card className="h-full">
-            <CardHeader>
-                <CardTitle className="text-destructive flex items-center gap-2">
-                    <AlertCircle /> Dashboard Error
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p>Could not load dashboard data.</p>
-            </CardContent>
-        </Card>
-     )
+      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
