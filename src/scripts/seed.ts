@@ -61,7 +61,7 @@ export const seedDatabase = async () => {
     console.log('Seeding firms...');
     const firmResult = await client.query(
       `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      [firms[0].id || 'firm_1', firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
+      ['firm_1', firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
     );
     const firmId = firmResult.rows[0].id;
 
@@ -105,6 +105,9 @@ export const seedDatabase = async () => {
 
     // Seed Engagements and Tasks
     console.log('Seeding engagements and tasks...');
+    const allEngagementsResult = await client.query('SELECT id, remarks FROM engagements');
+    const engagementRemarksToIdMap = new Map(allEngagementsResult.rows.map(row => [row.remarks, row.id]));
+
     for (const eng of engagements) {
         const clientId = clientNameToIdMap.get(clientData.find(c => c.name === clientMapForEngagement(eng.clientId))?.name || '');
         if (clientId) {
@@ -113,6 +116,7 @@ export const seedDatabase = async () => {
                 [clientId, eng.remarks, eng.type, eng.assignedTo, eng.reportedTo, eng.dueDate, eng.status, eng.fees, eng.billStatus]
             );
             const engagementId = engagementResult.rows[0].id;
+            engagementRemarksToIdMap.set(eng.remarks, engagementId);
             
             const template = engagementTypes.find(et => et.id === eng.type);
             if (template?.subTaskTitles) {
@@ -121,6 +125,32 @@ export const seedDatabase = async () => {
                         `INSERT INTO tasks (engagement_id, title, status, "order", assigned_to) VALUES ($1, $2, $3, $4, $5)`,
                         [engagementId, title, 'Pending', index + 1, eng.assignedTo[0] || null]
                     );
+                }
+            }
+        }
+    }
+
+    // Seed Timesheets and Entries
+    console.log('Seeding timesheets and entries...');
+    for (const ts of timesheets) {
+        const timesheetId = `${ts.userId}_${new Date(ts.weekStartDate).toISOString().split('T')[0]}`;
+        const employee = employees.find(e => e.id === ts.userId);
+        if (employee) {
+             await client.query(
+                `INSERT INTO timesheets (id, user_id, user_name, is_partner, week_start_date, total_hours) VALUES ($1, $2, $3, $4, $5, $6)`,
+                [timesheetId, ts.userId, employee.name, employee.role.includes("Partner"), ts.weekStartDate, ts.totalHours]
+            );
+
+            for (const entry of ts.entries) {
+                const engagementData = engagementIdMapForTimesheet[entry.engagementId];
+                if (engagementData) {
+                    const engagementId = engagementRemarksToIdMap.get(engagementData.remarks);
+                    if (engagementId) {
+                         await client.query(
+                            `INSERT INTO timesheet_entries (timesheet_id, engagement_id, hours, description) VALUES ($1, $2, $3, $4)`,
+                            [timesheetId, engagementId, entry.hours, entry.description]
+                         );
+                    }
                 }
             }
         }
