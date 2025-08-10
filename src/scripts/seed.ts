@@ -14,6 +14,8 @@ import {
   ALL_FEATURES,
   firms,
   taxRates,
+  hsnSacCodes,
+  salesItems,
 } from '@/lib/data';
 import type { Task, Permission, Employee, HsnSacCode, SalesItem } from '@/lib/data';
 
@@ -41,7 +43,11 @@ export const seedDatabase = async () => {
     console.log('Truncating existing tables...');
     for (const tableName of tablesToDelete) {
         // Using TRUNCATE ... CASCADE to handle foreign key dependencies automatically
-        await client.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
+        // Check if table exists before truncating to avoid errors on first run
+        const res = await client.query(`SELECT to_regclass('public."${tableName}"');`);
+        if (res.rows[0].to_regclass) {
+            await client.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
+        }
     }
     console.log('Existing data truncated.');
 
@@ -60,8 +66,8 @@ export const seedDatabase = async () => {
     // Seed Firms
     console.log('Seeding firms...');
     const firmResult = await client.query(
-      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      ['firm_1', firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
+      `INSERT INTO firms (id, name, pan, gstn, email, "contactNumber", website, "billingAddressLine1", "billingAddressLine2", state, country) VALUES ('firm_1', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
     );
     const firmId = firmResult.rows[0].id;
 
@@ -75,7 +81,7 @@ export const seedDatabase = async () => {
     console.log('Seeding employees...');
     for (const emp of employees) {
       await client.query(
-        'INSERT INTO employees (id, name, email, designation, avatar, role, leave_allowance, leaves_taken, manager_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        'INSERT INTO employees (id, name, email, designation, avatar, role, "leaveAllowance", "leavesTaken", "managerId") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
         [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId]
       );
     }
@@ -86,7 +92,7 @@ export const seedDatabase = async () => {
         const now = new Date();
         const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
         await client.query(
-            `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO clients (name, "mailId", "mobileNumber", category, "partnerId", "firmId", pan, gstin, "createdAt", "lastUpdated") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
         );
     }
@@ -98,37 +104,38 @@ export const seedDatabase = async () => {
     console.log('Seeding engagement types...');
     for (const et of engagementTypes) {
       await client.query(
-        'INSERT INTO engagement_types (id, name, description, sub_task_titles, recurrence, applicable_categories) VALUES ($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO engagement_types (id, name, description, "subTaskTitles", recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
         [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
       );
     }
 
     // Seed Engagements and Tasks
     console.log('Seeding engagements and tasks...');
-    const allEngagementsResult = await client.query('SELECT id, remarks FROM engagements');
-    const engagementRemarksToIdMap = new Map(allEngagementsResult.rows.map(row => [row.remarks, row.id]));
-
+    
     for (const eng of engagements) {
-        const clientId = clientNameToIdMap.get(clientData.find(c => c.name === clientMapForEngagement(eng.clientId))?.name || '');
+        const clientName = clientMapForEngagement(eng.clientId);
+        const clientId = clientName ? clientNameToIdMap.get(clientName) : undefined;
         if (clientId) {
             const engagementResult = await client.query(
-                `INSERT INTO engagements (client_id, remarks, type, assigned_to, reported_to, due_date, status, fees, bill_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+                `INSERT INTO engagements ("clientId", remarks, type, "assignedTo", "reportedTo", "dueDate", status, fees, "billStatus") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
                 [clientId, eng.remarks, eng.type, eng.assignedTo, eng.reportedTo, eng.dueDate, eng.status, eng.fees, eng.billStatus]
             );
             const engagementId = engagementResult.rows[0].id;
-            engagementRemarksToIdMap.set(eng.remarks, engagementId);
             
             const template = engagementTypes.find(et => et.id === eng.type);
             if (template?.subTaskTitles) {
                 for (const [index, title] of template.subTaskTitles.entries()) {
                     await client.query(
-                        `INSERT INTO tasks (engagement_id, title, status, "order", assigned_to) VALUES ($1, $2, $3, $4, $5)`,
+                        `INSERT INTO tasks ("engagementId", title, status, "order", "assignedTo") VALUES ($1, $2, $3, $4, $5)`,
                         [engagementId, title, 'Pending', index + 1, eng.assignedTo[0] || null]
                     );
                 }
             }
         }
     }
+
+    const allEngagementsResult = await client.query('SELECT id, remarks FROM engagements');
+    const engagementRemarksToIdMap = new Map(allEngagementsResult.rows.map(row => [row.remarks, row.id]));
 
     // Seed Timesheets and Entries
     console.log('Seeding timesheets and entries...');
@@ -137,7 +144,7 @@ export const seedDatabase = async () => {
         const employee = employees.find(e => e.id === ts.userId);
         if (employee) {
              await client.query(
-                `INSERT INTO timesheets (id, user_id, user_name, is_partner, week_start_date, total_hours) VALUES ($1, $2, $3, $4, $5, $6)`,
+                `INSERT INTO timesheets (id, "userId", "userName", "isPartner", "weekStartDate", "totalHours") VALUES ($1, $2, $3, $4, $5, $6)`,
                 [timesheetId, ts.userId, employee.name, employee.role.includes("Partner"), ts.weekStartDate, ts.totalHours]
             );
 
