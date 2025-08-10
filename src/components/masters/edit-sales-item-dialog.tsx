@@ -81,7 +81,7 @@ export function EditSalesItemDialog({
                     standardPrice: salesItem.standardPrice || 0,
                     defaultTaxRateId: salesItem.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || "",
                     defaultSacId: salesItem.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || "",
-                    associatedEngagementTypeId: salesItem.associatedEngagementTypeId || "",
+                    associatedEngagementTypeId: salesItem.associatedEngagementTypeId || "none",
                 };
                 reset(defaultValues);
             } else {
@@ -93,7 +93,7 @@ export function EditSalesItemDialog({
                     standardPrice: 0,
                     defaultTaxRateId: defaultTax?.id || "",
                     defaultSacId: defaultHsn?.id || "",
-                    associatedEngagementTypeId: "",
+                    associatedEngagementTypeId: "none",
                 });
             }
         }
@@ -102,7 +102,10 @@ export function EditSalesItemDialog({
     const handleSave = async (data: FormData) => {
         setIsLoading(true);
         try {
-            const dataToSave = { ...data, associatedEngagementTypeId: data.associatedEngagementTypeId || null };
+            const dataToSave = { 
+                ...data, 
+                associatedEngagementTypeId: data.associatedEngagementTypeId === 'none' ? null : data.associatedEngagementTypeId 
+            };
             if (salesItem?.id) {
                 // Update existing
                 const docRef = doc(db, "salesItems", salesItem.id);
@@ -191,7 +194,7 @@ export function EditSalesItemDialog({
                         <Select onValueChange={field.onChange} value={field.value}>
                             <SelectTrigger><SelectValue placeholder="Select an engagement type..."/></SelectTrigger>
                             <SelectContent>
-                                 <SelectItem value="">None</SelectItem>
+                                 <SelectItem value="none">None</SelectItem>
                                 {engagementTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
