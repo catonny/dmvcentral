@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, FileJson, Archive } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, FileJson, Archive, SheetIcon } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
@@ -140,7 +140,6 @@ export default function SettingsPage() {
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
-                // A small delay to help browsers handle multiple downloads
                 await new Promise(resolve => setTimeout(resolve, 200)); 
             }
         }
@@ -160,6 +159,57 @@ export default function SettingsPage() {
         setLoadingBackup(null);
     }
   };
+  
+    const handleCsvExport = async () => {
+        setLoadingBackup('csv-full');
+        const allCollections = [...masterCollections, ...transactionalCollections];
+
+        try {
+            for (const collectionName of allCollections) {
+                const snapshot = await getDocs(query(collection(db, collectionName)));
+                if (!snapshot.empty) {
+                    const collectionData = snapshot.docs.map(doc => {
+                        const data = { id: doc.id, ...doc.data() };
+                        // Serialize arrays and objects to strings for CSV compatibility
+                        Object.keys(data).forEach(key => {
+                            if (Array.isArray((data as any)[key]) || typeof (data as any)[key] === 'object') {
+                                (data as any)[key] = JSON.stringify((data as any)[key]);
+                            }
+                        });
+                        return data;
+                    });
+                    
+                    const csvString = Papa.unparse(collectionData);
+                    
+                    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${collectionName}_export.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    await new Promise(resolve => setTimeout(resolve, 200)); 
+                }
+            }
+            toast({
+                title: 'Success',
+                description: `CSV export for all collections initiated.`,
+            });
+
+        } catch (error) {
+            console.error(`Error exporting data to CSV:`, error);
+            toast({
+                title: 'Error',
+                description: `Failed to create CSV export.`,
+                variant: 'destructive',
+            });
+        } finally {
+            setLoadingBackup(null);
+        }
+    };
+
 
   const handleRestoreFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -395,6 +445,16 @@ export default function SettingsPage() {
                             <Button variant="outline" onClick={handleXmlExport} disabled={!!loadingBackup}>
                                 {loadingBackup === 'xml-full' ? <Loader2 className="mr-2 animate-spin" /> : <Archive className="mr-2" />}
                                 Export All to XML
+                            </Button>
+                        </div>
+                    </div>
+                     <div className="rounded-lg border p-4 space-y-4">
+                        <h3 className="font-semibold">Export Data (CSV)</h3>
+                         <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Export each collection to a separate CSV file.</p>
+                            <Button variant="outline" onClick={handleCsvExport} disabled={!!loadingBackup}>
+                                {loadingBackup === 'csv-full' ? <Loader2 className="mr-2 animate-spin" /> : <SheetIcon className="mr-2" />}
+                                Export All to CSV
                             </Button>
                         </div>
                     </div>
