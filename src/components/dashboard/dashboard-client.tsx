@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { WorkloadDistribution } from "./workload-distribution";
 
 interface Widget {
   id: string;
@@ -29,17 +30,17 @@ interface DashboardClientProps {
         employees: Employee[];
         engagements: Engagement[];
         tasks: Task[];
-    } | null;
+    };
 }
 
 export function DashboardClient({ initialData }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
   
-  const [clients, setClients] = React.useState<Client[]>(initialData?.clients || []);
-  const [employees, setEmployees] = React.useState<Employee[]>(initialData?.employees || []);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData?.engagements || []);
-  const [tasks, setTasks] = React.useState<Task[]>(initialData?.tasks || []);
+  const [clients, setClients] = React.useState<Client[]>(initialData.clients);
+  const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees);
+  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements);
+  const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
@@ -60,6 +61,21 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         return () => unsub();
     }
   }, [user]);
+
+  // Set up real-time listeners to keep the dashboard live
+  React.useEffect(() => {
+    const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(doc => doc.data() as Client)));
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(doc => doc.data() as Employee)));
+    const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(doc => doc.data() as Engagement)));
+    const unsubTasks = onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(doc => doc.data() as Task)));
+
+    return () => {
+      unsubClients();
+      unsubEmployees();
+      unsubEngagements();
+      unsubTasks();
+    };
+  }, []);
 
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
@@ -97,7 +113,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         const partnerClients = clients.filter(c => c.partnerId === currentUser.id);
         const partnerClientIds = new Set(partnerClients.map(c => c.id));
         const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
-        const partnerEngagementIds = new Set(partnerEngagements.map(e => e.id));
         const partnerTasks = tasks.filter(t => partnerEngagementIds.has(t.engagementId));
 
         return {
@@ -125,7 +140,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 12, h: 12 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
+        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements.', component: WorkloadDistribution, condition: isAdmin || isPartner, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } }
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
@@ -159,6 +175,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               return { data: dashboardData, userRole };
           case 'todo-section':
               return { currentUser: currentUser, allClients: clients, allEmployees: employees };
+          case 'workload-distribution':
+              return { engagements: engagements, employees: employees };
           default:
               return {};
       }
@@ -166,11 +184,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
   if (authLoading) {
      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
-  
-  if (!initialData) {
-      // This case is handled by the page.tsx, but as a fallback:
-      return <p>Error loading data...</p>;
   }
 
   if (!dashboardData) {
