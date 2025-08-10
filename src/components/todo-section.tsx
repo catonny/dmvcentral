@@ -241,7 +241,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
             const mentionStartIndex = mentionMatch.index || 0;
             const newText = 
                 text.slice(0, mentionStartIndex) + 
-                `@${employeeName.replace(/\s/g, '')} ` +
+                `@${employeeName.replace(/\s/g, '')}` +
                 text.slice(cursorPos);
             
             setNewTodoText(newText);

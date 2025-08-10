@@ -24,67 +24,29 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+  initialData: {
+    allClients: Client[];
+    allEngagements: Engagement[];
+    allEmployees: Employee[];
+    allTasks: Task[];
+    currentUser: Employee | null;
+  } | null;
+}
+
+export function DashboardClient({ initialData }: DashboardClientProps) {
   const { user } = useAuth();
-  const [allClients, setAllClients] = React.useState<Client[]>([]);
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
-  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [allClients, setAllClients] = React.useState<Client[]>(initialData?.allClients || []);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialData?.allEmployees || []);
+  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData?.allEngagements || []);
+  const [tasks, setTasks] = React.useState<Task[]>(initialData?.allTasks || []);
+  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(initialData?.currentUser || null);
+  const [loading, setLoading] = React.useState(!initialData);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
   const { toast } = useToast();
-
-  React.useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-
-    const fetchData = async () => {
-        try {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const [
-                profileSnapshot,
-                clientsSnapshot,
-                engagementsSnapshot,
-                employeesSnapshot,
-                tasksSnapshot
-            ] = await Promise.all([
-                getDocs(employeeQuery),
-                getDocs(collection(db, "clients")),
-                getDocs(query(collection(db, "engagements"), where("status", "in", ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"]))),
-                getDocs(collection(db, "employees")),
-                getDocs(collection(db, "tasks"))
-            ]);
-
-            if (!profileSnapshot.empty) {
-                const profile = { id: profileSnapshot.docs[0].id, ...profileSnapshot.docs[0].data() } as Employee;
-                setCurrentUserEmployeeProfile(profile);
-            }
-
-            setAllClients(clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-            setEngagements(engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
-            setAllEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
-            setTasks(tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-            
-        } catch (error) {
-            console.error("Error fetching dashboard data:", error);
-            toast({ title: "Error", description: "Could not load dashboard data.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    fetchData();
-
-    // Still keep a real-time listener for To-Dos as they are more dynamic
-    const todosQuery = query(collection(db, "todos"), where("assignedTo", "array-contains", user.uid));
-    const unsubTodos = onSnapshot(todosQuery, () => {}); // This is just to trigger updates in the TodoSection, which has its own listener
-    return () => unsubTodos();
-
-  }, [user, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
     if (!currentUserEmployeeProfile || !user) {
@@ -95,7 +57,6 @@ export function DashboardClient() {
     let userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
     let roleForView: "Admin" | "Partner" | "Employee" = "Employee";
 
-    // Special logic for the main developer user
     if (user.email === 'ca.tonnyvarghese@gmail.com') {
         const sessionRole = sessionStorage.getItem('userRole');
         if (sessionRole === 'developer') {
@@ -143,7 +104,6 @@ export function DashboardClient() {
         };
     }
     
-    // Default Employee view
     const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUserEmployeeProfile.id));
     const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
     const employeeClients = allClients.filter(c => employeeClientIds.has(c.id));
@@ -203,7 +163,7 @@ export function DashboardClient() {
           case 'status-cards':
               return { data: dashboardData, userRole };
           case 'todo-section':
-              return { currentUser: currentUserEmployeeProfile, allClients, allEmployees };
+              return { currentUser: currentUserEmployeeProfile, allClients: allClients, allEmployees: allEmployees };
           default:
               return {};
       }

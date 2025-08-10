@@ -1,23 +1,61 @@
 
-"use client";
-
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { auth } from "firebase-admin";
+import { getAdminApp } from "@/lib/firebase-admin";
+import { cookies } from "next/headers";
+import type { Client, Employee, Engagement, Task } from "@/lib/data";
 
-export default function DashboardPage() {
-    const { loading } = useAuth();
+
+async function getDashboardData() {
+  try {
+    const sessionCookie = cookies().get("session")?.value || "";
+    const decodedToken = await auth(getAdminApp()).verifySessionCookie(sessionCookie);
     
-    if (loading) {
-        return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p className="ml-2">Loading Dashboard...</p>
-            </div>
-        );
+    if (!decodedToken.email) {
+      return null;
     }
+
+    const employeeQuery = query(collection(db, "employees"), where("email", "==", decodedToken.email));
+    const [
+        profileSnapshot,
+        clientsSnapshot,
+        engagementsSnapshot,
+        employeesSnapshot,
+        tasksSnapshot
+    ] = await Promise.all([
+        getDocs(employeeQuery),
+        getDocs(collection(db, "clients")),
+        getDocs(query(collection(db, "engagements"), where("status", "in", ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"]))),
+        getDocs(collection(db, "employees")),
+        getDocs(collection(db, "tasks"))
+    ]);
+
+    const allClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+    const allEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+    const allEmployees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+    const allTasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+
+    if (profileSnapshot.empty) {
+      return { allClients, allEngagements, allEmployees, allTasks, currentUser: null };
+    }
+
+    const currentUser = { id: profileSnapshot.docs[0].id, ...profileSnapshot.docs[0].data() } as Employee;
+    
+    return { allClients, allEngagements, allEmployees, allTasks, currentUser };
+    
+  } catch (error) {
+    console.error("Error fetching dashboard data on server:", error);
+    return null;
+  }
+}
+
+
+export default async function DashboardPage() {
+    const initialData = await getDashboardData();
     
     return (
-        <DashboardClient />
+        <DashboardClient initialData={initialData} />
     )
 }
