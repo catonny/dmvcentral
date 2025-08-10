@@ -11,19 +11,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import type { Task, Client, Engagement, EngagementType, EngagementStatus } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
-import { Badge } from "../ui/badge";
 import Link from "next/link";
 import { Progress } from "../ui/progress";
 
@@ -34,7 +28,7 @@ interface TeamEngagementListProps {
   engagementTypes: EngagementType[];
 }
 
-type GroupBy = "client" | "type";
+type GroupBy = "client" | "type" | "none";
 
 interface EnrichedEngagement extends Engagement {
   clientName: string;
@@ -49,9 +43,8 @@ export function TeamEngagementList({
   clients,
   engagementTypes,
 }: TeamEngagementListProps) {
-  const [groupBy, setGroupBy] = React.useState<GroupBy>("client");
+  const [groupBy, setGroupBy] = React.useState<GroupBy>("none");
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [openGroups, setOpenGroups] = React.useState<Set<string>>(new Set());
   
   const clientMap = React.useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
   const engagementTypeMap = React.useMemo(() => new Map(engagementTypes.map(et => [et.id, et])), [engagementTypes]);
@@ -78,38 +71,9 @@ export function TeamEngagementList({
           eng.engagementTypeName.toLowerCase().includes(lowerSearch) ||
           eng.remarks.toLowerCase().includes(lowerSearch)
         );
-      });
+      })
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   }, [engagements, tasks, clientMap, engagementTypeMap, searchTerm]);
-  
-  const groupedEngagements = React.useMemo(() => {
-    return enrichedAndFilteredEngagements.reduce((acc, eng) => {
-      const key = groupBy === "client" ? eng.clientId : eng.type;
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(eng);
-      return acc;
-    }, {} as Record<string, EnrichedEngagement[]>);
-  }, [enrichedAndFilteredEngagements, groupBy]);
-  
-  const toggleGroup = (groupId: string) => {
-    setOpenGroups(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(groupId)) {
-        newSet.delete(groupId);
-      } else {
-        newSet.add(groupId);
-      }
-      return newSet;
-    });
-  };
-
-  const getGroupName = (groupId: string) => {
-      if (groupBy === 'client') {
-          return clientMap.get(groupId)?.name || "Unknown Client";
-      }
-      return engagementTypeMap.get(groupId)?.name || "Unknown Type";
-  }
 
   return (
     <div className="space-y-4">
@@ -123,88 +87,57 @@ export function TeamEngagementList({
                 className="w-64"
             />
         </div>
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Group by:</span>
-             <Select value={groupBy} onValueChange={(value) => setGroupBy(value as GroupBy)}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="client">Client</SelectItem>
-                    <SelectItem value="type">Engagement Type</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
       </div>
        <ScrollArea className="h-[60vh] w-full rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 bg-muted z-10">
             <TableRow>
-              <TableHead className="w-[50px]"></TableHead>
-              <TableHead>{groupBy === 'client' ? 'Engagement' : 'Client'}</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Engagement</TableHead>
               <TableHead>Remarks</TableHead>
               <TableHead>Due Date</TableHead>
               <TableHead>Progress</TableHead>
             </TableRow>
           </TableHeader>
-          {Object.keys(groupedEngagements).length > 0 ? (
-            Object.entries(groupedEngagements).map(([groupId, engagementsInGroup]) => {
-                const isOpen = openGroups.has(groupId);
-                return (
-                    <Collapsible asChild key={groupId} open={isOpen} onOpenChange={() => toggleGroup(groupId)}>
-                        <TableBody>
-                            <TableRow className="bg-muted/50 font-semibold hover:bg-muted/80">
-                                <TableCell>
-                                    <CollapsibleTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                            <ChevronRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} />
-                                        </Button>
-                                    </CollapsibleTrigger>
-                                </TableCell>
-                                <TableCell colSpan={4}>
-                                    {getGroupName(groupId)}
-                                    <Badge variant="secondary" className="ml-2">{engagementsInGroup.length}</Badge>
-                                </TableCell>
-                            </TableRow>
-                            <CollapsibleContent asChild>
-                                <React.Fragment>
-                                {engagementsInGroup.map(eng => (
-                                     <TableRow key={eng.id}>
-                                        <TableCell></TableCell>
-                                        <TableCell>
-                                            <Link href={`/workflow/${eng.id}`} className="font-medium text-primary hover:underline">
-                                                {groupBy === 'client' ? eng.engagementTypeName : eng.clientName}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>{eng.remarks}</TableCell>
-                                        <TableCell className={cn(isPast(eng.dueDate) && eng.status !== 'Completed' && "text-destructive font-semibold")}>
-                                            {format(eng.dueDate, "dd MMM, yyyy")}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                 <Progress value={(eng.completedTaskCount / eng.taskCount) * 100 || 0} className="w-24"/>
-                                                 <span className="text-xs text-muted-foreground">
-                                                    {eng.completedTaskCount}/{eng.taskCount}
-                                                 </span>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                </React.Fragment>
-                            </CollapsibleContent>
-                        </TableBody>
-                    </Collapsible>
-                )
-            })
-          ) : (
-            <TableBody>
+          <TableBody>
+            {enrichedAndFilteredEngagements.length > 0 ? (
+                enrichedAndFilteredEngagements.map(eng => {
+                    const progress = (eng.completedTaskCount / eng.taskCount) * 100 || 0;
+                    return (
+                         <TableRow key={eng.id}>
+                            <TableCell>
+                                <Link href={`/workspace/${eng.clientId}`} className="font-medium text-primary hover:underline">
+                                    {eng.clientName}
+                                </Link>
+                            </TableCell>
+                            <TableCell>
+                                 <Link href={`/workflow/${eng.id}`} className="hover:underline">
+                                    {eng.engagementTypeName}
+                                </Link>
+                            </TableCell>
+                            <TableCell>{eng.remarks}</TableCell>
+                            <TableCell className={cn(isPast(eng.dueDate) && eng.status !== 'Completed' && "text-destructive font-semibold")}>
+                                {format(eng.dueDate, "dd MMM, yyyy")}
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                        <Progress value={progress} className="w-24"/>
+                                        <span className="text-xs text-muted-foreground">
+                                        {eng.completedTaskCount}/{eng.taskCount}
+                                        </span>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    )
+                })
+            ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
                         No engagements found.
                     </TableCell>
                 </TableRow>
-            </TableBody>
-          )}
+            )}
+          </TableBody>
         </Table>
       </ScrollArea>
     </div>
