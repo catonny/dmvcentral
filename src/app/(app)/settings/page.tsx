@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, FileJson, FileXml } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, FileJson, Archive } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
@@ -95,15 +95,9 @@ export default function SettingsPage() {
     }
   };
 
-  const handleXmlExport = async (type: 'transactional' | 'master' | 'full') => {
-    setLoadingBackup(`xml-${type}`);
-
-    let collectionsToExport: string[] = [];
-    if (type === 'transactional') collectionsToExport = transactionalCollections;
-    else if (type === 'master') collectionsToExport = masterCollections;
-    else if (type === 'full') collectionsToExport = [...masterCollections, ...transactionalCollections];
-
-    const fileName = `dmv_central_export_${type}_${new Date().toISOString().split('T')[0]}.xml`;
+  const handleXmlExport = async () => {
+    setLoadingBackup(`xml-full`);
+    const allCollections = [...masterCollections, ...transactionalCollections];
 
     const toXML = (collectionName: string, data: any[]): string => {
         const items = data.map(item => {
@@ -113,51 +107,53 @@ export default function SettingsPage() {
                     const sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '');
                     if (sanitizedKey === '') return '';
 
-                    const serializedValue = Array.isArray(value)
-                        ? value.map(v => `<item>${String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</item>`).join('')
-                        : String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    let serializedValue;
+                    if (Array.isArray(value)) {
+                        serializedValue = value.map(v => `<item>${String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</item>`).join('');
+                    } else if (typeof value === 'object') {
+                        serializedValue = JSON.stringify(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    } else {
+                        serializedValue = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
                     return `    <${sanitizedKey}>${serializedValue}</${sanitizedKey}>`;
                 })
                 .join('\n');
-            const singularCollectionName = collectionName.endsWith('s') ? collectionName.slice(0, -1) : collectionName;
+            const singularCollectionName = collectionName.endsWith('s') && collectionName !== 'Settings' ? collectionName.slice(0, -1) : collectionName;
             return `  <${singularCollectionName}>\n${fields}\n  </${singularCollectionName}>`;
         }).join('\n');
-        return `<${collectionName}>\n${items}\n</${collectionName}>`;
+        return `<?xml version="1.0" encoding="UTF-8"?>\n<${collectionName}>\n${items}\n</${collectionName}>`;
     };
 
     try {
-        let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<data>\n';
-
-        for (const collectionName of collectionsToExport) {
+        for (const collectionName of allCollections) {
             const snapshot = await getDocs(query(collection(db, collectionName)));
             if (!snapshot.empty) {
                 const collectionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                xmlString += toXML(collectionName, collectionData) + '\n';
+                const xmlString = toXML(collectionName, collectionData);
+                
+                const blob = new Blob([xmlString], { type: 'application/xml' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${collectionName}_export.xml`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                // A small delay to help browsers handle multiple downloads
+                await new Promise(resolve => setTimeout(resolve, 200)); 
             }
         }
-
-        xmlString += '</data>';
-
-        const blob = new Blob([xmlString], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
         toast({
             title: 'Success',
-            description: `XML export of ${type} data has been downloaded.`,
+            description: `XML export for all collections initiated.`,
         });
 
     } catch (error) {
-        console.error(`Error exporting ${type} data to XML:`, error);
+        console.error(`Error exporting data to XML:`, error);
         toast({
             title: 'Error',
-            description: `Failed to create ${type} XML export.`,
+            description: `Failed to create XML export.`,
             variant: 'destructive',
         });
     } finally {
@@ -394,18 +390,11 @@ export default function SettingsPage() {
                     </div>
                     <div className="rounded-lg border p-4 space-y-4">
                         <h3 className="font-semibold">Export Data (XML)</h3>
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm text-muted-foreground">Master Data</p>
-                            <Button variant="outline" onClick={() => handleXmlExport('master')} disabled={!!loadingBackup}>
-                                {loadingBackup === 'xml-master' ? <Loader2 className="mr-2 animate-spin" /> : <FileXml className="mr-2" />}
-                                Export Master
-                            </Button>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm text-muted-foreground">Transactional Data</p>
-                            <Button variant="outline" onClick={() => handleXmlExport('transactional')} disabled={!!loadingBackup}>
-                                {loadingBackup === 'xml-transactional' ? <Loader2 className="mr-2 animate-spin" /> : <FileXml className="mr-2" />}
-                                Export Transactional
+                         <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Export each collection to a separate XML file.</p>
+                            <Button variant="outline" onClick={handleXmlExport} disabled={!!loadingBackup}>
+                                {loadingBackup === 'xml-full' ? <Loader2 className="mr-2 animate-spin" /> : <Archive className="mr-2" />}
+                                Export All to XML
                             </Button>
                         </div>
                     </div>
