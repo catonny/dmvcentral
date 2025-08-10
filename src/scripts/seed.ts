@@ -55,17 +55,18 @@ export const seedDatabase = async () => {
     console.log('Seeding firms...');
     const firmData = firms[0];
     await client.query(
-      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      `INSERT INTO firms (id, name, pan, gstn, email, "contact_number", website, "billing_address_line1", "billing_address_line2", state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
     );
 
     // Seed Departments
     console.log('Seeding departments...');
     for (const [index, dept] of departments.entries()) {
-      const res = await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2) RETURNING id', [dept.name, index + 1]);
-      dept.id = res.rows[0].id;
+      await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2)', [dept.name, index + 1]);
     }
-    
+    const departmentsResult = await client.query('SELECT id, name FROM departments');
+    const departmentNameToIdMap = new Map(departmentsResult.rows.map(row => [row.name, row.id]));
+
     // Seed Employees
     console.log('Seeding employees...');
     const employees = [...defaultEmployees];
@@ -119,7 +120,6 @@ export const seedDatabase = async () => {
             `INSERT INTO sales_items (name, description, "standard_price", "default_tax_rate_id", "default_sac_id") VALUES ($1, $2, $3, $4, $5) RETURNING id`,
             [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
-        const newSalesItemId = salesItemResult.rows[0].id;
     }
     
     // Seed Clients
@@ -127,13 +127,10 @@ export const seedDatabase = async () => {
     for (const c of clientData) {
         const now = new Date();
         const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
-        const clientResult = await client.query(
-            `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        await client.query(
+            `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, c.firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
         );
-        const newClientId = clientResult.rows[0].id;
-        const placeholderId = `client${clientData.indexOf(c) + 1}_id_placeholder`;
-        clientNameToIdMap.set(placeholderId, newClientId);
     }
     const allClientsResult = await client.query('SELECT id, name FROM clients');
     const clientNameMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
@@ -141,6 +138,15 @@ export const seedDatabase = async () => {
 
     // Seed Engagements and Tasks
     console.log('Seeding engagements and tasks...');
+    
+    const clientMapForEngagement = (placeholderId: string): string | undefined => {
+        const mapping: {[key: string]: string} = {
+            "client1_id_placeholder": "Innovate Inc.",
+            "client2_id_placeholder": "GreenFuture LLP",
+            "client3_id_placeholder": "Hope Foundation"
+        }
+        return mapping[placeholderId];
+    }
     
     for (const eng of engagements) {
         const clientName = clientMapForEngagement(eng.clientId);
@@ -213,17 +219,6 @@ export const seedDatabase = async () => {
     await db.end();
   }
 };
-
-// Helper to map old placeholder client IDs to names for lookup
-const clientMapForEngagement = (placeholderId: string): string | undefined => {
-    const mapping: {[key: string]: string} = {
-        "client1_id_placeholder": "Innovate Inc.",
-        "client2_id_placeholder": "GreenFuture LLP",
-        "client3_id_placeholder": "Hope Foundation"
-    }
-    return mapping[placeholderId];
-}
-
 
 // This allows the script to be importable and not run automatically
 if (require.main === module) {
