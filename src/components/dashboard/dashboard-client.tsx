@@ -113,7 +113,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         const partnerClients = clients.filter(c => c.partnerId === currentUser.id);
         const partnerClientIds = new Set(partnerClients.map(c => c.id));
         const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
-        const partnerTasks = tasks.filter(t => partnerEngagementIds.has(t.engagementId));
+        const partnerEngagementIds = new Set(partnerEngagements.map(e => e.id));
+        const partnerTasks = tasks.filter(t => t.engagementId && partnerEngagementIds.has(t.engagementId));
 
         return {
             isPartner: true,
@@ -126,7 +127,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUser.id));
     const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
     const employeeClients = clients.filter(c => employeeClientIds.has(c.id));
-    const employeeTasks = tasks.filter(t => t.assignedTo === currentUser.id);
+    const employeeEngagementIds = new Set(employeeEngagements.map(e => e.id));
+    const employeeTasks = tasks.filter(t => t.engagementId && employeeEngagementIds.has(t.engagementId));
     
     return {
         isPartner: false,
