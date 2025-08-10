@@ -17,7 +17,7 @@ import {
   hsnSacCodes,
   salesItems,
 } from '@/lib/data';
-import type { Task, Permission, Employee, HsnSacCode, SalesItem } from '@/lib/data';
+import type { Task, Permission, Employee, HsnSacCode, SalesItem, Timesheet } from '@/lib/data';
 
 // This will be automatically populated by the Firebase environment in production,
 // but for a local script, we need to explicitly load it.
@@ -35,15 +35,13 @@ export const seedDatabase = async () => {
 
     // List of tables to truncate, in an order that respects foreign keys
     const tablesToDelete = [
-      'activity_log', 'tasks', 'timesheet_entries', 'timesheets', 'pending_invoices', 'invoice_line_items', 'invoices', 'recurring_engagements', 'todos', 'engagements', 
+      'activity_log', 'timesheet_entries', 'timesheets', 'tasks', 'pending_invoices', 'invoice_line_items', 'invoices', 'recurring_engagements', 'todos', 'engagements', 
       'clients', 'employees', 'firms', 'departments', 'engagement_types', 'client_categories', 'countries', 'permissions', 'tax_rates', 'hsn_sac_codes', 'sales_items', 
       'engagement_notes', 'chat_messages', 'chat_threads', 'calendar_events', 'leave_requests'
     ];
     
     console.log('Truncating existing tables...');
     for (const tableName of tablesToDelete) {
-        // Using TRUNCATE ... CASCADE to handle foreign key dependencies automatically
-        // Check if table exists before truncating to avoid errors on first run
         const res = await client.query(`SELECT to_regclass('public."${tableName}"');`);
         if (res.rows[0].to_regclass) {
             await client.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
@@ -54,7 +52,7 @@ export const seedDatabase = async () => {
     // Seed Firms
     console.log('Seeding firms...');
     const firmResult = await client.query(
-      `INSERT INTO firms (name, pan, gstn, email, "contactNumber", website, "billingAddressLine1", "billingAddressLine2", state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      `INSERT INTO firms (name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
       [firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
     );
     const firmId = firmResult.rows[0].id;
@@ -67,20 +65,10 @@ export const seedDatabase = async () => {
 
     // Seed Employees
     console.log('Seeding employees...');
-    const adminUser: Employee = {
-        id: "S001",
-        name: "Tonny Varghese",
-        email: "ca.tonnyvarghese@gmail.com",
-        designation: "Founder & CEO",
-        avatar: "https://placehold.co/40x40.png",
-        role: ["Admin", "Partner"],
-        leaveAllowance: 24,
-        leavesTaken: 0,
-    };
-    const employees = [adminUser, ...defaultEmployees];
+    const employees = [...defaultEmployees];
     for (const emp of employees) {
       await client.query(
-        'INSERT INTO employees (id, name, email, designation, avatar, role, "leaveAllowance", "leavesTaken", "managerId") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        'INSERT INTO employees (id, name, email, designation, avatar, role, "leaveAllowance", "leavesTaken", "manager_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
         [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId]
       );
     }
@@ -93,24 +81,27 @@ export const seedDatabase = async () => {
 
     // Seed Client Categories
     console.log('Seeding client categories...');
-    for (const category of clientCategories) {
-        await client.query('INSERT INTO client_categories (name) VALUES ($1)', [category]);
+    for (const [index, category] of clientCategories.entries()) {
+        await client.query('INSERT INTO client_categories (id, name) VALUES ($1, $2)', [`CAT${index + 1}`, category]);
     }
 
     // Seed Engagement Types
     console.log('Seeding engagement types...');
     for (const et of engagementTypes) {
       await client.query(
-        'INSERT INTO engagement_types (id, name, description, "subTaskTitles", recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO engagement_types (id, name, description, sub_task_titles, recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
         [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
       );
     }
     
     // Seed Tax Rates
     console.log('Seeding tax rates...');
+    const taxRateResults = [];
     for (const rate of taxRates) {
-        await client.query('INSERT INTO tax_rates (name, rate, "isDefault") VALUES ($1, $2, $3)', [rate.name, rate.rate, rate.isDefault || false]);
+        const res = await client.query('INSERT INTO tax_rates (name, rate, "isDefault") VALUES ($1, $2, $3) RETURNING id', [rate.name, rate.rate, rate.isDefault || false]);
+        taxRateResults.push({ ...rate, id: res.rows[0].id });
     }
+    const defaultTaxRateId = taxRateResults.find(r => r.isDefault)?.id;
     
     // Seed HSN/SAC Codes
     console.log('Seeding HSN/SAC codes...');
@@ -119,11 +110,9 @@ export const seedDatabase = async () => {
     
     // Seed Sales Items
     console.log('Seeding sales items...');
-    const taxRateResult = await client.query(`SELECT id FROM tax_rates WHERE rate = 18`);
-    const defaultTaxRateId = taxRateResult.rows[0].id;
     for (const item of salesItems) {
         await client.query(
-            `INSERT INTO sales_items (name, description, "standardPrice", "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO sales_items (name, description, standard_price, "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5)`,
             [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
     }
@@ -133,10 +122,16 @@ export const seedDatabase = async () => {
     for (const c of clientData) {
         const now = new Date();
         const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
-        await client.query(
-            `INSERT INTO clients (name, "mailId", "mobileNumber", category, "partnerId", "firmId", pan, gstin, "createdAt", "lastUpdated") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        const clientResult = await client.query(
+            `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
             [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
         );
+        const newClientId = clientResult.rows[0].id;
+        
+        // This is a bit of a hack to update the placeholder in the original array
+        // A better approach would be to have a mapping if this were more complex
+        const placeholderId = `client${clientData.indexOf(c) + 1}_id_placeholder`;
+        clientNameToIdMap.set(placeholderId, newClientId);
     }
     const allClientsResult = await client.query('SELECT id, name FROM clients');
     const clientNameToIdMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
@@ -166,6 +161,36 @@ export const seedDatabase = async () => {
             }
         }
     }
+    
+     // Seed Timesheets
+    console.log('Seeding timesheets...');
+    const allEngagementsResult = await client.query('SELECT id, remarks FROM engagements');
+    const engagementRemarksToIdMap = new Map(allEngagementsResult.rows.map(row => [row.remarks, row.id]));
+    
+    for (const sheet of timesheets) {
+        const timesheetId = `${sheet.userId}_${sheet.weekStartDate.split('T')[0]}`;
+        const employee = employees.find(e => e.id === sheet.userId);
+        if (!employee) continue;
+
+        const timesheetResult = await client.query(
+            `INSERT INTO timesheets (id, user_id, user_name, is_partner, week_start_date, total_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [timesheetId, sheet.userId, employee.name, employee.role.includes("Partner"), sheet.weekStartDate, sheet.totalHours]
+        );
+        const newTimesheetId = timesheetResult.rows[0].id;
+
+        for (const entry of sheet.entries) {
+            const engagementPlaceholder = engagementIdMapForTimesheet[entry.engagementId];
+            if (engagementPlaceholder) {
+                const engagementId = engagementRemarksToIdMap.get(engagementPlaceholder.remarks);
+                if (engagementId) {
+                    await client.query(
+                        `INSERT INTO timesheet_entries (timesheet_id, engagement_id, hours, description) VALUES ($1, $2, $3, $4)`,
+                        [newTimesheetId, engagementId, entry.hours, entry.description]
+                    );
+                }
+            }
+        }
+    }
 
     console.log('Seeding permissions...');
     for (const perm of ALL_FEATURES) {
@@ -183,8 +208,6 @@ export const seedDatabase = async () => {
     process.exit(1);
   } finally {
     client.release();
-    // In a script that exits, it's good practice to end the pool.
-    // In a long-running app, you wouldn't do this.
     await db.end();
   }
 };
