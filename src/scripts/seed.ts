@@ -53,16 +53,17 @@ export const seedDatabase = async () => {
 
     // Seed Firms
     console.log('Seeding firms...');
-    const firmData = firms[0];
-    await client.query(
-      `INSERT INTO firms (id, name, pan, gstn, email, "contact_number", website, "billing_address_line1", "billing_address_line2", state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
-    );
+    for (const firmData of firms) {
+      await client.query(
+        `INSERT INTO firms (id, name, pan, gstn, email, "contact_number", website, "billing_address_line1", "billing_address_line2", state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
+      );
+    }
 
     // Seed Departments
     console.log('Seeding departments...');
     for (const [index, dept] of departments.entries()) {
-      await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2)', [dept.name, index + 1]);
+      await client.query('INSERT INTO departments (id, name, "order") VALUES ($1, $2, $3)', [`DEPT${index + 1}`, dept.name, index + 1]);
     }
     const departmentsResult = await client.query('SELECT id, name FROM departments');
     const departmentNameToIdMap = new Map(departmentsResult.rows.map(row => [row.name, row.id]));
