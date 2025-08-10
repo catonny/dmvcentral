@@ -62,7 +62,7 @@ export const seedDatabase = async () => {
     // Seed Departments
     console.log('Seeding departments...');
     for (const dept of departments) {
-      await client.query('INSERT INTO departments (id, name, "order") VALUES (uuid_generate_v4(), $1, $2) RETURNING id', [dept.name, dept.order]);
+      await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2) RETURNING id', [dept.name, dept.order]);
     }
     
     // Seed Employees
@@ -102,7 +102,6 @@ export const seedDatabase = async () => {
     for (const rate of taxRates) {
         const res = await client.query('INSERT INTO tax_rates (name, rate, "is_default") VALUES ($1, $2, $3) RETURNING id', [rate.name, rate.rate, rate.isDefault || false]);
         const newId = res.rows[0].id;
-        await client.query('UPDATE tax_rates SET id = $1 WHERE id = $1', [newId]);
         taxRateResults.push({ ...rate, id: newId });
     }
     const defaultTaxRateId = taxRateResults.find(r => r.isDefault)?.id;
@@ -111,7 +110,6 @@ export const seedDatabase = async () => {
     console.log('Seeding HSN/SAC codes...');
     const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (code, description, type, "is_default") VALUES ('998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
     const defaultSacId = hsnSacResult.rows[0].id;
-     await client.query('UPDATE hsn_sac_codes SET id = $1 WHERE id = $1', [defaultSacId]);
 
     // Seed Sales Items
     console.log('Seeding sales items...');
@@ -121,7 +119,6 @@ export const seedDatabase = async () => {
             [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
         const newSalesItemId = salesItemResult.rows[0].id;
-        await client.query('UPDATE sales_items SET id = $1 WHERE id = $1', [newSalesItemId]);
     }
     
     // Seed Clients
@@ -134,7 +131,6 @@ export const seedDatabase = async () => {
             [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, c.firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
         );
         const newClientId = clientResult.rows[0].id;
-        await client.query('UPDATE clients SET id = $1 WHERE id = $1', [newClientId]);
         const placeholderId = `client${clientData.indexOf(c) + 1}_id_placeholder`;
         clientNameToIdMap.set(placeholderId, newClientId);
     }
@@ -154,7 +150,6 @@ export const seedDatabase = async () => {
                 [clientId, eng.remarks, eng.type, eng.assignedTo, eng.reportedTo, eng.dueDate, eng.status, eng.fees, eng.billStatus]
             );
             const engagementId = engagementResult.rows[0].id;
-             await client.query('UPDATE engagements SET id = $1 WHERE id = $1', [engagementId]);
             
             const template = engagementTypes.find(et => et.id === eng.type);
             if (template?.subTaskTitles) {
