@@ -61,8 +61,9 @@ export const seedDatabase = async () => {
 
     // Seed Departments
     console.log('Seeding departments...');
-    for (const dept of departments) {
-      await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2) RETURNING id', [dept.name, dept.order]);
+    for (const [index, dept] of departments.entries()) {
+      const res = await client.query('INSERT INTO departments (name, "order") VALUES ($1, $2) RETURNING id', [dept.name, index + 1]);
+      dept.id = res.rows[0].id;
     }
     
     // Seed Employees
