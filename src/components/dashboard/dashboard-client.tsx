@@ -3,15 +3,12 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
-import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { TodoSection } from "@/components/dashboard/todo-section";
-import { Badge } from "@/components/ui/badge";
-import { GripVertical, Grip } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { GripVertical, Grip, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GridLayout from "react-grid-layout";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,75 +22,44 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+    serverData: {
+        clients: Client[];
+        employees: Employee[];
+        engagements: Engagement[];
+        tasks: Task[];
+        currentUser: Employee | null;
+    } | null;
+    error?: string;
+}
+
+
+export function DashboardClient({ serverData, error }: DashboardClientProps) {
   const { user } = useAuth();
-  const [allClients, setAllClients] = React.useState<Client[]>([]);
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
-  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if (!user) {
-        setLoading(false);
-        return;
+    if(error) {
+        toast({
+            title: "Dashboard Error",
+            description: error,
+            variant: "destructive"
+        })
     }
-    
-    const fetchProfileAndData = async () => {
-        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-        const employeeSnapshot = await getDocs(employeeQuery);
-
-        if (employeeSnapshot.empty) {
-            setLoading(false);
-            return;
-        }
-
-        const profile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-        setCurrentUserEmployeeProfile(profile);
-    }
-    fetchProfileAndData();
-    
-    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-    const unsubEngagements = onSnapshot(query(collection(db, "engagements"), where("status", "in", activeStatuses)), (snapshot) => {
-      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
-    });
-
-    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
-      setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-    });
-
-    const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
-        setAllEmployees(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Employee)));
-    });
-    
-    const unsubTasks = onSnapshot(collection(db, "tasks"), (snapshot) => {
-        setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
-    });
-    
-    setLoading(false);
-
-    return () => {
-        unsubEngagements();
-        unsubClients();
-        unsubTasks();
-        unsubEmployees();
-    };
-}, [user]);
-
+  }, [error, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
-    if (!currentUserEmployeeProfile || !user) {
+    if (!serverData || !serverData.currentUser || !user) {
         return { isPartner: false, isAdmin: false, userRole: "Employee", dashboardData: null };
     }
+    
+    const { clients, engagements, tasks, employees, currentUser } = serverData;
 
-    let userIsAdmin = currentUserEmployeeProfile.role.includes("Admin");
-    let userIsPartner = currentUserEmployeeProfile.role.includes("Partner");
+    let userIsAdmin = currentUser.role.includes("Admin");
+    let userIsPartner = currentUser.role.includes("Partner");
     let roleForView: "Admin" | "Partner" | "Employee" = "Employee";
 
     if (user.email === 'ca.tonnyvarghese@gmail.com') {
@@ -114,17 +80,17 @@ export function DashboardClient() {
             isAdmin: true,
             userRole: roleForView,
             dashboardData: {
-                clients: allClients,
+                clients: clients,
                 engagements: engagements,
                 tasks: tasks,
-                currentUser: currentUserEmployeeProfile,
+                currentUser: currentUser,
             }
         };
     }
     
     if (userIsPartner) {
         roleForView = "Partner";
-        const partnerClients = allClients.filter(c => c.partnerId === currentUserEmployeeProfile.id);
+        const partnerClients = clients.filter(c => c.partnerId === currentUser.id);
         const partnerClientIds = new Set(partnerClients.map(c => c.id));
         const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
         const partnerEngagementIds = new Set(partnerEngagements.map(e => e.id));
@@ -138,15 +104,15 @@ export function DashboardClient() {
                 clients: partnerClients,
                 engagements: partnerEngagements,
                 tasks: partnerTasks,
-                currentUser: currentUserEmployeeProfile,
+                currentUser: currentUser,
             }
         };
     }
     
-    const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUserEmployeeProfile.id));
+    const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUser.id));
     const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
-    const employeeClients = allClients.filter(c => employeeClientIds.has(c.id));
-    const employeeTasks = tasks.filter(t => t.assignedTo === currentUserEmployeeProfile.id);
+    const employeeClients = clients.filter(c => employeeClientIds.has(c.id));
+    const employeeTasks = tasks.filter(t => t.assignedTo === currentUser.id);
     
     return {
         isPartner: false,
@@ -156,11 +122,11 @@ export function DashboardClient() {
             clients: employeeClients,
             engagements: employeeEngagements,
             tasks: employeeTasks,
-            currentUser: currentUserEmployeeProfile,
+            currentUser: currentUser,
         }
     };
 
-  }, [currentUserEmployeeProfile, allClients, engagements, tasks, user]);
+  }, [serverData, user]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
@@ -192,40 +158,36 @@ export function DashboardClient() {
     setLayout(newLayout);
     localStorage.setItem('dashboardLayout', JSON.stringify(newLayout));
   };
-
-  if (loading) {
-    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
   
   const getWidgetProps = (id: string) => {
       switch (id) {
           case 'status-cards':
               return { data: dashboardData, userRole };
           case 'todo-section':
-              return { currentUser: currentUserEmployeeProfile, allClients: allClients, allEmployees: allEmployees };
+              return { currentUser: serverData?.currentUser, allClients: serverData?.clients, allEmployees: serverData?.employees };
           default:
               return {};
       }
   };
+  
+  if (!serverData) {
+     return (
+        <Card className="h-full">
+            <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2">
+                    <AlertCircle /> Dashboard Error
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p>Could not load dashboard data from the server.</p>
+                <p className="text-sm text-muted-foreground mt-2">{error || "An unknown error occurred."}</p>
+            </CardContent>
+        </Card>
+     )
+  }
 
   return (
     <>
-      <div className="flex items-center justify-between space-y-2 mb-4">
-        <div>
-           <div className="flex items-center gap-4">
-             <h2 className="text-3xl font-bold tracking-tight font-headline">Dashboard</h2>
-             {isAdmin && (
-                <Badge variant="destructive">
-                    {userRole} View
-                </Badge>
-             )}
-           </div>
-          <p className="text-muted-foreground">
-            A command center for your firm's engagements and clients.
-          </p>
-        </div>
-      </div>
-
        <GridLayout
             className="layout"
             layout={layout}

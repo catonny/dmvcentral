@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import 'dotenv/config';
 
@@ -22,7 +23,11 @@ if (serviceAccountString) {
         console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid JSON string.", e);
     }
 } else {
-    console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Firebase Admin SDK not initialized.");
+    // In a production or Vercel environment, you might want to log this differently
+    // or rely on the environment being correctly set up. For local dev, this is a helpful warning.
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Firebase Admin SDK not initialized.");
+    }
 }
 
 
