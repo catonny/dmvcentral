@@ -26,6 +26,9 @@ DROP TABLE IF EXISTS "chat_threads" CASCADE;
 DROP TABLE IF EXISTS "calendar_events" CASCADE;
 DROP TABLE IF EXISTS "leave_requests" CASCADE;
 
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Create tables
 
 CREATE TABLE "firms" (
@@ -33,8 +36,8 @@ CREATE TABLE "firms" (
   "name" text NOT NULL,
   "pan" text,
   "gstn" text,
-  "pfCode" text,
-  "esiCode" text,
+  "pf_code" text,
+  "esi_code" text,
   "website" text,
   "email" text,
   "contact_number" text,
@@ -49,7 +52,7 @@ CREATE TABLE "firms" (
 );
 
 CREATE TABLE "departments" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "name" text NOT NULL UNIQUE,
   "order" integer NOT NULL
 );
@@ -71,7 +74,7 @@ CREATE TABLE "employees" (
 );
 
 CREATE TABLE "clients" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "name" text NOT NULL,
   "mail_id" text NOT NULL,
   "mobile_number" text NOT NULL,
@@ -105,7 +108,7 @@ CREATE TABLE "engagement_types" (
 );
 
 CREATE TABLE "engagements" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "client_id" text NOT NULL REFERENCES "clients"("id"),
   "remarks" text,
   "type" text NOT NULL REFERENCES "engagement_types"("id"),
@@ -121,12 +124,12 @@ CREATE TABLE "engagements" (
 );
 
 CREATE TABLE "tasks" (
-  "id" text PRIMARY KEY,
-  "engagement_id" text NOT NULL REFERENCES "engagements"("id"),
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "engagement_id" text NOT NULL REFERENCES "engagements"("id") ON DELETE CASCADE,
   "title" text NOT NULL,
   "status" text NOT NULL,
   "order" integer NOT NULL,
-  "assigned_to" text NOT NULL
+  "assigned_to" text
 );
 
 CREATE TABLE "timesheets" (
@@ -140,25 +143,25 @@ CREATE TABLE "timesheets" (
 
 CREATE TABLE "timesheet_entries" (
     "id" SERIAL PRIMARY KEY,
-    "timesheet_id" TEXT NOT NULL REFERENCES "timesheets"("id"),
-    "engagement_id" TEXT NOT NULL REFERENCES "engagements"("id"),
+    "timesheet_id" TEXT NOT NULL REFERENCES "timesheets"("id") ON DELETE CASCADE,
+    "engagement_id" TEXT NOT NULL REFERENCES "engagements"("id") ON DELETE CASCADE,
     "hours" NUMERIC NOT NULL,
     "description" TEXT
 );
 
 CREATE TABLE "activity_log" (
   "id" SERIAL PRIMARY KEY,
-  "engagement_id" text REFERENCES "engagements"("id"),
-  "client_id" text REFERENCES "clients"("id"),
+  "engagement_id" text REFERENCES "engagements"("id") ON DELETE SET NULL,
+  "client_id" text REFERENCES "clients"("id") ON DELETE CASCADE,
   "type" text,
   "timestamp" timestamptz,
-  "user_id" text REFERENCES "employees"("id"),
+  "user_id" text REFERENCES "employees"("id") ON DELETE SET NULL,
   "user_name" text,
   "details" jsonb
 );
 
 CREATE TABLE "todos" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "type" text,
   "text" text,
   "created_by" text,
@@ -171,23 +174,23 @@ CREATE TABLE "todos" (
 );
 
 CREATE TABLE "pending_invoices" (
-  "id" text PRIMARY KEY,
-  "engagement_id" text REFERENCES "engagements"("id"),
-  "client_id" text REFERENCES "clients"("id"),
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "engagement_id" text REFERENCES "engagements"("id") ON DELETE CASCADE,
+  "client_id" text REFERENCES "clients"("id") ON DELETE CASCADE,
   "assigned_to" text[],
   "reported_to" text,
   "partner_id" text
 );
 
 CREATE TABLE "tax_rates" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "name" text,
   "rate" numeric,
   "is_default" boolean
 );
 
 CREATE TABLE "hsn_sac_codes" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "code" text,
   "description" text,
   "type" text,
@@ -195,7 +198,7 @@ CREATE TABLE "hsn_sac_codes" (
 );
 
 CREATE TABLE "sales_items" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "name" text,
   "description" text,
   "standard_price" numeric,
@@ -204,26 +207,12 @@ CREATE TABLE "sales_items" (
   "associated_engagement_type_id" text REFERENCES "engagement_types"("id")
 );
 
-CREATE TABLE "invoice_line_items" (
-  "id" text PRIMARY KEY,
-  "sales_item_id" text REFERENCES "sales_items"("id"),
-  "description" text,
-  "quantity" integer,
-  "rate" numeric,
-  "discount" numeric,
-  "tax_rate_id" text REFERENCES "tax_rates"("id"),
-  "tax_amount" numeric,
-  "sac_code_id" text,
-  "total" numeric,
-  "tally_service_ledger_name" text
-);
-
 CREATE TABLE "invoices" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "invoice_number" text,
   "client_id" text REFERENCES "clients"("id"),
   "client_name" text,
-  "engagement_id" text REFERENCES "engagements"("id"),
+  "engagement_id" text REFERENCES "engagements"("id") ON DELETE SET NULL,
   "firm_id" text REFERENCES "firms"("id"),
   "issue_date" timestamptz,
   "due_date" timestamptz,
@@ -242,8 +231,24 @@ CREATE TABLE "invoices" (
   "line_items" jsonb
 );
 
+CREATE TABLE "invoice_line_items" (
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "invoice_id" text REFERENCES "invoices"("id") ON DELETE CASCADE,
+  "sales_item_id" text REFERENCES "sales_items"("id"),
+  "description" text,
+  "quantity" integer,
+  "rate" numeric,
+  "discount" numeric,
+  "tax_rate_id" text REFERENCES "tax_rates"("id"),
+  "tax_amount" numeric,
+  "sac_code_id" text,
+  "total" numeric,
+  "tally_service_ledger_name" text
+);
+
+
 CREATE TABLE "recurring_engagements" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "client_id" text REFERENCES "clients"("id"),
   "engagement_type_id" text REFERENCES "engagement_types"("id"),
   "fees" numeric,
@@ -254,9 +259,9 @@ CREATE TABLE "recurring_engagements" (
 );
 
 CREATE TABLE "engagement_notes" (
-  "id" text PRIMARY KEY,
-  "engagement_id" text REFERENCES "engagements"("id"),
-  "client_id" text REFERENCES "clients"("id"),
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "engagement_id" text REFERENCES "engagements"("id") ON DELETE CASCADE,
+  "client_id" text REFERENCES "clients"("id") ON DELETE CASCADE,
   "text" text,
   "category" text,
   "financial_year" text,
@@ -266,21 +271,21 @@ CREATE TABLE "engagement_notes" (
 );
 
 CREATE TABLE "calendar_events" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "title" text,
-  "start_time" timestamptz,
-  "end_time" timestamptz,
+  "start" timestamptz,
+  "end" timestamptz,
   "all_day" boolean,
   "created_by" text,
   "description" text,
   "attendees" text[],
   "location" text,
-  "engagement_id" text REFERENCES "engagements"("id"),
+  "engagement_id" text REFERENCES "engagements"("id") ON DELETE SET NULL,
   "timezone" text
 );
 
 CREATE TABLE "leave_requests" (
-  "id" text PRIMARY KEY,
+  "id" text PRIMARY KEY DEFAULT uuid_generate_v4(),
   "employee_id" text REFERENCES "employees"("id"),
   "employee_name" text,
   "start_date" timestamptz,
@@ -317,7 +322,7 @@ CREATE TABLE "chat_threads" (
 
 CREATE TABLE "chat_messages" (
     "id" TEXT PRIMARY KEY,
-    "thread_id" TEXT REFERENCES "chat_threads"("id"),
+    "thread_id" TEXT REFERENCES "chat_threads"("id") ON DELETE CASCADE,
     "sender_id" TEXT,
     "text" TEXT,
     "timestamp" TIMESTAMPTZ
