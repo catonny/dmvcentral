@@ -3,6 +3,8 @@
 "use client";
 
 import * as React from "react";
+import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { Client, Employee, Engagement, EngagementStatus, Task } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCards } from "@/components/dashboard/status-cards";
@@ -22,49 +24,63 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-interface DashboardClientProps {
-    serverData: {
-        clients: Client[];
-        employees: Employee[];
-        engagements: Engagement[];
-        tasks: Task[];
-    } | null;
-    error?: string;
-}
-
-
-export function DashboardClient({ serverData, error }: DashboardClientProps) {
+export function DashboardClient() {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [loadingData, setLoadingData] = React.useState(true);
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if(error) {
-        toast({
-            title: "Dashboard Error",
-            description: error,
-            variant: "destructive"
-        })
+    if (authLoading) return;
+    if (!user) {
+        setLoadingData(false);
+        return;
     }
-  }, [error, toast]);
 
-  React.useEffect(() => {
-      if (user && serverData) {
-          const userProfile = serverData.employees.find(e => e.email === user.email);
-          setCurrentUser(userProfile || null);
-      }
-  }, [user, serverData]);
+    const unsubscribers: (() => void)[] = [];
+
+    const fetchAndSetData = async () => {
+        setLoadingData(true);
+        try {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const employeeSnapshot = await getDocs(employeeQuery);
+
+            if (!employeeSnapshot.empty) {
+                 const userProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+                 setCurrentUser(userProfile);
+            }
+            
+            unsubscribers.push(onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => d.data() as Client))));
+            unsubscribers.push(onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(d => d.data() as Employee))));
+            unsubscribers.push(onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => d.data() as Engagement))));
+            unsubscribers.push(onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(d => d.data() as Task))));
+
+        } catch (error) {
+            console.error("Error fetching dashboard data:", error);
+            toast({ title: "Error", description: "Could not fetch dashboard data.", variant: "destructive" });
+        } finally {
+            setLoadingData(false);
+        }
+    };
+    
+    fetchAndSetData();
+
+    return () => unsubscribers.forEach(unsub => unsub());
+
+  }, [user, authLoading, toast]);
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
-    if (!serverData || !currentUser || !user) {
+    if (!currentUser || !user) {
         return { isPartner: false, isAdmin: false, userRole: "Employee", dashboardData: null };
     }
     
-    const { clients, engagements, tasks } = serverData;
-
     let userIsAdmin = currentUser.role.includes("Admin");
     let userIsPartner = currentUser.role.includes("Partner");
     let roleForView: "Admin" | "Partner" | "Employee" = "Employee";
@@ -86,12 +102,7 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
             isPartner: userIsPartner,
             isAdmin: true,
             userRole: roleForView,
-            dashboardData: {
-                clients: clients,
-                engagements: engagements,
-                tasks: tasks,
-                currentUser: currentUser,
-            }
+            dashboardData: { clients, engagements, tasks, currentUser }
         };
     }
     
@@ -107,12 +118,7 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
             isPartner: true,
             isAdmin: false,
             userRole: roleForView,
-            dashboardData: {
-                clients: partnerClients,
-                engagements: partnerEngagements,
-                tasks: partnerTasks,
-                currentUser: currentUser,
-            }
+            dashboardData: { clients: partnerClients, engagements: partnerEngagements, tasks: partnerTasks, currentUser }
         };
     }
     
@@ -125,15 +131,10 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
         isPartner: false,
         isAdmin: false,
         userRole: roleForView,
-        dashboardData: {
-            clients: employeeClients,
-            engagements: employeeEngagements,
-            tasks: employeeTasks,
-            currentUser: currentUser,
-        }
+        dashboardData: { clients: employeeClients, engagements: employeeEngagements, tasks: employeeTasks, currentUser }
     };
 
-  }, [serverData, user, currentUser]);
+  }, [user, currentUser, clients, engagements, tasks]);
   
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
@@ -171,17 +172,17 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
           case 'status-cards':
               return { data: dashboardData, userRole };
           case 'todo-section':
-              return { currentUser: currentUser, allClients: serverData?.clients, allEmployees: serverData?.employees };
+              return { currentUser: currentUser, allClients: clients, allEmployees: employees };
           default:
               return {};
       }
   };
 
-  if (authLoading) {
+  if (authLoading || loadingData) {
      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  if (!serverData) {
+  if (!dashboardData) {
      return (
         <Card className="h-full">
             <CardHeader>
@@ -190,8 +191,7 @@ export function DashboardClient({ serverData, error }: DashboardClientProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p>Could not load dashboard data from the server.</p>
-                <p className="text-sm text-muted-foreground mt-2">{error || "An unknown error occurred."}</p>
+                <p>Could not load dashboard data.</p>
             </CardContent>
         </Card>
      )
