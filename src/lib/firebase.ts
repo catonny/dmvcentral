@@ -4,9 +4,9 @@ import { getFirestore, collection, addDoc, doc, setDoc } from "firebase/firestor
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import type { ActivityLogType, Employee, Engagement } from "./data";
+import { db as pgDb } from './db'; // Import the pg pool
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDPFFxrzCOn7Y2Ab3_AVKUmBsIbyJbeYMQ",
   authDomain: "dmv-central.firebaseapp.com",
@@ -40,23 +40,24 @@ interface LogActivityOptions {
 
 export const logActivity = async ({ engagement, type, user, details }: LogActivityOptions) => {
     try {
-        const logRef = doc(collection(db, 'activityLog'));
-        await setDoc(logRef, {
-            id: logRef.id,
-            engagementId: engagement.id,
-            clientId: engagement.clientId,
+        const queryText = `
+            INSERT INTO activity_log (engagement_id, client_id, type, user_id, user_name, details)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        `;
+        const values = [
+            engagement.id,
+            engagement.clientId,
             type,
-            timestamp: new Date().toISOString(),
-            userId: user.id,
-            userName: user.name,
-            details: {
+            user.id,
+            user.name,
+            {
                 engagementName: engagement.remarks,
                 ...details,
             },
-        });
+        ];
+        await pgDb.query(queryText, values);
     } catch (error) {
-        console.error("Failed to log activity:", error);
-        // Optionally, you might want to show a non-intrusive error to the user
+        console.error("Failed to log activity to PostgreSQL:", error);
     }
 }
 

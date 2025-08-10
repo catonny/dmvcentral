@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: ["6000-firebase-studio-1754096206755.cluster-ikslh4rdsnbqsvu5nw3v4dqjj2.cloudworkstations.dev"],
+  webpack: (config, { isServer }) => {
+    // This is a workaround for a bug in Next.js where it tries to bundle server-side modules on the client.
+    if (!isServer) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            dns: false,
+        };
+    }
+    return config;
+  }
 };
 
 export default nextConfig;

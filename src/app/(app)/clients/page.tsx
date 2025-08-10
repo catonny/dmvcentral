@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { db } from '@/lib/db';
 import type { Client, Employee, Department } from "@/lib/data";

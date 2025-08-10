@@ -1,6 +1,13 @@
 
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import * as serviceAccount from './secret.json';
+
+let serviceAccount: any;
+try {
+    // This will only work if secret.json exists
+    serviceAccount = require('./secret.json');
+} catch (e) {
+    serviceAccount = null;
+}
 
 let app: App | null = null;
 

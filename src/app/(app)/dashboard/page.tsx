@@ -1,37 +1,29 @@
 
 import * as React from 'react';
-import { getAdminApp } from "@/lib/firebase-admin";
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from '@/lib/db';
 import type { Client, Employee, Engagement, Task } from "@/lib/data";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 
 async function getDashboardData() {
-    const adminApp = getAdminApp();
-    if (!adminApp) {
-        throw new Error("Firebase admin SDK not configured.");
-    }
-
-    const db = getFirestore(adminApp);
-    
     try {
-        const [clientsSnap, employeesSnap, engagementsSnap, tasksSnap] = await Promise.all([
-            db.collection('clients').get(),
-            db.collection('employees').get(),
-            db.collection('engagements').get(),
-            db.collection('tasks').get(),
+        const [clientsResult, employeesResult, engagementsResult, tasksResult] = await Promise.all([
+            db.query('SELECT * FROM clients'),
+            db.query('SELECT * FROM employees'),
+            db.query('SELECT * FROM engagements'),
+            db.query('SELECT * FROM tasks'),
         ]);
 
-        const clients = clientsSnap.docs.map(doc => doc.data() as Client);
-        const employees = employeesSnap.docs.map(doc => doc.data() as Employee);
-        const engagements = engagementsSnap.docs.map(doc => doc.data() as Engagement);
-        const tasks = tasksSnap.docs.map(doc => doc.data() as Task);
+        const clients = clientsResult.rows as Client[];
+        const employees = employeesResult.rows as Employee[];
+        const engagements = engagementsResult.rows as Engagement[];
+        const tasks = tasksResult.rows as Task[];
 
         return { clients, employees, engagements, tasks };
     } catch (error) {
-        console.error("Error fetching dashboard data from Firestore:", error);
-        throw new Error("Could not fetch data from Firestore.");
+        console.error("Error fetching dashboard data from relational database:", error);
+        throw new Error("Could not fetch data from the database. Ensure the database is running and credentials are set.");
     }
 }
 
@@ -50,7 +42,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <p>{errorMessage}</p>
-                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading the dashboard data from the server. Please ensure your Firebase Admin SDK is configured correctly.</p>
+                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading the dashboard data from the server. Please ensure your database is configured correctly.</p>
                 </CardContent>
             </Card>
         )
