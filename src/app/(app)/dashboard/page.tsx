@@ -49,8 +49,8 @@ export default async function DashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p>Firebase admin SDK not configured.</p>
-                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading the dashboard data from the server. Please ensure your Firebase Admin SDK is configured correctly in your environment variables.</p>
+                    <p>{errorMessage}</p>
+                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading the dashboard data from the server. Please ensure your Firebase Admin SDK is configured correctly.</p>
                 </CardContent>
             </Card>
         )
