@@ -142,8 +142,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
-        { id: 'workload-distribution', title: 'Workload Distribution', description: 'Pending and unassigned engagements.', component: WorkloadDistribution, condition: isAdmin || isPartner, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } }
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 12, h: 12 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
@@ -154,7 +153,9 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         try {
           const parsedLayout = JSON.parse(storedLayout);
           if (Array.isArray(parsedLayout)) {
-            setLayout(parsedLayout);
+            // Filter out layout items that don't have a corresponding widget
+            const filteredLayout = parsedLayout.filter(l => visibleWidgets.some(w => w.id === l.i));
+            setLayout(filteredLayout);
           } else {
             setLayout(visibleWidgets.map(w => ({...w.defaultLayout, i: w.id})));
           }
@@ -177,8 +178,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               return { data: dashboardData, userRole };
           case 'todo-section':
               return { currentUser: currentUser, allClients: clients, allEmployees: employees };
-          case 'workload-distribution':
-              return { engagements: engagements, employees: employees };
           default:
               return {};
       }
