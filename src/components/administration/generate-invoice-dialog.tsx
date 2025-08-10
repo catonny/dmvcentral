@@ -29,6 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { SearchableSelectWithCreate } from "../masters/searchable-select-with-create";
 import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
 import { format, parseISO } from "date-fns";
+import { Switch } from "../ui/switch";
 
 interface LineItem {
     id: string;
@@ -77,15 +78,17 @@ export function GenerateInvoiceDialog({
   
   const [isSalesItemDialogOpen, setIsSalesItemDialogOpen] = React.useState(false);
   const [itemToEdit, setItemToEdit] = React.useState<Partial<SalesItem> | null>(null);
+  const [showAllSalesItems, setShowAllSalesItems] = React.useState(false);
 
   React.useEffect(() => {
     if (entry) {
-        const recommendedItemIds = entry.engagementType.recommendedSalesItemIds || [];
-        const initialLineItems: LineItem[] = recommendedItemIds.map(itemId => {
-            const salesItem = salesItems.find(si => si.id === itemId);
+        // Use the new single associatedEngagementTypeId for filtering
+        const recommendedItems = salesItems.filter(si => si.associatedEngagementTypeId === entry.engagement.type);
+
+        const initialLineItems: LineItem[] = recommendedItems.map(salesItem => {
             return {
-                id: `item-${itemId}-${Date.now()}`,
-                salesItemId: itemId,
+                id: `item-${salesItem.id}-${Date.now()}`,
+                salesItemId: salesItem.id,
                 description: salesItem?.description || '',
                 quantity: 1,
                 rate: salesItem?.standardPrice || 0,
@@ -97,16 +100,15 @@ export function GenerateInvoiceDialog({
 
         // If no recommended items, create a default line item from the engagement itself
         if (initialLineItems.length === 0) {
-            const matchingSalesItem = salesItems.find(si => si.name.toLowerCase() === entry.engagementType.name.toLowerCase());
             initialLineItems.push({
                 id: `item-${Date.now()}`,
-                salesItemId: matchingSalesItem?.id || '',
+                salesItemId: '',
                 description: entry.engagement.remarks,
                 quantity: 1,
-                rate: entry.engagement.fees || matchingSalesItem?.standardPrice || 0,
+                rate: entry.engagement.fees || 0,
                 discount: 0,
-                taxRateId: matchingSalesItem?.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || '',
-                sacCodeId: matchingSalesItem?.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || ''
+                taxRateId: taxRates.find(t => t.isDefault)?.id || '',
+                sacCodeId: hsnSacCodes.find(h => h.isDefault)?.id || ''
             });
         }
         
@@ -114,6 +116,7 @@ export function GenerateInvoiceDialog({
         setSelectedFirmId(entry.client.firmId || (firms.length > 0 ? firms[0].id : ""));
         setPlaceOfSupply(entry.client.State || "");
         setAdditionalDiscount(0);
+        setShowAllSalesItems(false);
     }
   }, [entry, firms, salesItems, taxRates, hsnSacCodes]);
 
@@ -166,7 +169,7 @@ export function GenerateInvoiceDialog({
   };
   
   const handleCreateNewSalesItem = (itemName: string) => {
-    setItemToEdit({ name: itemName });
+    setItemToEdit({ name: itemName, associatedEngagementTypeId: entry?.engagement.type });
     setIsSalesItemDialogOpen(true);
   }
 
@@ -260,6 +263,10 @@ export function GenerateInvoiceDialog({
   const assignedToNames = entry.engagement.assignedTo.map(id => employees.get(id)?.name).filter(Boolean).join(", ");
   const partnerName = employees.get(entry.client.partnerId)?.name || 'N/A';
 
+  const availableSalesItems = showAllSalesItems
+    ? salesItems
+    : salesItems.filter(si => si.associatedEngagementTypeId === entry.engagement.type);
+
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -325,7 +332,7 @@ export function GenerateInvoiceDialog({
                                         placeholder="Select an item..."
                                         searchPlaceholder="Search items..."
                                         emptyResultText="No items found."
-                                        options={salesItems.map(si => ({ value: si.id, label: si.name }))}
+                                        options={availableSalesItems.map(si => ({ value: si.id, label: si.name }))}
                                         onCreateNew={handleCreateNewSalesItem}
                                     />
                                 </TableCell>
@@ -348,8 +355,12 @@ export function GenerateInvoiceDialog({
                         ))}
                     </TableBody>
                  </Table>
-                 <div className="p-2 flex justify-start">
+                 <div className="p-2 flex justify-between items-center">
                      <Button variant="outline" size="sm" onClick={addLineItem}><PlusCircle className="mr-2"/>Add Line Item</Button>
+                     <div className="flex items-center space-x-2">
+                        <Label htmlFor="show-all-items" className="text-sm">Show all items</Label>
+                        <Switch id="show-all-items" checked={showAllSalesItems} onCheckedChange={setShowAllSalesItems} />
+                    </div>
                  </div>
             </div>
             <div className="flex justify-end">

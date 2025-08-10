@@ -44,6 +44,7 @@ export interface Employee {
   bloodGroup?: string;
   leaveAllowance?: number;
   leavesTaken?: number;
+  monthlySalary?: number;
 }
 
 export interface Client {
@@ -84,7 +85,6 @@ export interface EngagementType {
   subTaskTitles: string[]; 
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
   recurrence?: 'Monthly' | 'Quarterly' | 'Yearly';
-  recommendedSalesItemIds?: string[];
 }
 
 export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "On Hold" | "Completed" | "Cancelled";
@@ -110,6 +110,7 @@ export interface Engagement {
   billSubmissionDate?: string; // ISO 8601 format
   fees?: number;
   recurringEngagementId?: string;
+  salesItemId?: string;
 }
 
 export interface InvoiceLineItem {
@@ -386,6 +387,7 @@ export interface SalesItem {
     standardPrice: number;
     defaultTaxRateId: string;
     defaultSacId: string;
+    associatedEngagementTypeId?: string;
 }
 
 export const indianStatesAndUTs: string[] = [

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -21,12 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
+import type { SalesItem, TaxRate, HsnSacCode, EngagementType } from "@/lib/data";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { doc, setDoc, updateDoc, collection } from "firebase/firestore";
+import { doc, setDoc, updateDoc, collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 
@@ -36,6 +37,7 @@ const salesItemSchema = z.object({
   standardPrice: z.coerce.number().min(0, "Price must be a positive number"),
   defaultTaxRateId: z.string().min(1, "Default tax rate is required"),
   defaultSacId: z.string().min(1, "Default SAC/HSN code is required"),
+  associatedEngagementTypeId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof salesItemSchema>;
@@ -57,9 +59,18 @@ export function EditSalesItemDialog({
 }: EditSalesItemDialogProps) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(false);
+    const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
+
     const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
         resolver: zodResolver(salesItemSchema),
     });
+
+    React.useEffect(() => {
+        const unsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
+            setEngagementTypes(snapshot.docs.map(doc => doc.data() as EngagementType));
+        });
+        return () => unsub();
+    }, []);
 
     React.useEffect(() => {
         if (isOpen) {
@@ -70,6 +81,7 @@ export function EditSalesItemDialog({
                     standardPrice: salesItem.standardPrice || 0,
                     defaultTaxRateId: salesItem.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || "",
                     defaultSacId: salesItem.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || "",
+                    associatedEngagementTypeId: salesItem.associatedEngagementTypeId || "",
                 };
                 reset(defaultValues);
             } else {
@@ -81,6 +93,7 @@ export function EditSalesItemDialog({
                     standardPrice: 0,
                     defaultTaxRateId: defaultTax?.id || "",
                     defaultSacId: defaultHsn?.id || "",
+                    associatedEngagementTypeId: "",
                 });
             }
         }
@@ -89,15 +102,16 @@ export function EditSalesItemDialog({
     const handleSave = async (data: FormData) => {
         setIsLoading(true);
         try {
+            const dataToSave = { ...data, associatedEngagementTypeId: data.associatedEngagementTypeId || null };
             if (salesItem?.id) {
                 // Update existing
                 const docRef = doc(db, "salesItems", salesItem.id);
-                await updateDoc(docRef, data);
+                await updateDoc(docRef, dataToSave);
                 toast({ title: "Success", description: "Sales item updated." });
             } else {
                 // Create new
                 const docRef = doc(collection(db, "salesItems"));
-                await setDoc(docRef, { ...data, id: docRef.id });
+                await setDoc(docRef, { ...dataToSave, id: docRef.id });
                 toast({ title: "Success", description: "New sales item created." });
             }
             onClose();
@@ -167,6 +181,22 @@ export function EditSalesItemDialog({
                     )}
                 />
                  {errors.defaultSacId && <p className="text-sm text-destructive">{errors.defaultSacId.message}</p>}
+            </div>
+             <div className="space-y-2">
+                <Label>Associated Engagement Type</Label>
+                 <Controller
+                    name="associatedEngagementTypeId"
+                    control={control}
+                    render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger><SelectValue placeholder="Select an engagement type..."/></SelectTrigger>
+                            <SelectContent>
+                                 <SelectItem value="">None</SelectItem>
+                                {engagementTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
             </div>
              <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

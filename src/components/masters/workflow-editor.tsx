@@ -105,7 +105,6 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [editingTypeName, setEditingTypeName] = React.useState('');
     const [editingDescription, setEditingDescription] = React.useState('');
     const [editingRecurrence, setEditingRecurrence] = React.useState<EngagementType['recurrence'] | ''>('');
-    const [recommendedSalesItemIds, setRecommendedSalesItemIds] = React.useState<string[]>([]);
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -135,13 +134,11 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             setEditingTypeName(selectedType.name);
             setEditingDescription(selectedType.description || '');
             setEditingRecurrence(selectedType.recurrence || '');
-            setRecommendedSalesItemIds(selectedType.recommendedSalesItemIds || []);
         } else {
             setTasks([]);
             setEditingTypeName('');
             setEditingDescription('');
             setEditingRecurrence('');
-            setRecommendedSalesItemIds([]);
         }
     }, [selectedType]);
     
@@ -158,7 +155,6 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                 description: editingDescription,
                 subTaskTitles: tasks,
                 recurrence: editingRecurrence || null,
-                recommendedSalesItemIds: recommendedSalesItemIds
             });
             toast({ title: "Success", description: `Workflow for "${editingTypeName}" updated successfully.` });
         } catch (error) {
@@ -238,12 +234,6 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
         }
     };
     
-     const handleSalesItemToggle = (itemId: string) => {
-        setRecommendedSalesItemIds(prev =>
-            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
-        );
-    };
-
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -339,34 +329,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                
-                                <div className="space-y-2">
-                                    <Label>Recommended Sales Items</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-start">
-                                                {recommendedSalesItemIds.length > 0 ? `${recommendedSalesItemIds.length} item(s) selected` : "Select billing items..."}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Search sales items..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No items found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {salesItems.map(item => (
-                                                            <CommandItem key={item.id} onSelect={() => handleSalesItemToggle(item.id)}>
-                                                                 <Check className={cn("mr-2 h-4 w-4", recommendedSalesItemIds.includes(item.id) ? "opacity-100" : "opacity-0")}/>
-                                                                {item.name}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                
+                                                                
                                 <h4 className="font-semibold text-foreground pt-4 border-t">Task Checklist</h4>
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                     <SortableContext items={tasks.map((task, index) => task + index)} strategy={verticalListSortingStrategy}>
