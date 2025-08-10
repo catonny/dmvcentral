@@ -1,4 +1,3 @@
-
 # DMV Central Application Architecture
 
 This document outlines the high-level architecture and data flow of the DMV Central application.
@@ -46,8 +45,19 @@ graph TD
     end
 
     subgraph "Data & Services"
-        Y[Firebase Firestore]
+        subgraph "NoSQL Database (Current)"
+            Y[Firebase Firestore]
+        end
+        subgraph "Relational Database (New)"
+            DB[Relational DB e.g., Postgres]
+        end
+
         N -- Stored in --> Y;
+        
+        SERVICES[App Services]
+        SERVICES --> Y
+        SERVICES --> DB
+
 
         Z[Firebase Authentication]
         D -- Uses --> Z;
@@ -76,4 +86,3 @@ graph TD
     *   **`/lib`**: Holds utility functions (`utils.ts`), Firebase configuration (`firebase.ts`), and the core data type definitions (`data.ts`).
     *   **`/hooks`**: Contains custom React hooks, such as `useAuth` for authentication state and `useToast` for notifications.
 5.  **State Management**: Local component state is managed with `useState` and `useReducer`. Global authentication state is managed via `useAuth` and React Context. Complex state related to tables or forms is handled by libraries like TanStack Table and React Hook Form.
-
