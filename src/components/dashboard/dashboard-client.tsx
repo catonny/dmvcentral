@@ -148,8 +148,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   React.useEffect(() => {
     const defaultWidgets: Widget[] = [
         { id: 'status-cards', title: 'Status Cards', description: 'Overall status of clients and engagements.', component: StatusCards, condition: true, defaultLayout: { x: 0, y: 0, w: 12, h: 4 } },
-        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 10, h: 12 } },
-        { id: 'weekly-plans', title: 'Weekly Plans', description: 'Your upcoming events for the week.', component: WeeklyPlans, condition: true, defaultLayout: { x: 10, y: 4, w: 2, h: 12 } },
+        { id: 'todo-section', title: 'To-Do List', description: 'Action items that require your attention.', component: TodoSection, condition: true, defaultLayout: { x: 0, y: 4, w: 6, h: 12 } },
+        { id: 'weekly-plans', title: 'Weekly Plans', description: 'Your upcoming events for the week.', component: WeeklyPlans, condition: true, defaultLayout: { x: 6, y: 4, w: 6, h: 12 } },
     ];
     
     const visibleWidgets = defaultWidgets.filter(w => w.condition);
