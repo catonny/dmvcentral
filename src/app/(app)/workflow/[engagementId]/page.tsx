@@ -4,7 +4,7 @@
 import * as React from "react";
 import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc, setDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus } from "@/lib/data";
-import { db, logActivity } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { EngagementNotes } from "@/components/workspace/engagement-notes";
 import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
 import { EditableStatus } from "@/components/workspace/editable-status";
 import { EditableAssignees } from "@/components/workspace/editable-assignees";
+import { logActivity } from "@/app/actions/log-activity";
 
 
 export default function EngagementWorkflowPage() {

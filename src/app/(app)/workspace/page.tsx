@@ -4,13 +4,14 @@
 import * as React from "react";
 import { collection, query, where, onSnapshot, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
 import type { Client, Engagement, Employee, Department, Task, EngagementType } from "@/lib/data";
-import { db, logActivity } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, PlusCircle } from "lucide-react";
 import { WorkspaceBoard } from "@/components/workspace/workspace-board";
 import { Button } from "@/components/ui/button";
 import { AddTaskDialog } from "@/components/workspace/add-task-dialog";
+import { logActivity } from "@/app/actions/log-activity";
 
 
 export default function WorkspacePage() {
