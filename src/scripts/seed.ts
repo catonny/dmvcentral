@@ -51,22 +51,10 @@ export const seedDatabase = async () => {
     }
     console.log('Existing data truncated.');
 
-    const adminUser: Employee = {
-        id: "S001",
-        name: "Tonny Varghese",
-        email: "ca.tonnyvarghese@gmail.com",
-        designation: "Founder & CEO",
-        avatar: "https://placehold.co/40x40.png",
-        role: ["Admin", "Partner"],
-        leaveAllowance: 24,
-        leavesTaken: 0,
-    };
-    const employees = [adminUser, ...defaultEmployees];
-    
     // Seed Firms
     console.log('Seeding firms...');
     const firmResult = await client.query(
-      `INSERT INTO firms (id, name, pan, gstn, email, "contactNumber", website, "billingAddressLine1", "billingAddressLine2", state, country) VALUES ('firm_1', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      `INSERT INTO firms (name, pan, gstn, email, "contactNumber", website, "billingAddressLine1", "billingAddressLine2", state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
       [firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
     );
     const firmId = firmResult.rows[0].id;
@@ -79,11 +67,65 @@ export const seedDatabase = async () => {
 
     // Seed Employees
     console.log('Seeding employees...');
+    const adminUser: Employee = {
+        id: "S001",
+        name: "Tonny Varghese",
+        email: "ca.tonnyvarghese@gmail.com",
+        designation: "Founder & CEO",
+        avatar: "https://placehold.co/40x40.png",
+        role: ["Admin", "Partner"],
+        leaveAllowance: 24,
+        leavesTaken: 0,
+    };
+    const employees = [adminUser, ...defaultEmployees];
     for (const emp of employees) {
       await client.query(
         'INSERT INTO employees (id, name, email, designation, avatar, role, "leaveAllowance", "leavesTaken", "managerId") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
         [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId]
       );
+    }
+    
+    // Seed Countries
+    console.log('Seeding countries...');
+    for (const country of countries) {
+        await client.query('INSERT INTO countries (code, name) VALUES ($1, $2)', [country.code, country.name]);
+    }
+
+    // Seed Client Categories
+    console.log('Seeding client categories...');
+    for (const category of clientCategories) {
+        await client.query('INSERT INTO client_categories (name) VALUES ($1)', [category]);
+    }
+
+    // Seed Engagement Types
+    console.log('Seeding engagement types...');
+    for (const et of engagementTypes) {
+      await client.query(
+        'INSERT INTO engagement_types (id, name, description, "subTaskTitles", recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
+        [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
+      );
+    }
+    
+    // Seed Tax Rates
+    console.log('Seeding tax rates...');
+    for (const rate of taxRates) {
+        await client.query('INSERT INTO tax_rates (name, rate, "isDefault") VALUES ($1, $2, $3)', [rate.name, rate.rate, rate.isDefault || false]);
+    }
+    
+    // Seed HSN/SAC Codes
+    console.log('Seeding HSN/SAC codes...');
+    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (code, description, type, "isDefault") VALUES ('998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
+    const defaultSacId = hsnSacResult.rows[0].id;
+    
+    // Seed Sales Items
+    console.log('Seeding sales items...');
+    const taxRateResult = await client.query(`SELECT id FROM tax_rates WHERE rate = 18`);
+    const defaultTaxRateId = taxRateResult.rows[0].id;
+    for (const item of salesItems) {
+        await client.query(
+            `INSERT INTO sales_items (name, description, "standardPrice", "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5)`,
+            [item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
+        );
     }
     
     // Seed Clients
@@ -99,15 +141,6 @@ export const seedDatabase = async () => {
     const allClientsResult = await client.query('SELECT id, name FROM clients');
     const clientNameToIdMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
 
-
-    // Seed Engagement Types
-    console.log('Seeding engagement types...');
-    for (const et of engagementTypes) {
-      await client.query(
-        'INSERT INTO engagement_types (id, name, description, "subTaskTitles", recurrence, "applicableCategories") VALUES ($1, $2, $3, $4, $5, $6)',
-        [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
-      );
-    }
 
     // Seed Engagements and Tasks
     console.log('Seeding engagements and tasks...');
@@ -134,35 +167,6 @@ export const seedDatabase = async () => {
         }
     }
 
-    const allEngagementsResult = await client.query('SELECT id, remarks FROM engagements');
-    const engagementRemarksToIdMap = new Map(allEngagementsResult.rows.map(row => [row.remarks, row.id]));
-
-    // Seed Timesheets and Entries
-    console.log('Seeding timesheets and entries...');
-    for (const ts of timesheets) {
-        const timesheetId = `${ts.userId}_${new Date(ts.weekStartDate).toISOString().split('T')[0]}`;
-        const employee = employees.find(e => e.id === ts.userId);
-        if (employee) {
-             await client.query(
-                `INSERT INTO timesheets (id, "userId", "userName", "isPartner", "weekStartDate", "totalHours") VALUES ($1, $2, $3, $4, $5, $6)`,
-                [timesheetId, ts.userId, employee.name, employee.role.includes("Partner"), ts.weekStartDate, ts.totalHours]
-            );
-
-            for (const entry of ts.entries) {
-                const engagementData = engagementIdMapForTimesheet[entry.engagementId];
-                if (engagementData) {
-                    const engagementId = engagementRemarksToIdMap.get(engagementData.remarks);
-                    if (engagementId) {
-                         await client.query(
-                            `INSERT INTO timesheet_entries (timesheet_id, engagement_id, hours, description) VALUES ($1, $2, $3, $4)`,
-                            [timesheetId, engagementId, entry.hours, entry.description]
-                         );
-                    }
-                }
-            }
-        }
-    }
-    
     console.log('Seeding permissions...');
     for (const perm of ALL_FEATURES) {
       await client.query(`INSERT INTO permissions (feature, departments) VALUES ($1, $2)`, [perm.id, ['Admin']]);
@@ -179,6 +183,8 @@ export const seedDatabase = async () => {
     process.exit(1);
   } finally {
     client.release();
+    // In a script that exits, it's good practice to end the pool.
+    // In a long-running app, you wouldn't do this.
     await db.end();
   }
 };
