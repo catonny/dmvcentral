@@ -1,8 +1,6 @@
 
-
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 import 'dotenv/config';
+import { db } from '@/lib/db';
 import {
   employees as defaultEmployees,
   clients as clientData,
@@ -19,70 +17,34 @@ import {
 } from '@/lib/data';
 import type { Task, Permission, Employee, HsnSacCode, SalesItem } from '@/lib/data';
 
-
 // This will be automatically populated by the Firebase environment in production,
 // but for a local script, we need to explicitly load it.
-const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-
-
-if (!serviceAccountString) {
-    throw new Error('Firebase Admin SDK service account is not defined. Make sure the FIREBASE_SERVICE_ACCOUNT environment variable is set correctly.');
+if (!process.env.SUPABASE_POSTGRES_URL) {
+    throw new Error('Database connection string is not set. Please set SUPABASE_POSTGRES_URL in your .env file.');
 }
-
-const serviceAccount = JSON.parse(serviceAccountString);
-
-let app: App;
-
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  app = initializeApp({
-    credential: cert(serviceAccount),
-  });
-} else {
-  app = getApps()[0];
-}
-
-const db = getFirestore(app);
 
 export const seedDatabase = async () => {
-  console.log('Starting database seed...');
+  console.log('Starting database seed for PostgreSQL...');
+  const client = await db.connect();
+
   try {
-    const batch = db.batch();
+    await client.query('BEGIN');
+    console.log('Transaction started.');
 
-    const collectionsToDelete = [
-        'employees',
-        'clients',
-        'engagementTypes',
-        'clientCategories',
-        'departments',
-        'countries',
-        'engagements',
-        'tasks',
-        'pendingInvoices',
-        'invoices',
-        'timesheets',
-        'chatMessages',
-        'communications',
-        'leaveRequests',
-        'events',
-        'permissions',
-        'firms',
-        'activityLog',
-        'taxRates',
-        'hsnSacCodes',
-        'salesItems',
-        'recurringEngagements',
-        'todos',
-        '_metadata'
+    // List of tables to truncate, in an order that respects foreign keys
+    const tablesToDelete = [
+      'activity_log', 'tasks', 'timesheet_entries', 'timesheets', 'pending_invoices', 'invoice_line_items', 'invoices', 'recurring_engagements', 'todos', 'engagements', 
+      'clients', 'employees', 'firms', 'departments', 'engagement_types', 'client_categories', 'countries', 'permissions', 'tax_rates', 'hsn_sac_codes', 'sales_items', 
+      'engagement_notes', 'chat_messages', 'chat_threads', 'calendar_events', 'leave_requests'
     ];
-
-    console.log('Deleting existing data...');
-    for (const collectionName of collectionsToDelete) {
-        const snapshot = await db.collection(collectionName).get();
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-    }
-    console.log('Existing data marked for deletion.');
     
+    console.log('Truncating existing tables...');
+    for (const tableName of tablesToDelete) {
+        // Using TRUNCATE ... CASCADE to handle foreign key dependencies automatically
+        await client.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
+    }
+    console.log('Existing data truncated.');
+
     const adminUser: Employee = {
         id: "S001",
         name: "Tonny Varghese",
@@ -93,226 +55,108 @@ export const seedDatabase = async () => {
         leaveAllowance: 24,
         leavesTaken: 0,
     };
-    
     const employees = [adminUser, ...defaultEmployees];
-
-
-    const firmRefs: { [key: string]: string } = {};
-    const clientRefs: { [key: string]: { id: string, partnerId: string} } = {};
-    const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
-    const realEngagementIdMap = new Map<string, string>();
     
+    // Seed Firms
     console.log('Seeding firms...');
-    firms.forEach(firm => {
-        const docRef = db.collection('firms').doc();
-        batch.set(docRef, { ...firm, id: docRef.id });
-        // Assuming only one firm for now for seed data
-        firmRefs["firm_id_placeholder"] = docRef.id;
-    });
+    const firmResult = await client.query(
+      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [firms[0].id || 'firm_1', firms[0].name, firms[0].pan, firms[0].gstn, firms[0].email, firms[0].contactNumber, firms[0].website, firms[0].billingAddressLine1, firms[0].billingAddressLine2, firms[0].state, firms[0].country]
+    );
+    const firmId = firmResult.rows[0].id;
 
-    console.log('Seeding employees...');
-    employees.forEach((employee) => {
-      const docRef = db.collection('employees').doc(employee.id);
-      batch.set(docRef, employee);
-    });
-
-    console.log('Seeding clients...');
-    clientData.forEach((client, index) => {
-      const docRef = db.collection('clients').doc();
-      const now = new Date();
-      // Go back 1 to 3 years for creation date
-      const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
-      
-      const newClient = {
-            ...client,
-            firmId: firmRefs["firm_id_placeholder"], // Link client to the seeded firm
-            id: docRef.id,
-            createdAt: createdAt,
-            lastUpdated: new Date().toISOString()
-      };
-      
-      batch.set(docRef, newClient);
-      clientRefs[`client${index + 1}_id_placeholder`] = {id: docRef.id, partnerId: client.partnerId};
-    });
-
-    console.log('Seeding engagement types...');
-    engagementTypes.forEach((type) => {
-      const docRef = db.collection('engagementTypes').doc(type.id);
-      batch.set(docRef, type);
-    });
-
-    console.log('Seeding client categories...');
-    clientCategories.forEach((category) => {
-      const docRef = db.collection('clientCategories').doc();
-      batch.set(docRef, { id: docRef.id, name: category });
-    });
-
+    // Seed Departments
     console.log('Seeding departments...');
-    departments.forEach((department) => {
-      // Use department name as the ID to prevent duplicates
-      const docRef = db.collection('departments').doc(department.name);
-      batch.set(docRef, { ...department, id: docRef.id });
-    });
+    for (const dept of departments) {
+      await client.query('INSERT INTO departments (id, name, "order") VALUES ($1, $2, $3)', [dept.name, dept.name, dept.order]);
+    }
+
+    // Seed Employees
+    console.log('Seeding employees...');
+    for (const emp of employees) {
+      await client.query(
+        'INSERT INTO employees (id, name, email, designation, avatar, role, leave_allowance, leaves_taken, manager_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId]
+      );
+    }
     
-    console.log('Seeding tax rates...');
-    let defaultTaxRateId = '';
-    taxRates.forEach(rate => {
-        const docRef = db.collection('taxRates').doc();
-        const newRate = {...rate, id: docRef.id };
-        if (rate.isDefault) {
-            defaultTaxRateId = docRef.id;
-        }
-        batch.set(docRef, newRate);
-    });
-
-    console.log('Seeding HSN/SAC codes...');
-    let defaultSacId = '';
-    const hsnSacCodes: Omit<HsnSacCode, 'id'>[] = [
-        { code: '998314', description: 'Legal and accounting services', type: 'SAC', isDefault: true },
-        { code: '998221', description: 'Business consulting services', type: 'SAC' },
-    ];
-    hsnSacCodes.forEach(code => {
-        const docRef = db.collection('hsnSacCodes').doc();
-        const newCode = { ...code, id: docRef.id };
-         if (code.isDefault) {
-            defaultSacId = docRef.id;
-        }
-        batch.set(docRef, newCode);
-    });
-
-    console.log('Seeding sales items...');
-    const salesItems: Omit<SalesItem, 'id'>[] = [
-        { name: 'Statutory Audit Fee', description: 'Fee for statutory audit services.', standardPrice: 50000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId },
-        { name: 'ITR Filing Fee', description: 'Fee for income tax return filing.', standardPrice: 5000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId },
-    ];
-     salesItems.forEach(item => {
-        const docRef = db.collection('salesItems').doc();
-        batch.set(docRef, { ...item, id: docRef.id });
-    });
-
-    console.log('Seeding default permissions...');
-    const permissions: Permission[] = [
-        { feature: 'reports', departments: ['Admin', 'Partner'] },
-        { feature: 'administration', departments: ['Admin', 'Partner', 'Administration'] },
-        { feature: 'timesheet', departments: ['Admin', 'Partner'] },
-        { feature: 'calendar', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
-        { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
-        { feature: 'firm-analytics', departments: ['Admin', 'Partner'] },
-        { feature: 'leave-management', departments: ['Admin', 'Partner', 'Manager'] },
-        { feature: 'masters', departments: ['Admin'] },
-        { feature: 'bulk-import', departments: ['Admin'] },
-        { feature: 'employee-management', departments: ['Admin'] },
-        { feature: 'workflow-editor', departments: ['Admin'] },
-        { feature: 'settings-data-management', departments: ['Admin'] },
-        { feature: 'settings-access-control', departments: ['Admin'] },
-    ];
-
-    permissions.forEach(perm => {
-        const docRef = db.collection('permissions').doc(perm.feature);
-        batch.set(docRef, perm);
-    });
+    // Seed Clients
+    console.log('Seeding clients...');
+    for (const c of clientData) {
+        const now = new Date();
+        const createdAt = new Date(now.setFullYear(now.getFullYear() - (1 + Math.floor(Math.random() * 3)))).toISOString();
+        await client.query(
+            `INSERT INTO clients (name, mail_id, mobile_number, category, partner_id, firm_id, pan, gstin, created_at, last_updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [c.name, c.mailId, c.mobileNumber, c.category, c.partnerId, firmId, c.pan, c.gstin, createdAt, new Date().toISOString()]
+        );
+    }
+    const allClientsResult = await client.query('SELECT id, name FROM clients');
+    const clientNameToIdMap = new Map(allClientsResult.rows.map(row => [row.name, row.id]));
 
 
-    console.log('Seeding countries...');
-    countries.forEach((country) => {
-      const docRef = db.collection('countries').doc(country.code);
-      batch.set(docRef, country);
-    });
+    // Seed Engagement Types
+    console.log('Seeding engagement types...');
+    for (const et of engagementTypes) {
+      await client.query(
+        'INSERT INTO engagement_types (id, name, description, sub_task_titles, recurrence, applicable_categories) VALUES ($1, $2, $3, $4, $5, $6)',
+        [et.id, et.name, et.description, et.subTaskTitles, et.recurrence, et.applicableCategories]
+      );
+    }
 
+    // Seed Engagements and Tasks
     console.log('Seeding engagements and tasks...');
-    engagements.forEach((engagement) => {
-        const clientRefData = clientRefs[engagement.clientId];
-        if (clientRefData) {
-          const engagementDocRef = db.collection('engagements').doc();
-          const newEngagement = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
-          batch.set(engagementDocRef, newEngagement);
-
-          // Log creation
-          const activityLogRef = db.collection('activityLog').doc();
-          batch.set(activityLogRef, {
-              id: activityLogRef.id,
-              engagementId: newEngagement.id,
-              clientId: newEngagement.clientId,
-              type: 'CREATE_ENGAGEMENT',
-              timestamp: new Date().toISOString(),
-              userId: adminUser.id, // Assume admin creates all seed data
-              userName: adminUser.name,
-              details: {
-                  engagementName: newEngagement.remarks,
-              },
-          });
-
-          const timesheetPlaceholder = Object.keys(engagementIdMapForTimesheet).find(
-              key => engagementIdMapForTimesheet[key as keyof typeof engagementIdMapForTimesheet].remarks === engagement.remarks
-          );
-          if (timesheetPlaceholder) {
-              realEngagementIdMap.set(timesheetPlaceholder, engagementDocRef.id);
-          }
-
-          if (engagement.billStatus === "To Bill") {
-              const pendingInvoiceRef = db.collection("pendingInvoices").doc();
-              batch.set(pendingInvoiceRef, {
-                  id: pendingInvoiceRef.id,
-                  engagementId: engagementDocRef.id,
-                  clientId: clientRefData.id,
-                  assignedTo: engagement.assignedTo,
-                  reportedTo: engagement.reportedTo,
-                  partnerId: clientRefData.partnerId,
-              });
-          }
-
-          const template = engagementTypeMap.get(engagement.type);
-          if (template && template.subTaskTitles) {
-              template.subTaskTitles.forEach((taskTitle, taskIndex) => {
-                  const taskDocRef = db.collection('tasks').doc();
-                  const newTask: Task = {
-                      id: taskDocRef.id,
-                      engagementId: engagementDocRef.id,
-                      title: taskTitle,
-                      status: 'Pending',
-                      order: taskIndex + 1,
-                      assignedTo: engagement.assignedTo[0] || '',
-                  };
-                  batch.set(taskDocRef, newTask);
-              });
-          }
-        } else {
-          console.warn(`Could not find new client ID for placeholder: ${engagement.clientId}`);
+    for (const eng of engagements) {
+        const clientId = clientNameToIdMap.get(clientData.find(c => c.name === clientMapForEngagement(eng.clientId))?.name || '');
+        if (clientId) {
+            const engagementResult = await client.query(
+                `INSERT INTO engagements (client_id, remarks, type, assigned_to, reported_to, due_date, status, fees, bill_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+                [clientId, eng.remarks, eng.type, eng.assignedTo, eng.reportedTo, eng.dueDate, eng.status, eng.fees, eng.billStatus]
+            );
+            const engagementId = engagementResult.rows[0].id;
+            
+            const template = engagementTypes.find(et => et.id === eng.type);
+            if (template?.subTaskTitles) {
+                for (const [index, title] of template.subTaskTitles.entries()) {
+                    await client.query(
+                        `INSERT INTO tasks (engagement_id, title, status, "order", assigned_to) VALUES ($1, $2, $3, $4, $5)`,
+                        [engagementId, title, 'Pending', index + 1, eng.assignedTo[0] || null]
+                    );
+                }
+            }
         }
-    });
-
-    console.log('Seeding timesheets...');
-    timesheets.forEach(ts => {
-      const employee = employees.find(e => e.id === ts.userId);
-      if (employee) {
-          const timesheetId = `${ts.userId}_${ts.weekStartDate.substring(0,10)}`;
-          const timesheetRef = db.collection('timesheets').doc(timesheetId);
-
-          const updatedEntries = ts.entries.map(entry => ({
-              ...entry,
-              engagementId: realEngagementIdMap.get(entry.engagementId) || entry.engagementId,
-          }));
-
-          batch.set(timesheetRef, {
-              ...ts,
-              id: timesheetId,
-              userName: employee.name,
-              isPartner: employee.role.includes("Partner"),
-              entries: updatedEntries
-          });
-      }
-    });
-
-
-    console.log('Committing batch to database...');
-    await batch.commit();
+    }
+    
+    console.log('Seeding permissions...');
+    for (const perm of ALL_FEATURES) {
+      await client.query(`INSERT INTO permissions (feature, departments) VALUES ($1, $2)`, [perm.id, ['Admin']]);
+    }
+    
+    await client.query('COMMIT');
+    console.log('Transaction committed.');
     console.log('Database successfully seeded!');
     console.log('You can now start the application with `npm run dev`');
+
   } catch (error) {
-    console.error('Error seeding database:', error);
+    await client.query('ROLLBACK');
+    console.error('Error seeding database, transaction rolled back:', error);
     process.exit(1);
+  } finally {
+    client.release();
+    await db.end();
   }
 };
+
+// Helper to map old placeholder client IDs to names for lookup
+const clientMapForEngagement = (placeholderId: string): string | undefined => {
+    const mapping: {[key: string]: string} = {
+        "client1_id_placeholder": "Innovate Inc.",
+        "client2_id_placeholder": "GreenFuture LLP",
+        "client3_id_placeholder": "Hope Foundation"
+    }
+    return mapping[placeholderId];
+}
+
+
 // This allows the script to be importable and not run automatically
 if (require.main === module) {
     seedDatabase();
