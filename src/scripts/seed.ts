@@ -54,11 +54,10 @@ export const seedDatabase = async () => {
     // Seed Firms
     console.log('Seeding firms...');
     const firmData = firms[0];
-    const firmResult = await client.query(
-      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contactNumber, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
+    await client.query(
+      `INSERT INTO firms (id, name, pan, gstn, email, contact_number, website, billing_address_line1, billing_address_line2, state, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [firmData.id, firmData.name, firmData.pan, firmData.gstn, firmData.email, firmData.contact_number, firmData.website, firmData.billingAddressLine1, firmData.billingAddressLine2, firmData.state, firmData.country]
     );
-    const firmId = firmResult.rows[0].id;
 
     // Seed Departments
     console.log('Seeding departments...');
@@ -71,8 +70,8 @@ export const seedDatabase = async () => {
     const employees = [...defaultEmployees];
     for (const emp of employees) {
       await client.query(
-        'INSERT INTO employees (id, name, email, designation, avatar, role, "leaveAllowance", "leavesTaken", "manager_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-        [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId]
+        'INSERT INTO employees (id, name, email, designation, avatar, role, "leave_allowance", "leaves_taken", "manager_id", linkedin, "emergency_contact", "blood_group") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)',
+        [emp.id, emp.name, emp.email, emp.designation, emp.avatar, emp.role, emp.leaveAllowance, emp.leavesTaken, emp.managerId, emp.linkedin, emp.emergencyContact, emp.bloodGroup]
       );
     }
     
@@ -101,21 +100,21 @@ export const seedDatabase = async () => {
     console.log('Seeding tax rates...');
     const taxRateResults = [];
     for (const rate of taxRates) {
-        const res = await client.query('INSERT INTO tax_rates (id, name, rate, "isDefault") VALUES ($1, $2, $3, $4) RETURNING id', [rate.name, rate.rate, rate.isDefault || false, rate.name]);
+        const res = await client.query('INSERT INTO tax_rates (id, name, rate, "is_default") VALUES ($1, $2, $3, $4) RETURNING id', [rate.name, rate.rate, rate.isDefault || false, rate.name]);
         taxRateResults.push({ ...rate, id: res.rows[0].id });
     }
     const defaultTaxRateId = taxRateResults.find(r => r.isDefault)?.id;
     
     // Seed HSN/SAC Codes
     console.log('Seeding HSN/SAC codes...');
-    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (id, code, description, type, "isDefault") VALUES ('SAC01', '998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
+    const hsnSacResult = await client.query(`INSERT INTO hsn_sac_codes (id, code, description, type, "is_default") VALUES ('SAC01', '998314', 'Other professional, technical and business services', 'SAC', true) RETURNING id`);
     const defaultSacId = hsnSacResult.rows[0].id;
     
     // Seed Sales Items
     console.log('Seeding sales items...');
     for (const item of salesItems) {
         await client.query(
-            `INSERT INTO sales_items (id, name, description, standard_price, "defaultTaxRateId", "defaultSacId") VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO sales_items (id, name, description, standard_price, "default_tax_rate_id", "default_sac_id") VALUES ($1, $2, $3, $4, $5, $6)`,
             [item.name, item.name, item.description, item.standardPrice, defaultTaxRateId, defaultSacId]
         );
     }
@@ -131,8 +130,6 @@ export const seedDatabase = async () => {
         );
         const newClientId = clientResult.rows[0].id;
         
-        // This is a bit of a hack to update the placeholder in the original array
-        // A better approach would be to have a mapping if this were more complex
         const placeholderId = `client${clientData.indexOf(c) + 1}_id_placeholder`;
         clientNameToIdMap.set(placeholderId, newClientId);
     }
@@ -148,7 +145,7 @@ export const seedDatabase = async () => {
         const clientId = clientName ? clientNameMap.get(clientName) : undefined;
         if (clientId) {
             const engagementResult = await client.query(
-                `INSERT INTO engagements ("clientId", remarks, type, "assignedTo", "reportedTo", "dueDate", status, fees, "billStatus") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+                `INSERT INTO engagements ("client_id", remarks, type, "assigned_to", "reported_to", "due_date", status, fees, "bill_status") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
                 [clientId, eng.remarks, eng.type, eng.assignedTo, eng.reportedTo, eng.dueDate, eng.status, eng.fees, eng.billStatus]
             );
             const engagementId = engagementResult.rows[0].id;
@@ -157,7 +154,7 @@ export const seedDatabase = async () => {
             if (template?.subTaskTitles) {
                 for (const [index, title] of template.subTaskTitles.entries()) {
                     await client.query(
-                        `INSERT INTO tasks ("engagementId", title, status, "order", "assignedTo") VALUES ($1, $2, $3, $4, $5)`,
+                        `INSERT INTO tasks ("engagement_id", title, status, "order", "assigned_to") VALUES ($1, $2, $3, $4, $5)`,
                         [engagementId, title, 'Pending', index + 1, eng.assignedTo[0] || null]
                     );
                 }
