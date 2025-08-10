@@ -30,7 +30,6 @@ interface DashboardClientProps {
         employees: Employee[];
         engagements: Engagement[];
         tasks: Task[];
-        events: CalendarEvent[];
     };
 }
 
@@ -42,7 +41,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees);
   const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements);
   const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
-  const [events, setEvents] = React.useState<CalendarEvent[]>(initialData.events);
+  const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
