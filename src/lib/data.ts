@@ -84,6 +84,7 @@ export interface EngagementType {
   subTaskTitles: string[]; 
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
   recurrence?: 'Monthly' | 'Quarterly' | 'Yearly';
+  recommendedSalesItemIds?: string[];
 }
 
 export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "On Hold" | "Completed" | "Cancelled";

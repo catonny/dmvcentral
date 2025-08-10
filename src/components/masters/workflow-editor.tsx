@@ -1,15 +1,16 @@
 
+
 "use client";
 
 import * as React from "react";
 import { collection, onSnapshot, doc, updateDoc, writeBatch, addDoc, deleteDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { EngagementType } from "@/lib/data";
+import type { EngagementType, SalesItem } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, GripVertical, Trash2, PlusCircle, ArrowLeft, Edit, Check, X } from "lucide-react";
+import { Loader2, GripVertical, Trash2, PlusCircle, ArrowLeft, Edit, Check, ChevronsUpDown } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -41,6 +42,9 @@ import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useRouter } from "next/navigation";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
+import { cn } from "@/lib/utils";
 
 
 function SortableTaskItem({ id, title, onUpdate, onDelete }: { id: string; title: string; onUpdate: (newTitle: string) => void; onDelete: () => void; }) {
@@ -94,12 +98,14 @@ function SortableTaskItem({ id, title, onUpdate, onDelete }: { id: string; title
 
 export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
+    const [salesItems, setSalesItems] = React.useState<SalesItem[]>([]);
     const [selectedType, setSelectedType] = React.useState<EngagementType | null>(null);
     const [tasks, setTasks] = React.useState<string[]>([]);
     const [newTask, setNewTask] = React.useState('');
     const [editingTypeName, setEditingTypeName] = React.useState('');
     const [editingDescription, setEditingDescription] = React.useState('');
     const [editingRecurrence, setEditingRecurrence] = React.useState<EngagementType['recurrence'] | ''>('');
+    const [recommendedSalesItemIds, setRecommendedSalesItemIds] = React.useState<string[]>([]);
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -107,12 +113,20 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
 
 
     React.useEffect(() => {
-        const unsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
+        const unsubTypes = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
             const types = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType));
             setEngagementTypes(types.sort((a,b) => a.name.localeCompare(b.name)));
             setLoading(false);
         });
-        return () => unsub();
+
+         const unsubSalesItems = onSnapshot(collection(db, "salesItems"), (snapshot) => {
+            setSalesItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SalesItem)));
+        });
+
+        return () => {
+            unsubTypes();
+            unsubSalesItems();
+        }
     }, []);
     
     React.useEffect(() => {
@@ -121,11 +135,13 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             setEditingTypeName(selectedType.name);
             setEditingDescription(selectedType.description || '');
             setEditingRecurrence(selectedType.recurrence || '');
+            setRecommendedSalesItemIds(selectedType.recommendedSalesItemIds || []);
         } else {
             setTasks([]);
             setEditingTypeName('');
             setEditingDescription('');
             setEditingRecurrence('');
+            setRecommendedSalesItemIds([]);
         }
     }, [selectedType]);
     
@@ -142,6 +158,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                 description: editingDescription,
                 subTaskTitles: tasks,
                 recurrence: editingRecurrence || null,
+                recommendedSalesItemIds: recommendedSalesItemIds
             });
             toast({ title: "Success", description: `Workflow for "${editingTypeName}" updated successfully.` });
         } catch (error) {
@@ -219,6 +236,12 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             setTasks(currentTasks => [...currentTasks, newTask.trim()]);
             setNewTask('');
         }
+    };
+    
+     const handleSalesItemToggle = (itemId: string) => {
+        setRecommendedSalesItemIds(prev =>
+            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+        );
     };
 
     const sensors = useSensors(
@@ -315,6 +338,33 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                             <SelectItem value="Yearly">Yearly</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <Label>Recommended Sales Items</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start">
+                                                {recommendedSalesItemIds.length > 0 ? `${recommendedSalesItemIds.length} item(s) selected` : "Select billing items..."}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search sales items..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No items found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {salesItems.map(item => (
+                                                            <CommandItem key={item.id} onSelect={() => handleSalesItemToggle(item.id)}>
+                                                                 <Check className={cn("mr-2 h-4 w-4", recommendedSalesItemIds.includes(item.id) ? "opacity-100" : "opacity-0")}/>
+                                                                {item.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 
                                 <h4 className="font-semibold text-foreground pt-4 border-t">Task Checklist</h4>

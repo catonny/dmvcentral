@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -79,18 +80,36 @@ export function GenerateInvoiceDialog({
 
   React.useEffect(() => {
     if (entry) {
-        const matchingSalesItem = salesItems.find(si => si.name.toLowerCase() === entry.engagementType.name.toLowerCase());
+        const recommendedItemIds = entry.engagementType.recommendedSalesItemIds || [];
+        const initialLineItems: LineItem[] = recommendedItemIds.map(itemId => {
+            const salesItem = salesItems.find(si => si.id === itemId);
+            return {
+                id: `item-${itemId}-${Date.now()}`,
+                salesItemId: itemId,
+                description: salesItem?.description || '',
+                quantity: 1,
+                rate: salesItem?.standardPrice || 0,
+                discount: 0,
+                taxRateId: salesItem?.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || '',
+                sacCodeId: salesItem?.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || ''
+            };
+        });
+
+        // If no recommended items, create a default line item from the engagement itself
+        if (initialLineItems.length === 0) {
+            const matchingSalesItem = salesItems.find(si => si.name.toLowerCase() === entry.engagementType.name.toLowerCase());
+            initialLineItems.push({
+                id: `item-${Date.now()}`,
+                salesItemId: matchingSalesItem?.id || '',
+                description: entry.engagement.remarks,
+                quantity: 1,
+                rate: entry.engagement.fees || matchingSalesItem?.standardPrice || 0,
+                discount: 0,
+                taxRateId: matchingSalesItem?.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || '',
+                sacCodeId: matchingSalesItem?.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || ''
+            });
+        }
         
-        const initialLineItems: LineItem[] = [{
-            id: `item-${Date.now()}`,
-            salesItemId: matchingSalesItem?.id || '',
-            description: entry.engagement.remarks,
-            quantity: 1,
-            rate: entry.engagement.fees || matchingSalesItem?.standardPrice || 0,
-            discount: 0,
-            taxRateId: matchingSalesItem?.defaultTaxRateId || taxRates.find(t => t.isDefault)?.id || '',
-            sacCodeId: matchingSalesItem?.defaultSacId || hsnSacCodes.find(h => h.isDefault)?.id || ''
-        }];
         setLineItems(initialLineItems);
         setSelectedFirmId(entry.client.firmId || (firms.length > 0 ? firms[0].id : ""));
         setPlaceOfSupply(entry.client.State || "");
