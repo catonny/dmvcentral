@@ -3,9 +3,13 @@ import { Pool } from 'pg';
 
 let pool: Pool;
 
+// This check ensures that the connection pool is created only once.
 if (!pool) {
+  if (!process.env.SUPABASE_POSTGRES_URL) {
+    throw new Error('Database connection string is not set. Please set SUPABASE_POSTGRES_URL in your .env file.');
+  }
   pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: process.env.SUPABASE_POSTGRES_URL,
     ssl: {
       rejectUnauthorized: false
     }
