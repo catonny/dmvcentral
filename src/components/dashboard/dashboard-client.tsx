@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -23,23 +24,15 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-interface DashboardClientProps {
-    initialData: {
-        clients: any[];
-        employees: any[];
-        engagements: any[];
-        tasks: any[];
-    };
-}
-
-export function DashboardClient({ initialData }: DashboardClientProps) {
+export function DashboardClient() {
   const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
   
-  const [clients, setClients] = React.useState<Client[]>(initialData.clients as Client[]);
-  const [employees, setEmployees] = React.useState<Employee[]>(initialData.employees as Employee[]);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData.engagements as Engagement[]);
-  const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks as Task[]);
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [dataLoading, setDataLoading] = React.useState(true);
 
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
@@ -48,20 +41,35 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   
   React.useEffect(() => {
     if (user) {
-       const userProfile = (initialData.employees as Employee[]).find(e => e.email === user.email) || null;
-       setCurrentUser(userProfile);
+        const q = query(collection(db, "employees"), where("email", "==", user.email));
+        const unsub = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                const userProfile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee;
+                setCurrentUser(userProfile);
+            } else {
+                setCurrentUser(null);
+            }
+        });
+        return () => unsub();
     }
-  }, [user, initialData.employees]);
+  }, [user]);
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!user) {
+        setDataLoading(false);
+        return;
+    };
+    
+    setDataLoading(true);
 
-    // Set up real-time listeners to keep data fresh after initial load
     const unsubs: (() => void)[] = [];
     unsubs.push(onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => d.data() as Client))));
     unsubs.push(onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(d => d.data() as Employee))));
     unsubs.push(onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => d.data() as Engagement))));
-    unsubs.push(onSnapshot(collection(db, "tasks"), (snap) => setTasks(snap.docs.map(d => d.data() as Task))));
+    unsubs.push(onSnapshot(collection(db, "tasks"), (snap) => {
+        setTasks(snap.docs.map(d => d.data() as Task));
+        setDataLoading(false); // Mark loading as false after the last query completes
+    }));
     
     return () => unsubs.forEach(unsub => unsub());
   }, [user]);
@@ -169,7 +177,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       }
   };
 
-  if (authLoading) {
+  if (authLoading || dataLoading) {
      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
