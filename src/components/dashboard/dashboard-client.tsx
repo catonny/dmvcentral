@@ -24,29 +24,65 @@ interface Widget {
   defaultLayout: { x: number; y: number; w: number; h: number; };
 }
 
-interface DashboardClientProps {
-  initialData: {
-    allClients: Client[];
-    allEngagements: Engagement[];
-    allEmployees: Employee[];
-    allTasks: Task[];
-    currentUser: Employee | null;
-  } | null;
-}
-
-export function DashboardClient({ initialData }: DashboardClientProps) {
+export function DashboardClient() {
   const { user } = useAuth();
-  const [allClients, setAllClients] = React.useState<Client[]>(initialData?.allClients || []);
-  const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialData?.allEmployees || []);
-  const [engagements, setEngagements] = React.useState<Engagement[]>(initialData?.allEngagements || []);
-  const [tasks, setTasks] = React.useState<Task[]>(initialData?.allTasks || []);
-  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(initialData?.currentUser || null);
-  const [loading, setLoading] = React.useState(!initialData);
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [currentUserEmployeeProfile, setCurrentUserEmployeeProfile] = React.useState<Employee | null>(null);
+  const [loading, setLoading] = React.useState(true);
   
   const [widgets, setWidgets] = React.useState<Widget[]>([]);
   const [layout, setLayout] = React.useState<GridLayout.Layout[]>([]);
   
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (!user) {
+        setLoading(false);
+        return;
+    }
+    
+    setLoading(true);
+
+    const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+    const unsubProfile = onSnapshot(employeeQuery, (snapshot) => {
+        if (!snapshot.empty) {
+            setCurrentUserEmployeeProfile({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee);
+        } else {
+            setCurrentUserEmployeeProfile(null);
+        }
+    });
+
+    const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+    const unsubEngagements = onSnapshot(query(collection(db, "engagements"), where("status", "in", activeStatuses)), (snapshot) => {
+      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+    });
+
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+      setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+    });
+    
+    const unsubTasks = onSnapshot(collection(db, "tasks"), (snapshot) => {
+        setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)));
+    });
+    
+    const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+        setAllEmployees(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Employee)));
+    });
+
+    setLoading(false);
+
+    return () => {
+        unsubProfile();
+        unsubEngagements();
+        unsubClients();
+        unsubTasks();
+        unsubEmployees();
+    };
+}, [user]);
+
   
   const { isPartner, isAdmin, userRole, dashboardData } = React.useMemo(() => {
     if (!currentUserEmployeeProfile || !user) {
