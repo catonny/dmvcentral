@@ -65,6 +65,7 @@ export interface Client {
   billingAddressLine1?: string;
   billingAddressLine2?: string;
   billingAddressLine3?: string;
+  pincode?: string;
   state?: string;
   country?: string;
   contactPerson?: string;

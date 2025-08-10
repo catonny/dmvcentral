@@ -106,6 +106,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 'Billing Address Line 1': '',
                 'Billing Address Line 2': '',
                 'Billing Address Line 3': '',
+                pincode: '',
                 State: '',
                 Country: 'India',
                 partnerId: undefined,
@@ -378,6 +379,10 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="Billing Address Line 3" className="text-right">Address 3</Label>
                         <Input id="Billing Address Line 3" value={formData['Billing Address Line 3'] || ''} onChange={handleChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="pincode" className="text-right">Pincode</Label>
+                        <Input id="pincode" value={formData.pincode || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="Country" className="text-right">Country</Label>
