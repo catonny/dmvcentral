@@ -6,22 +6,36 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { CalendarEvent, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { EventDialog } from "@/components/calendar/event-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEventInfo, setSelectedEventInfo] = React.useState<any>(null);
+  const [view, setView] = React.useState("team");
+
+  React.useEffect(() => {
+    if (user) {
+        const q = query(collection(db, "employees"), where("email", "==", user.email));
+        getDocs(q).then(snapshot => {
+            if (!snapshot.empty) {
+                setCurrentUserEmployee({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Employee);
+            }
+        });
+    }
+  }, [user]);
 
   React.useEffect(() => {
     const unsubEvents = onSnapshot(collection(db, "events"), (snapshot) => {
@@ -43,6 +57,13 @@ export default function CalendarPage() {
         unsubEmployees();
     };
   }, [toast]);
+  
+  const filteredEvents = React.useMemo(() => {
+      if (view === 'personal' && currentUserEmployee) {
+          return events.filter(event => event.attendees?.includes(currentUserEmployee.id));
+      }
+      return events;
+  }, [view, events, currentUserEmployee]);
 
   const handleDateClick = (arg: any) => {
     setSelectedEventInfo({
@@ -89,7 +110,7 @@ export default function CalendarPage() {
   };
 
   const handleSaveEvent = async (eventData: Partial<CalendarEvent>) => {
-    if (!user) {
+    if (!user || !currentUserEmployee) {
         toast({ title: "Error", description: "You must be logged in to save events.", variant: "destructive" });
         return;
     }
@@ -106,7 +127,7 @@ export default function CalendarPage() {
             await setDoc(newEventRef, {
                 ...cleanData,
                 id: newEventRef.id,
-                createdBy: user.uid,
+                createdBy: currentUserEmployee.id,
             });
             toast({ title: "Success", description: "Event created." });
         }
@@ -147,9 +168,16 @@ export default function CalendarPage() {
             View and manage shared events, deadlines, and meetings for the team.
           </p>
         </div>
+        <Tabs value={view} onValueChange={setView} className="w-[400px]">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="team">Team View</TabsTrigger>
+                <TabsTrigger value="personal">My Calendar</TabsTrigger>
+            </TabsList>
+        </Tabs>
       </div>
       <div className="flex-grow">
         <FullCalendar
+          key={view} // Re-render the calendar when the view changes
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           headerToolbar={{
             left: "prev,next today",
@@ -162,7 +190,7 @@ export default function CalendarPage() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
-          events={events}
+          events={filteredEvents}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventChange={handleEventChange}
