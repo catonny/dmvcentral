@@ -1,58 +1,51 @@
 
+"use client";
+
 import * as React from 'react';
-import { getAdminApp } from "@/lib/firebase-admin";
-import { getFirestore } from 'firebase-admin/firestore';
 import type { Client, Employee, Engagement, Task } from "@/lib/data";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
-async function getDashboardData() {
-    const adminApp = getAdminApp();
-    if (!adminApp) {
-        throw new Error("Firebase admin SDK not configured.");
+export default function DashboardPage() {
+    const [clients, setClients] = React.useState<Client[]>([]);
+    const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+    const [tasks, setTasks] = React.useState<Task[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const { toast } = useToast();
+
+    React.useEffect(() => {
+        const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(doc => doc.data() as Client)),
+            (err) => toast({ title: "Error", description: "Could not fetch clients.", variant: "destructive" }));
+        
+        const unsubEmployees = onSnapshot(collection(db, "employees"), (snap) => setEmployees(snap.docs.map(doc => doc.data() as Employee)),
+            (err) => toast({ title: "Error", description: "Could not fetch employees.", variant: "destructive" }));
+
+        const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(doc => doc.data() as Engagement)),
+            (err) => toast({ title: "Error", description: "Could not fetch engagements.", variant: "destructive" }));
+            
+        const unsubTasks = onSnapshot(collection(db, "tasks"), (snap) => {
+            setTasks(snap.docs.map(doc => doc.data() as Task));
+            setLoading(false);
+        }, (err) => {
+            toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
+            setLoading(false);
+        });
+
+        return () => {
+            unsubClients();
+            unsubEmployees();
+            unsubEngagements();
+            unsubTasks();
+        };
+    }, [toast]);
+
+    if (loading) {
+        return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
 
-    const db = getFirestore(adminApp);
-    
-    try {
-        const [clientsSnap, employeesSnap, engagementsSnap, tasksSnap] = await Promise.all([
-            db.collection('clients').get(),
-            db.collection('employees').get(),
-            db.collection('engagements').get(),
-            db.collection('tasks').get(),
-        ]);
-
-        const clients = clientsSnap.docs.map(doc => doc.data() as Client);
-        const employees = employeesSnap.docs.map(doc => doc.data() as Employee);
-        const engagements = engagementsSnap.docs.map(doc => doc.data() as Engagement);
-        const tasks = tasksSnap.docs.map(doc => doc.data() as Task);
-
-        return { clients, employees, engagements, tasks };
-    } catch (error) {
-        console.error("Error fetching dashboard data from Firestore:", error);
-        throw new Error("Could not fetch data from Firestore.");
-    }
-}
-
-export default async function DashboardPage() {
-    try {
-        const { clients, employees, engagements, tasks } = await getDashboardData();
-        return <DashboardClient initialData={{ clients, employees, engagements, tasks }} />;
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        return (
-             <Card className="h-full">
-                <CardHeader>
-                    <CardTitle className="text-destructive flex items-center gap-2">
-                        <AlertCircle /> Dashboard Error
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>{errorMessage}</p>
-                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading the dashboard data from the server. Please ensure your Firebase Admin SDK is configured correctly.</p>
-                </CardContent>
-            </Card>
-        )
-    }
+    return <DashboardClient initialData={{ clients, employees, engagements, tasks }} />;
 }

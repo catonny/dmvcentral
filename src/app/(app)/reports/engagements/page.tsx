@@ -15,10 +15,7 @@ import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet"
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EngagementSummaryTable } from "@/components/reports/engagement-summary";
-import { getAdminApp } from "@/lib/firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
 import { AlertCircle } from "lucide-react";
-
 
 export interface ReportsEngagement extends Engagement {
     clientName: string;
@@ -26,85 +23,19 @@ export interface ReportsEngagement extends Engagement {
     partnerId?: string;
 }
 
-async function getReportData() {
-    const adminApp = getAdminApp();
-    if (!adminApp) {
-        throw new Error("Firebase admin SDK not configured.");
-    }
-    const db = getFirestore(adminApp);
-
-    try {
-        const [engagementsSnap, clientsSnap, employeesSnap, engagementTypesSnap] = await Promise.all([
-            db.collection('engagements').get(),
-            db.collection('clients').get(),
-            db.collection('employees').get(),
-            db.collection('engagementTypes').get()
-        ]);
-
-        const engagements = engagementsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-        const clients = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        const employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-        const engagementTypes = engagementTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType));
-
-        return { engagements, clients, employees, engagementTypes };
-
-    } catch (error) {
-        console.error("Error fetching report data from Firestore:", error);
-        throw new Error("Could not fetch data from Firestore.");
-    }
-}
-
-
-export default async function EngagementsReportPage() {
-    
-    try {
-        const { engagements, clients, employees, engagementTypes } = await getReportData();
-
-        const clientMap = new Map(clients.map(c => [c.id, c]));
-        const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
-
-        const tableData: ReportsEngagement[] = engagements.map(eng => {
-            const client = clientMap.get(eng.clientId);
-            const engagementType = engagementTypeMap.get(eng.type);
-            return {
-                ...eng,
-                clientName: client?.Name || 'N/A',
-                engagementTypeName: engagementType?.name || 'N/A',
-                partnerId: client?.partnerId,
-            };
-        });
-
-        return <EngagementsReportClient initialData={{ tableData, engagementTypes, allEmployees: employees }} />;
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        return (
-             <Card>
-                <CardHeader>
-                    <CardTitle className="text-destructive flex items-center gap-2">
-                        <AlertCircle /> Error Loading Report
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>{errorMessage}</p>
-                    <p className="text-sm text-muted-foreground mt-2">There was an issue loading report data from the server. Please check your Firebase configuration.</p>
-                </CardContent>
-            </Card>
-        )
-    }
-}
-
-
-function EngagementsReportClient({ initialData }: { initialData: { tableData: ReportsEngagement[], engagementTypes: EngagementType[], allEmployees: Employee[] }}) {
+export default function EngagementsReportPage() {
     const { user } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [hasAccess, setHasAccess] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
-    const [tableData, setTableData] = React.useState<ReportsEngagement[]>(initialData.tableData);
-    const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>(initialData.engagementTypes);
-    const [allEmployees, setAllEmployees] = React.useState<Employee[]>(initialData.allEmployees);
     
+    const [engagements, setEngagements] = React.useState<Engagement[]>([]);
+    const [clients, setClients] = React.useState<Client[]>([]);
+    const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+    const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
+
+    const [tableData, setTableData] = React.useState<ReportsEngagement[]>([]);
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
     const [selectedEngagement, setSelectedEngagement] = React.useState<ReportsEngagement | null>(null);
 
@@ -125,36 +56,50 @@ function EngagementsReportClient({ initialData }: { initialData: { tableData: Re
                     setHasAccess(true);
                 }
             }
-            setLoading(false);
         };
         checkUserRole();
-
     }, [user]);
 
-    // Set up a real-time listener ONLY for the data that might change
     React.useEffect(() => {
-        const q = query(collection(db, "engagements"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-             const newEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-             const clientMap = new Map(initialData.tableData.map(d => [d.clientId, d.clientName]));
-             const typeMap = new Map(initialData.engagementTypes.map(d => [d.id, d.name]));
-             
-             const newTableData = newEngagements.map(eng => {
-                const client = initialData.tableData.find(d => d.clientId === eng.clientId);
+        if (!hasAccess) {
+            setLoading(false);
+            return;
+        }
+
+        const unsubEngs = onSnapshot(collection(db, "engagements"), (snap) => setEngagements(snap.docs.map(d => ({id: d.id, ...d.data()} as Engagement))));
+        const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(d => ({id: d.id, ...d.data()} as Client))));
+        const unsubEmps = onSnapshot(collection(db, "employees"), (snap) => setAllEmployees(snap.docs.map(d => ({id: d.id, ...d.data()} as Employee))));
+        const unsubEngTypes = onSnapshot(collection(db, "engagementTypes"), (snap) => {
+            setEngagementTypes(snap.docs.map(d => ({id: d.id, ...d.data()} as EngagementType)));
+            setLoading(false);
+        });
+
+        return () => {
+            unsubEngs();
+            unsubClients();
+            unsubEmps();
+            unsubEngTypes();
+        }
+    }, [hasAccess]);
+
+    React.useEffect(() => {
+        if(engagements.length && clients.length && engagementTypes.length) {
+            const clientMap = new Map(clients.map(c => [c.id, c]));
+            const engagementTypeMap = new Map(engagementTypes.map(et => [et.id, et]));
+
+            const newData: ReportsEngagement[] = engagements.map(eng => {
+                const client = clientMap.get(eng.clientId);
+                const engagementType = engagementTypeMap.get(eng.type);
                 return {
                     ...eng,
-                    clientName: client?.clientName || 'N/A',
-                    engagementTypeName: typeMap.get(eng.type) || 'N/A',
+                    clientName: client?.Name || 'N/A',
+                    engagementTypeName: engagementType?.name || 'N/A',
                     partnerId: client?.partnerId,
-                }
-             });
-             setTableData(newTableData);
-        }, (error) => {
-            console.error("Failed to listen to engagement updates:", error);
-            toast({ title: "Live Update Failed", description: "Could not get real-time engagement updates.", variant: "destructive" });
-        });
-        return () => unsubscribe();
-    }, [initialData.tableData, initialData.engagementTypes, toast]);
+                };
+            });
+            setTableData(newData);
+        }
+    }, [engagements, clients, engagementTypes]);
     
     const handleOpenEditSheet = (engagement: ReportsEngagement) => {
         setSelectedEngagement(engagement);
@@ -236,4 +181,3 @@ function EngagementsReportClient({ initialData }: { initialData: { tableData: Re
         </div>
     )
 }
-
