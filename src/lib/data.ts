@@ -115,6 +115,7 @@ export interface Engagement {
 }
 
 export interface InvoiceLineItem {
+    id: string;
     salesItemId: string;
     description: string;
     quantity: number;

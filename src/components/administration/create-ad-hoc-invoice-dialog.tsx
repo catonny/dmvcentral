@@ -281,7 +281,7 @@ export function CreateAdHocInvoiceDialog({
                                 <Button variant="outline" className="w-full justify-start">{assignedTo.length > 0 ? `${assignedTo.length} selected` : "Select employees..."}</Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-full p-0">
-                                <Command shouldFilter={false}>
+                                <Command>
                                     <CommandInput placeholder="Search..." />
                                     <CommandList>
                                         <CommandEmpty>No results found.</CommandEmpty>

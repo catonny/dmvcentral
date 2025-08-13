@@ -18,13 +18,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Invoice, Firm } from "@/lib/data";
+import type { Invoice, Firm, Client } from "@/lib/data";
+import Papa from "papaparse";
 
 export default function InvoicesReportPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [firms, setFirms] = React.useState<Firm[]>([]);
+  const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
   const [loading, setLoading] = React.useState(true);
   const [filteredInvoices, setFilteredInvoices] = React.useState<Invoice[]>([]);
 
@@ -47,10 +49,15 @@ export default function InvoicesReportPage() {
     const unsubFirms = onSnapshot(collection(db, "firms"), (snapshot) => {
         setFirms(snapshot.docs.map(doc => doc.data() as Firm));
     });
+    
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+        setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
+    });
 
     return () => {
         unsubInvoices();
         unsubFirms();
+        unsubClients();
     };
   }, [toast]);
   
@@ -71,6 +78,31 @@ export default function InvoicesReportPage() {
       setFilteredInvoices(filtered);
 
   }, [invoices, selectedFirmId, date]);
+
+  const handleExport = () => {
+    const dataToExport = filteredInvoices.map(invoice => ({
+        "Invoice Number": invoice.invoiceNumber,
+        "Issue Date": format(parseISO(invoice.issueDate), 'yyyy-MM-dd'),
+        "Client Name": clients.get(invoice.clientId)?.name || invoice.clientId,
+        "Client GSTN": clients.get(invoice.clientId)?.gstin || 'N/A',
+        "Firm Name": firms.find(f => f.id === invoice.firmId)?.name || 'N/A',
+        "Status": invoice.status,
+        "Sub Total": invoice.subTotal,
+        "Discount": invoice.totalDiscount,
+        "Taxable Amount": invoice.taxableAmount,
+        "Total Tax": invoice.totalTax,
+        "Total Amount": invoice.totalAmount,
+    }));
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `invoice_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Exported!", description: "The invoice report has been downloaded as a CSV file." });
+  }
 
 
   return (
@@ -141,7 +173,7 @@ export default function InvoicesReportPage() {
                         <Button variant="outline" className="w-full" onClick={() => setDate({from: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1), to: new Date()})}>This Quarter</Button>
                     </div>
                      <div className="flex justify-end col-span-full lg:col-span-1">
-                        <Button disabled>
+                        <Button onClick={handleExport} disabled={filteredInvoices.length === 0}>
                             <Download className="mr-2 h-4 w-4" />
                             Export to CSV
                         </Button>
@@ -167,7 +199,7 @@ export default function InvoicesReportPage() {
                                      <TableRow key={invoice.id}>
                                          <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                                          <TableCell>{format(parseISO(invoice.issueDate), 'dd MMM, yyyy')}</TableCell>
-                                         <TableCell>{invoice.clientName}</TableCell>
+                                         <TableCell>{clients.get(invoice.clientId)?.name || 'Unknown'}</TableCell>
                                          <TableCell>{invoice.status}</TableCell>
                                          <TableCell className="text-right font-mono">₹{invoice.totalAmount.toFixed(2)}</TableCell>
                                      </TableRow>
