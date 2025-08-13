@@ -121,4 +121,10 @@ body {
     .widget-drag-handle {
         @apply cursor-grab;
     }
+    /* Style for Google Calendar events */
+    .gcal-event {
+        background-color: hsla(120, 39%, 49%, 0.7) !important; /* Muted Green with opacity */
+        border-color: hsl(var(--accent)) !important;
+        color: hsl(var(--accent-foreground)) !important;
+    }
 }

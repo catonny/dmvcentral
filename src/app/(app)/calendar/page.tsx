@@ -11,17 +11,78 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { CalendarEvent, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { EventDialog } from "@/components/calendar/event-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+
+// Helper to check for "google" scope
+async function hasGoogleCalendarScope() {
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    // This is a simplified check. In a real app, you'd inspect the OAuth access token.
+    // For this environment, we'll assume if they can get a provider data, they have some scope.
+    // A more robust check is needed for production.
+    const googleProvider = user.providerData.find(p => p.providerId === GoogleAuthProvider.PROVIDER_ID);
+    return !!googleProvider;
+}
+
+// A simplified, client-side fetch for Google Calendar events
+async function fetchGoogleCalendarEvents() {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not signed in");
+
+    // Re-authenticate with Google to ensure we have the necessary permissions
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/calendar.readonly");
+    
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential?.accessToken) {
+            throw new Error("Could not get access token.");
+        }
+        const accessToken = credential.accessToken;
+        
+        const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error.message || "Failed to fetch Google Calendar events.");
+        }
+
+        const data = await response.json();
+        return data.items.map((item: any) => ({
+            id: `gcal-${item.id}`,
+            title: item.summary,
+            start: item.start.dateTime || item.start.date,
+            end: item.end.dateTime || item.end.date,
+            allDay: !item.start.dateTime,
+            classNames: ['gcal-event'], // For custom styling
+            editable: false,
+        }));
+
+    } catch (error) {
+        console.error("Error fetching Google Calendar events:", error);
+        throw error;
+    }
+}
+
 
 export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
+  const [googleEvents, setGoogleEvents] = React.useState<any[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [isSyncing, setIsSyncing] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEventInfo, setSelectedEventInfo] = React.useState<any>(null);
   const [view, setView] = React.useState("team");
@@ -58,12 +119,14 @@ export default function CalendarPage() {
     };
   }, [toast]);
   
-  const filteredEvents = React.useMemo(() => {
+  const combinedEvents = React.useMemo(() => {
+      let filteredInternalEvents = events;
       if (view === 'personal' && currentUserEmployee) {
-          return events.filter(event => event.attendees?.includes(currentUserEmployee.id));
+          filteredInternalEvents = events.filter(event => event.attendees?.includes(currentUserEmployee.id));
       }
-      return events;
-  }, [view, events, currentUserEmployee]);
+      return [...filteredInternalEvents, ...googleEvents];
+  }, [view, events, googleEvents, currentUserEmployee]);
+
 
   const handleDateClick = (arg: any) => {
     setSelectedEventInfo({
@@ -75,6 +138,14 @@ export default function CalendarPage() {
   };
 
   const handleEventClick = (arg: any) => {
+    if (arg.event.id.startsWith('gcal-')) {
+        // It's a Google Calendar event, just show basic info
+        toast({
+            title: arg.event.title,
+            description: `This is a read-only event from your Google Calendar.`,
+        });
+        return;
+    }
     const event = events.find(e => e.id === arg.event.id);
     if (event) {
         setSelectedEventInfo(event);
@@ -151,6 +222,19 @@ export default function CalendarPage() {
     }
   }
 
+  const handleSyncGoogleCalendar = async () => {
+    setIsSyncing(true);
+    try {
+        const gcalEvents = await fetchGoogleCalendarEvents();
+        setGoogleEvents(gcalEvents);
+        toast({ title: "Sync Complete", description: `Fetched ${gcalEvents.length} events from your Google Calendar.` });
+    } catch (error: any) {
+        toast({ title: "Sync Failed", description: error.message || "Could not sync with Google Calendar.", variant: "destructive" });
+    } finally {
+        setIsSyncing(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -168,16 +252,22 @@ export default function CalendarPage() {
             View and manage shared events, deadlines, and meetings for the team.
           </p>
         </div>
-        <Tabs value={view} onValueChange={setView} className="w-[400px]">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="team">Team View</TabsTrigger>
-                <TabsTrigger value="personal">My Calendar</TabsTrigger>
-            </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-4">
+             <Button variant="outline" onClick={handleSyncGoogleCalendar} disabled={isSyncing}>
+                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Sync with Google
+            </Button>
+            <Tabs value={view} onValueChange={setView} className="w-[400px]">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="team">Team View</TabsTrigger>
+                    <TabsTrigger value="personal">My Calendar</TabsTrigger>
+                </TabsList>
+            </Tabs>
+        </div>
       </div>
       <div className="flex-grow">
         <FullCalendar
-          key={view} // Re-render the calendar when the view changes
+          key={`${view}-${googleEvents.length}`} // Re-render the calendar when the view or events change
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           headerToolbar={{
             left: "prev,next today",
@@ -190,7 +280,7 @@ export default function CalendarPage() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
-          events={filteredEvents}
+          events={combinedEvents}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventChange={handleEventChange}
