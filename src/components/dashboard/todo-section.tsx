@@ -220,7 +220,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
 
         const cursorPos = e.target.selectionStart;
         const textBeforeCursor = text.slice(0, cursorPos);
-        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+        const mentionMatch = textBeforeCursor.match(/(?:\s|^)@(\w*)$/);
 
         if (mentionMatch) {
             setMentionQuery(mentionMatch[1].toLowerCase());
@@ -428,5 +428,3 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         </>
     );
 }
-
-    
