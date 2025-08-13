@@ -163,7 +163,6 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
             type: 'EVENT_CREATED',
             user: currentUserEmployee,
             details: { eventName: formData.title },
-            clientId: 'general',
         });
         await notify({
             recipients: formData.attendees || [],
@@ -273,7 +272,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
   }
 
   const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
-  const canEdit = !formData.id || formData.createdBy === currentUserEmployee?.id;
+  const isGoogleEvent = formData.id?.startsWith('gcal-');
+  const canEdit = !isGoogleEvent && (!formData.id || formData.createdBy === currentUserEmployee?.id || formData.createdBy === 'google_sync');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

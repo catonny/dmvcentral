@@ -6,7 +6,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { CalendarEvent, Employee } from "@/lib/data";
@@ -17,6 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+
+// Abridged list of IANA timezones for the selector
+const timezones = [
+    "UTC",
+    "Asia/Kolkata",
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "Europe/London",
+    "Europe/Paris",
+    "Asia/Tokyo",
+    "Australia/Sydney"
+];
 
 // Helper to check for "google" scope
 async function hasGoogleCalendarScope() {
@@ -31,9 +45,8 @@ async function hasGoogleCalendarScope() {
 }
 
 // A simplified, client-side fetch for Google Calendar events
-async function fetchGoogleCalendarEvents() {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Not signed in");
+async function fetchGoogleCalendarEvents(currentUser: Employee) {
+    if (!currentUser) throw new Error("Not signed in");
 
     // Re-authenticate with Google to ensure we have the necessary permissions
     const provider = new GoogleAuthProvider();
@@ -57,14 +70,18 @@ async function fetchGoogleCalendarEvents() {
         }
 
         const data = await response.json();
-        return data.items.map((item: any) => ({
-            id: `gcal-${item.id}`,
+        
+        return data.items.map((item: any): Partial<CalendarEvent> => ({
+            id: `gcal-${item.id}`, // Unique ID for our system
             title: item.summary,
             start: item.start.dateTime || item.start.date,
             end: item.end.dateTime || item.end.date,
             allDay: !item.start.dateTime,
-            classNames: ['gcal-event'], // For custom styling
-            editable: false,
+            description: item.description || '',
+            location: item.location || '',
+            attendees: [currentUser.id], // Assign to current user
+            createdBy: 'google_sync',
+            timezone: item.start.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         }));
 
     } catch (error) {
@@ -78,7 +95,6 @@ export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
-  const [googleEvents, setGoogleEvents] = React.useState<any[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -119,13 +135,15 @@ export default function CalendarPage() {
     };
   }, [toast]);
   
-  const combinedEvents = React.useMemo(() => {
-      let filteredInternalEvents = events;
-      if (view === 'personal' && currentUserEmployee) {
-          filteredInternalEvents = events.filter(event => event.attendees?.includes(currentUserEmployee.id));
+  const filteredEvents = React.useMemo(() => {
+      if (view === 'team') {
+          return events;
       }
-      return [...filteredInternalEvents, ...googleEvents];
-  }, [view, events, googleEvents, currentUserEmployee]);
+      if (view === 'personal' && currentUserEmployee) {
+          return events.filter(event => event.attendees?.includes(currentUserEmployee.id));
+      }
+      return [];
+  }, [view, events, currentUserEmployee]);
 
 
   const handleDateClick = (arg: any) => {
@@ -138,14 +156,6 @@ export default function CalendarPage() {
   };
 
   const handleEventClick = (arg: any) => {
-    if (arg.event.id.startsWith('gcal-')) {
-        // It's a Google Calendar event, just show basic info
-        toast({
-            title: arg.event.title,
-            description: `This is a read-only event from your Google Calendar.`,
-        });
-        return;
-    }
     const event = events.find(e => e.id === arg.event.id);
     if (event) {
         setSelectedEventInfo(event);
@@ -155,6 +165,11 @@ export default function CalendarPage() {
 
   const handleEventChange = async (arg: any) => {
     const { event } = arg;
+    if (event.id.startsWith('gcal-')) {
+        toast({ title: "Read Only", description: "Google Calendar events cannot be moved within this app.", variant: "destructive"});
+        arg.revert();
+        return;
+    }
     const eventRef = doc(db, "events", event.id);
     try {
         await updateDoc(eventRef, {
@@ -223,11 +238,32 @@ export default function CalendarPage() {
   }
 
   const handleSyncGoogleCalendar = async () => {
+    if (!currentUserEmployee) return;
     setIsSyncing(true);
     try {
-        const gcalEvents = await fetchGoogleCalendarEvents();
-        setGoogleEvents(gcalEvents);
-        toast({ title: "Sync Complete", description: `Fetched ${gcalEvents.length} events from your Google Calendar.` });
+        const gcalEvents = await fetchGoogleCalendarEvents(currentUserEmployee);
+        
+        const batch = writeBatch(db);
+        let newEventsCount = 0;
+        
+        // Get existing event IDs to prevent duplicates
+        const existingEventIds = new Set(events.map(e => e.id));
+
+        gcalEvents.forEach(gcalEvent => {
+            if (gcalEvent.id && !existingEventIds.has(gcalEvent.id)) {
+                const eventRef = doc(db, "events", gcalEvent.id);
+                batch.set(eventRef, gcalEvent);
+                newEventsCount++;
+            }
+        });
+        
+        if (newEventsCount > 0) {
+            await batch.commit();
+            toast({ title: "Sync Complete", description: `Imported ${newEventsCount} new events from your Google Calendar.` });
+        } else {
+             toast({ title: "Sync Complete", description: `No new events found to import.` });
+        }
+
     } catch (error: any) {
         toast({ title: "Sync Failed", description: error.message || "Could not sync with Google Calendar.", variant: "destructive" });
     } finally {
@@ -267,7 +303,7 @@ export default function CalendarPage() {
       </div>
       <div className="flex-grow">
         <FullCalendar
-          key={`${view}-${googleEvents.length}`} // Re-render the calendar when the view or events change
+          key={`${view}-${events.length}`} // Re-render the calendar when the view or events change
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           headerToolbar={{
             left: "prev,next today",
@@ -280,7 +316,7 @@ export default function CalendarPage() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
-          events={combinedEvents}
+          events={filteredEvents.map(event => ({...event, classNames: event.id.startsWith('gcal-') ? ['gcal-event'] : []}))}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventChange={handleEventChange}
