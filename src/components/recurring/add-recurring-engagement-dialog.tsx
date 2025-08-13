@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -37,6 +38,8 @@ const recurringEngagementSchema = z.object({
   isActive: z.boolean().default(true),
   assignedTo: z.array(z.string()).min(1, "At least one assignee is required."),
   reportedTo: z.string().min(1, "A reporter is required."),
+  dueDateDay: z.coerce.number().min(1, "Day must be between 1 and 31").max(31, "Day must be between 1 and 31"),
+  dueDateMonth: z.coerce.number().optional(),
 });
 
 type FormData = z.infer<typeof recurringEngagementSchema>;
@@ -49,6 +52,13 @@ interface AddRecurringEngagementDialogProps {
   engagementTypes: EngagementType[];
   employees: Employee[];
 }
+
+const months = [
+    { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
+    { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
+    { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
+    { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" },
+];
 
 export function AddRecurringEngagementDialog({
   isOpen,
@@ -77,6 +87,8 @@ export function AddRecurringEngagementDialog({
   });
 
   const selectedClientId = watch("clientId");
+  const selectedEngagementTypeId = watch("engagementTypeId");
+  const selectedEngagementType = engagementTypes.find(et => et.id === selectedEngagementTypeId);
 
   React.useEffect(() => {
     if (selectedClientId) {
@@ -142,6 +154,32 @@ export function AddRecurringEngagementDialog({
             />
             {errors.engagementTypeId && <p className="text-sm text-destructive">{errors.engagementTypeId.message}</p>}
           </div>
+          
+           <div className="grid grid-cols-2 gap-4">
+               <div className="grid gap-2">
+                    <Label>Due Day of Month</Label>
+                    <Input type="number" {...register("dueDateDay")} placeholder="e.g., 20" />
+                    {errors.dueDateDay && <p className="text-sm text-destructive">{errors.dueDateDay.message}</p>}
+                </div>
+                {selectedEngagementType?.recurrence === 'Yearly' && (
+                     <div className="grid gap-2">
+                        <Label>Due Month</Label>
+                         <Controller
+                            name="dueDateMonth"
+                            control={control}
+                            render={({ field }) => (
+                                <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value || '')}>
+                                <SelectTrigger><SelectValue placeholder="Select month..." /></SelectTrigger>
+                                <SelectContent>
+                                    {months.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            )}
+                            />
+                        {errors.dueDateMonth && <p className="text-sm text-destructive">{errors.dueDateMonth.message}</p>}
+                    </div>
+                )}
+           </div>
 
           <div className="grid gap-2">
             <Label>Assign To</Label>

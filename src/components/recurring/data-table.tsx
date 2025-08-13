@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -39,11 +40,13 @@ const EditableCell = ({
   row: { original },
   column: { id },
   onUpdate,
+  type = "number"
 }: {
   getValue: () => any;
   row: { original: RecurringEngagement };
   column: { id: string };
   onUpdate: (id: string, field: keyof RecurringEngagement, value: any, originalValue?: any) => void;
+  type?: "number" | "text";
 }) => {
   const initialValue = getValue();
   const [value, setValue] = React.useState(initialValue);
@@ -61,9 +64,9 @@ const EditableCell = ({
 
   return (
     <Input
-      type="number"
+      type={type}
       value={value}
-      onChange={(e) => setValue(Number(e.target.value))}
+      onChange={(e) => setValue(type === 'number' ? Number(e.target.value) : e.target.value)}
       className="w-24"
     />
   );
@@ -103,6 +106,11 @@ export function RecurringEngagementsTable({ data, clients, engagementTypes, onUp
     {
       accessorKey: "recurrence",
       header: "Recurrence",
+    },
+    {
+      accessorKey: "dueDateDay",
+      header: "Due Day",
+      cell: (props) => <EditableCell {...props} onUpdate={onUpdate} />,
     },
     {
       accessorKey: "fees",

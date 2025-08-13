@@ -164,6 +164,8 @@ export interface RecurringEngagement {
   assignedTo: string[];
   reportedTo: string;
   lastGeneratedDate?: string;
+  dueDateDay: number; // Day of the month (1-31)
+  dueDateMonth?: number; // Month of the year (1-12), for yearly recurrences
 }
 
 export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK';
