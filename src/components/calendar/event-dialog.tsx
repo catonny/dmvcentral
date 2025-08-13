@@ -20,7 +20,7 @@ import { CalendarEvent, Employee } from "@/lib/data";
 import { User } from "firebase/auth";
 import { format, parse, parseISO, setHours, setMinutes, setSeconds } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Check, ChevronsUpDown, Globe, Video } from "lucide-react";
+import { Check, ChevronsUpDown, Globe, Loader2, Video } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
@@ -83,7 +83,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         attendees: eventInfo.attendees || (isNew && currentUserEmployee ? [currentUserEmployee.id] : []),
         location: eventInfo.location || "",
         engagementId: eventInfo.engagementId || undefined,
-        createdBy: eventInfo.createdBy || (isNew ? currentUser?.uid : undefined),
+        createdBy: eventInfo.createdBy || (isNew && currentUserEmployee ? currentUserEmployee.id : undefined),
         timezone: eventInfo.timezone || (isNew ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'),
       });
 
@@ -213,7 +213,8 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     }
   }
 
-  const canEdit = !formData.id || formData.createdBy === currentUser?.uid;
+  const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
+  const canEdit = !formData.id || formData.createdBy === currentUserEmployee?.id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -315,7 +316,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
            <div className="grid gap-2">
             <div className="flex justify-between items-center">
                 <Label htmlFor="location">Location / Link</Label>
-                {canEdit && <Button variant="outline" size="sm" onClick={handleCreateMeet} disabled={isCreatingMeet}><Video className="mr-2 h-4 w-4"/>Create Google Meet</Button>}
+                {canEdit && <Button variant="outline" size="sm" onClick={handleCreateMeet} disabled={isCreatingMeet}>{isCreatingMeet ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Video className="mr-2 h-4 w-4"/>}Create Google Meet</Button>}
             </div>
             <Input
               id="location"
@@ -382,4 +383,3 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     </Dialog>
   );
 }
-

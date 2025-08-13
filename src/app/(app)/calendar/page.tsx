@@ -85,7 +85,7 @@ export default function CalendarPage() {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEventInfo, setSelectedEventInfo] = React.useState<any>(null);
-  const [view, setView] = React.useState("team");
+  const [view, setView] = React.useState("personal");
 
   React.useEffect(() => {
     if (user) {
