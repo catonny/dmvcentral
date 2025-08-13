@@ -6,7 +6,7 @@ import type { Client, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Check, ChevronDown, Edit, Loader2, MoreHorizontal, PlusCircle, Send, Trash2, User, Users } from "lucide-react";
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, logActivity } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -81,11 +81,12 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         const mentions = newTodoText.match(/@(\w+)/g)?.map(m => m.substring(1)) || [];
         const assignedToIds = new Set([currentUser.id]);
         
-        mentions.forEach(mentionName => {
-            const employee = allEmployees.find(e => e.name.toLowerCase().replace(/\s/g, '') === mentionName.toLowerCase());
-            if (employee) {
-                assignedToIds.add(employee.id);
-            }
+        const mentionedEmployees = allEmployees.filter(e => 
+            mentions.some(mentionName => e.name.toLowerCase().replace(/\s/g, '') === mentionName.toLowerCase())
+        );
+
+        mentionedEmployees.forEach(employee => {
+            assignedToIds.add(employee.id);
         });
 
         try {
@@ -100,6 +101,22 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                 createdAt: new Date().toISOString(),
             };
             await setDoc(newTodoRef, newTodo);
+
+            // Log activity for each mentioned user
+            for (const mentioned of mentionedEmployees) {
+                if (mentioned.id !== currentUser.id) { // Don't log self-mentions
+                     await logActivity({
+                        clientId: 'general', // Or determine a client context if possible
+                        type: 'MENTIONED_IN_NOTE',
+                        user: currentUser,
+                        details: {
+                            noteText: newTodoText.substring(0, 50) + "..." // Truncate for brevity
+                        }
+                    });
+                }
+            }
+
+
             toast({ title: "To-Do Added" });
             setNewTodoText("");
         } catch (error) {
@@ -220,7 +237,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
 
         const cursorPos = e.target.selectionStart;
         const textBeforeCursor = text.slice(0, cursorPos);
-        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+        const mentionMatch = textBeforeCursor.match(/(?:\s|^)@(\w*)$/);
 
         if (mentionMatch) {
             setMentionQuery(mentionMatch[1].toLowerCase());
@@ -285,7 +302,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                                 />
                             </PopoverTrigger>
                             <PopoverContent className="w-[300px] p-0" align="start">
-                                <Command>
+                                <Command shouldFilter={false}>
                                     <CommandInput placeholder="Search employee..." value={mentionQuery || ''} onValueChange={setMentionQuery} />
                                     <CommandList>
                                         <CommandEmpty>No employee found.</CommandEmpty>

@@ -226,21 +226,23 @@ export type ActivityLogType =
     | 'DUE_DATE_CHANGED'
     | 'ASSIGNEE_CHANGED'
     | 'REMARKS_CHANGED'
-    | 'TASK_COMPLETED';
+    | 'TASK_COMPLETED'
+    | 'MENTIONED_IN_NOTE';
 
 export interface ActivityLog {
     id: string;
-    engagementId: string;
+    engagementId?: string; // Optional, as some activities might not be engagement-specific
     clientId: string;
     type: ActivityLogType;
     timestamp: string; // ISO 8601
     userId: string; // Employee ID of who performed the action
     userName: string; // Name of the employee for easy display
     details: {
-        engagementName: string;
+        engagementName?: string;
         from?: string;
         to?: string;
         taskName?: string;
+        noteText?: string;
     };
 }
 

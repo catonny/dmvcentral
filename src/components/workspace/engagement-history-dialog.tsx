@@ -13,7 +13,7 @@ import type { Employee, EngagementType, ActivityLog } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { Badge } from "../ui/badge";
-import { GitCommit, History, MessageSquare, Calendar, CheckSquare, Pencil, User, FilePlus, UserPlus } from "lucide-react";
+import { GitCommit, History, MessageSquare, Calendar, CheckSquare, Pencil, User, FilePlus, UserPlus, AtSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -37,6 +37,7 @@ const activityIcons: { [key: string]: React.ElementType } = {
     DUE_DATE_CHANGED: Calendar,
     ASSIGNEE_CHANGED: UserPlus,
     REMARKS_CHANGED: Pencil,
+    MENTIONED_IN_NOTE: AtSign,
 };
 
 const ActivityItem = ({ activity }: { activity: ActivityLog }) => {
@@ -62,6 +63,9 @@ const ActivityItem = ({ activity }: { activity: ActivityLog }) => {
         case 'REMARKS_CHANGED':
              content = <><span className="font-semibold">{activity.userName}</span> updated the remarks for an engagement.</>;
              break;
+        case 'MENTIONED_IN_NOTE':
+            content = <><span className="font-semibold">{activity.userName}</span> mentioned you in a note: "{activity.details.noteText}"</>;
+            break;
         default:
             content = <><span className="font-semibold">{activity.userName}</span> performed an action on <span className="font-semibold text-primary">{activity.details.engagementName}</span></>;
     }

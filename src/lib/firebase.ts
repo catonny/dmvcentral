@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, doc, setDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
-import type { ActivityLogType, Employee, Engagement } from "./data";
+import type { ActivityLogType, Client, Employee, Engagement, Todo } from "./data";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -28,29 +28,32 @@ if (typeof window !== 'undefined') {
 }
 
 interface LogActivityOptions {
-    engagement: Engagement;
+    engagement?: Engagement;
+    clientId: string;
     type: ActivityLogType;
     user: Employee;
     details: {
+        engagementName?: string;
         from?: string;
         to?: string;
         taskName?: string;
+        noteText?: string;
     };
 }
 
-export const logActivity = async ({ engagement, type, user, details }: LogActivityOptions) => {
+export const logActivity = async ({ engagement, clientId, type, user, details }: LogActivityOptions) => {
     try {
         const logRef = doc(collection(db, 'activityLog'));
         await setDoc(logRef, {
             id: logRef.id,
-            engagementId: engagement.id,
-            clientId: engagement.clientId,
+            engagementId: engagement?.id,
+            clientId: clientId,
             type,
             timestamp: new Date().toISOString(),
             userId: user.id,
             userName: user.name,
             details: {
-                engagementName: engagement.remarks,
+                engagementName: engagement?.remarks || details.engagementName,
                 ...details,
             },
         });
