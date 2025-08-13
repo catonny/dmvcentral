@@ -73,7 +73,7 @@ async function fetchGoogleCalendarEvents(currentUser: Employee) {
         
         return data.items.map((item: any): Partial<CalendarEvent> => ({
             id: `gcal-${item.id}`, // Unique ID for our system
-            title: item.summary,
+            title: item.summary || '(No Title)',
             start: item.start.dateTime || item.start.date,
             end: item.end.dateTime || item.end.date,
             allDay: !item.start.dateTime,
