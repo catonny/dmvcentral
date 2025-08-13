@@ -57,6 +57,21 @@ const timezones = [
     "Australia/Sydney"
 ];
 
+// Helper to store form state temporarily
+const saveStateToSession = (state: any) => {
+    sessionStorage.setItem('eventDialogState', JSON.stringify(state));
+};
+
+const loadStateFromSession = () => {
+    const savedState = sessionStorage.getItem('eventDialogState');
+    if (savedState) {
+        sessionStorage.removeItem('eventDialogState');
+        return JSON.parse(savedState);
+    }
+    return null;
+};
+
+
 export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, employees, currentUser }: EventDialogProps) {
   const [formData, setFormData] = React.useState<Partial<CalendarEvent>>({});
   const [startTime, setStartTime] = React.useState({ hour: '09', minute: '00', period: 'AM' });
@@ -66,6 +81,14 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
 
 
   React.useEffect(() => {
+    const savedState = loadStateFromSession();
+    if (savedState) {
+      setFormData(savedState.formData);
+      setStartTime(savedState.startTime);
+      setEndTime(savedState.endTime);
+      return;
+    }
+
     if (eventInfo) {
       const isNew = !eventInfo.id;
       const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
@@ -153,6 +176,10 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         toast({ title: "Missing Information", description: "Please provide a title and start/end times before creating a meeting.", variant: "destructive" });
         return;
     }
+
+    // Save state before initiating auth flow
+    saveStateToSession({ formData, startTime, endTime });
+
     setIsCreatingMeet(true);
 
     const provider = new GoogleAuthProvider();
