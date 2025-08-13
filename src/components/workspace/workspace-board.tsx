@@ -2,208 +2,165 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, where, onSnapshot, getDocs, orderBy, writeBatch, doc } from "firebase/firestore";
-import type { Client, Engagement, Employee, Department, Task, EngagementType } from "@/lib/data";
-import { db, logActivity } from "@/lib/firebase";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSensors, PointerSensor, closestCenter, Active } from "@dnd-kit/core";
+import { arrayMove, SortableContext } from "@dnd-kit/sortable";
+import { doc, updateDoc, writeBatch, getDocs, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
-import { Loader2, PlusCircle } from "lucide-react";
-import { WorkspaceBoard } from "@/components/workspace/workspace-board";
-import { Button } from "@/components/ui/button";
-import { AddTaskDialog } from "@/components/workspace/add-task-dialog";
+import type { Task, Client, Employee, TaskStatus, Engagement, Department, EngagementType } from "@/lib/data";
+import { DepartmentColumn } from "./department-column";
+import { EngagementCard } from "./engagement-card";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { ScheduleMeetingDialog } from "./schedule-meeting-dialog";
+import { EngagementListItem } from "./engagement-list-item";
 
+interface WorkspaceBoardProps {
+    allEngagements: Engagement[];
+    allEmployees: Employee[];
+    allDepartments: Department[];
+    engagementTypes: EngagementType[];
+    clientMap: Map<string, Client>;
+    currentUser: Employee | null;
+}
 
-export default function WorkspacePage() {
-  const [allEngagements, setAllEngagements] = React.useState<Engagement[]>([]);
-  const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
-  const [allClients, setAllClients] = React.useState<Client[]>([]);
-  const [employees, setEmployees] = React.useState<Employee[]>([]);
-  const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
-  const [departments, setDepartments] = React.useState<Department[]>([]);
-  const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, engagementTypes, clientMap, currentUser }: WorkspaceBoardProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
-  
+  const [engagements, setEngagements] = React.useState(allEngagements);
+  const [activeEngagement, setActiveEngagement] = React.useState<Engagement | null>(null);
+  const [isMeetingDialogOpen, setIsMeetingDialogOpen] = React.useState(false);
+  const [selectedEngagementForMeeting, setSelectedEngagementForMeeting] = React.useState<Engagement | null>(null);
+
   React.useEffect(() => {
-    if (!user) return;
-    setLoading(true);
+    setEngagements(allEngagements);
+  }, [allEngagements]);
 
-    const fetchInitialData = async () => {
-      try {
-        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-        const employeeSnapshot = await getDocs(employeeQuery);
-
-        if (employeeSnapshot.empty) {
-            setLoading(false);
-            return;
-        }
-        
-        const employeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-        setCurrentUserEmployee(employeeProfile);
-
-        const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
-            setClients(new Map(snapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client])));
-            setAllClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
-        }, (error) => handleError(error, "clients"));
-
-        const allEmployeesUnsub = onSnapshot(collection(db, "employees"), (snapshot) => {
-          setEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)))
-        }, (error) => handleError(error, "employees"));
-        
-        const deptsUnsub = onSnapshot(query(collection(db, "departments"), orderBy("order")), (snapshot) => {
-          setDepartments(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Department)))
-        }, (error) => handleError(error, "departments"));
-
-        const engagementTypesUnsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
-          setEngagementTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType)));
-        }, (error) => handleError(error, "engagement types"));
-
-        const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-        const engagementsQuery = query(collection(db, "engagements"), where("status", "in", activeStatuses));
-        const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-            const engagementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-            setAllEngagements(engagementsData);
-            setLoading(false);
-        }, (error) => {
-            handleError(error, "engagements");
-            setLoading(false);
-        });
-
-        return () => {
-            clientsUnsub();
-            engagementsUnsub();
-            allEmployeesUnsub();
-            deptsUnsub();
-            engagementTypesUnsub();
-        };
-
-      } catch (error) {
-        handleError(error as Error, "initial data");
-        setLoading(false);
-      }
-    };
-    
-    const handleError = (error: Error, type: string) => {
-      console.error(`Error fetching ${type}:`, error);
-      toast({ title: "Error", description: `Could not fetch ${type}.`, variant: "destructive" });
-    };
-
-    fetchInitialData();
-  }, [user, toast]);
+  const employeeMap = React.useMemo(() => new Map(allEmployees.map(e => [e.id, e])), [allEmployees]);
   
-  const handleAddTask = async (data: any, client?: Client, reporterId?: string, engagementId?: string) => {
-        if (!currentUserEmployee) {
-             toast({ title: "Error", description: "Could not identify current user.", variant: "destructive" });
-             return;
-        }
-        try {
-            const batch = writeBatch(db);
-            let engagementTypeId = data.type;
-            const engagementTypeIsExisting = engagementTypes.some(et => et.id === engagementTypeId);
-            const engagementDocRef = engagementId ? doc(db, 'engagements', engagementId) : doc(collection(db, 'engagements'));
+  const sensors = useSensors(useSensor(PointerSensor));
 
-            // Handle new template creation
-            if (data.saveAsTemplate && data.templateName && !engagementTypeIsExisting) {
-                const newTypeRef = doc(collection(db, 'engagementTypes'));
-                engagementTypeId = newTypeRef.id;
-                const newEngagementType: EngagementType = {
-                    id: newTypeRef.id,
-                    name: data.templateName,
-                    description: data.remarks.substring(0, 100),
-                    subTaskTitles: ["Task 1", "Task 2", "Task 3"]
-                };
-                batch.set(newTypeRef, newEngagementType);
-                toast({ title: "Template Created", description: `New workflow template "${data.templateName}" was created.` });
-            }
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const engagement = engagements.find(e => e.id === active.id);
+    if (engagement) {
+        setActiveEngagement(engagement);
+    }
+  };
 
-            const newEngagementData: Engagement = {
-                id: engagementDocRef.id,
-                remarks: data.remarks,
-                clientId: data.clientId,
-                type: engagementTypeId,
-                assignedTo: data.assignedTo,
-                reportedTo: reporterId || "", 
-                status: 'Pending',
-                dueDate: data.dueDate.toISOString()
-            };
-            batch.set(engagementDocRef, newEngagementData);
-            
-            await logActivity({
-                engagement: newEngagementData,
-                type: 'CREATE_ENGAGEMENT',
-                user: currentUserEmployee,
-                details: {}
-            });
-            
-            const engagementType = engagementTypes.find(et => et.id === engagementTypeId);
-            const subTaskTitles = engagementType?.subTaskTitles || (data.saveAsTemplate ? ["Task 1", "Task 2", "Task 3"] : []);
-            
-            subTaskTitles.forEach((title, index) => {
-                const taskDocRef = doc(collection(db, 'tasks'));
-                const newTask: Task = {
-                    id: taskDocRef.id,
-                    engagementId: engagementDocRef.id,
-                    title,
-                    status: 'Pending',
-                    order: index + 1,
-                    assignedTo: data.assignedTo[0] || currentUserEmployee.id,
-                };
-                batch.set(taskDocRef, newTask);
-            });
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveEngagement(null);
 
-            await batch.commit();
-            
-            toast({ title: "Engagement Added", description: `New engagement and its tasks have been created.` });
-            setIsDialogOpen(false);
-        } catch (error) {
-            console.error("Error adding engagement:", error);
-            toast({ title: "Error", description: "Failed to add the new engagement.", variant: "destructive" });
-        }
-    };
+    if (!over || active.id === over.id) return;
+    
+    const engagementId = active.id as string;
+    const newAssigneeId = over.id as string;
+    
+    // Find the original engagement to get its current assignees
+    const originalEngagement = allEngagements.find(e => e.id === engagementId);
+    if (!originalEngagement) return;
 
+    const oldAssignees = originalEngagement.assignedTo;
+    
+    // Prevent dropping on an employee who is already assigned
+    if (oldAssignees.includes(newAssigneeId)) return;
 
-  if (loading) {
-    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> Loading Workspace...</div>;
+    const newAssignees = [...oldAssignees, newAssigneeId];
+    
+    // Optimistic update
+    setEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, assignedTo: newAssignees } : e));
+
+    try {
+        const engagementRef = doc(db, "engagements", engagementId);
+        await updateDoc(engagementRef, { assignedTo: newAssignees });
+        toast({
+          title: "Engagement Reassigned",
+          description: `Successfully assigned to ${employeeMap.get(newAssigneeId)?.name}.`,
+        });
+    } catch (error) {
+        setEngagements(allEngagements); // Revert on failure
+        toast({ title: "Error", description: "Failed to reassign engagement.", variant: "destructive" });
+    }
+  };
+  
+  const handleRemoveUser = async (engagementId: string, userIdToRemove: string) => {
+    const engagement = engagements.find(e => e.id === engagementId);
+    if (!engagement) return;
+    
+    const newAssignees = engagement.assignedTo.filter(id => id !== userIdToRemove);
+    setEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, assignedTo: newAssignees } : e));
+
+     try {
+        const engagementRef = doc(db, "engagements", engagementId);
+        await updateDoc(engagementRef, { assignedTo: newAssignees });
+        toast({
+          title: "Assignee Removed",
+          description: `${employeeMap.get(userIdToRemove)?.name} has been removed from the engagement.`,
+        });
+    } catch (error) {
+        setEngagements(allEngagements); // Revert on failure
+        toast({ title: "Error", description: "Failed to remove assignee.", variant: "destructive" });
+    }
+  };
+
+  const handleScheduleMeeting = (engagement: Engagement) => {
+    setSelectedEngagementForMeeting(engagement);
+    setIsMeetingDialogOpen(true);
   }
 
-  if (!currentUserEmployee) {
-    return <div className="flex h-full w-full items-center justify-center">Could not load your user profile.</div>;
-  }
+  const unassignedEngagements = engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0);
 
   return (
-    <div className="flex h-full flex-col">
-       <div className="flex items-center justify-between mb-4">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight font-headline">Workspace</h2>
-                <p className="text-muted-foreground">
-                    Manage your firm's workload and collaborate with your team.
-                </p>
+    <>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex h-full flex-grow overflow-hidden">
+                <ScrollArea className="w-full h-full">
+                    <div className="flex h-full gap-4 pb-4">
+                        <DepartmentColumn 
+                            department={{ id: 'unassigned', name: 'Unassigned', order: 0 }}
+                            employees={[]}
+                            engagements={unassignedEngagements}
+                            engagementTypes={engagementTypes}
+                            clientMap={clientMap}
+                            onScheduleMeeting={handleScheduleMeeting}
+                        />
+
+                        {allDepartments.map(dept => {
+                            const departmentEmployees = allEmployees.filter(emp => emp.role.includes(dept.name));
+                            return (
+                                <DepartmentColumn
+                                    key={dept.id}
+                                    department={dept}
+                                    employees={departmentEmployees}
+                                    engagements={engagements}
+                                    engagementTypes={engagementTypes}
+                                    clientMap={clientMap}
+                                    onScheduleMeeting={handleScheduleMeeting}
+                                />
+                            )
+                        })}
+                    </div>
+                     <ScrollBar orientation="horizontal" />
+                </ScrollArea>
             </div>
-             <Button onClick={() => setIsDialogOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Engagement
-            </Button>
-        </div>
-        <WorkspaceBoard
-            allEngagements={allEngagements}
-            allEmployees={employees}
-            allDepartments={departments}
-            engagementTypes={engagementTypes}
-            clientMap={clients}
-            currentUser={currentUserEmployee}
+            <DragOverlay>
+              {activeEngagement ? (
+                <EngagementCard
+                    engagement={activeEngagement}
+                    client={clientMap.get(activeEngagement.clientId)}
+                    employeeMap={employeeMap}
+                    onRemoveUser={() => {}}
+                    onScheduleMeeting={() => {}}
+                />
+              ) : null}
+            </DragOverlay>
+        </DndContext>
+        <ScheduleMeetingDialog
+            isOpen={isMeetingDialogOpen}
+            onClose={() => setIsMeetingDialogOpen(false)}
+            engagement={selectedEngagementForMeeting}
+            employees={allEmployees}
+            currentUser={currentUser}
         />
-        <AddTaskDialog 
-            isOpen={isDialogOpen}
-            onClose={() => setIsDialogOpen(false)}
-            onSave={handleAddTask}
-            clients={allClients}
-            engagementTypes={engagementTypes}
-            allEmployees={employees}
-            departments={departments}
-            currentUserEmployee={currentUserEmployee}
-        />
-    </div>
+    </>
   );
 }
