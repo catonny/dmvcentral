@@ -20,12 +20,15 @@ import { CalendarEvent, Employee } from "@/lib/data";
 import { User } from "firebase/auth";
 import { format, parse, parseISO, setHours, setMinutes, setSeconds } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Check, ChevronsUpDown, Globe } from "lucide-react";
+import { Check, ChevronsUpDown, Globe, Video } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ScrollArea } from "../ui/scroll-area";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 interface EventDialogProps {
   isOpen: boolean;
@@ -58,6 +61,9 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
   const [formData, setFormData] = React.useState<Partial<CalendarEvent>>({});
   const [startTime, setStartTime] = React.useState({ hour: '09', minute: '00', period: 'AM' });
   const [endTime, setEndTime] = React.useState({ hour: '10', minute: '00', period: 'AM' });
+  const { toast } = useToast();
+  const [isCreatingMeet, setIsCreatingMeet] = React.useState(false);
+
 
   React.useEffect(() => {
     if (eventInfo) {
@@ -141,6 +147,71 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
         return { ...prev, attendees: newAttendees };
     })
   };
+  
+  const handleCreateMeet = async () => {
+    if (!currentUser || !formData.title || !formData.start || !formData.end) {
+        toast({ title: "Missing Information", description: "Please provide a title and start/end times before creating a meeting.", variant: "destructive" });
+        return;
+    }
+    setIsCreatingMeet(true);
+
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/calendar.events");
+    
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const accessToken = credential?.accessToken;
+
+        if (!accessToken) {
+            throw new Error("Could not get access token for Google Calendar.");
+        }
+
+        const event = {
+            'summary': formData.title,
+            'description': formData.description,
+            'start': { 'dateTime': formData.start, 'timeZone': formData.timezone },
+            'end': { 'dateTime': formData.end, 'timeZone': formData.timezone },
+            'attendees': (formData.attendees || []).map(id => ({'email': employees.find(e => e.id === id)?.email})).filter(e => e.email),
+            'conferenceData': {
+                'createRequest': {
+                    'requestId': `dmv-central-${Date.now()}`,
+                    'conferenceSolutionKey': { 'type': 'hangoutsMeet' }
+                }
+            }
+        };
+
+        const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(event)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error.message || 'Failed to create Google Calendar event.');
+        }
+
+        const createdEvent = await response.json();
+        const meetLink = createdEvent.hangoutLink;
+
+        if (meetLink) {
+            setFormData({...formData, location: meetLink });
+            toast({ title: "Success!", description: "Google Meet link created and added to location." });
+        } else {
+             throw new Error("Event created, but no Meet link was returned.");
+        }
+
+    } catch (error: any) {
+        console.error("Error creating Google Meet:", error);
+        toast({ title: "Error", description: `Could not create Google Meet link: ${error.message}`, variant: "destructive"});
+    } finally {
+        setIsCreatingMeet(false);
+    }
+  }
 
   const canEdit = !formData.id || formData.createdBy === currentUser?.uid;
 
@@ -242,7 +313,10 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
             />
           </div>
            <div className="grid gap-2">
-            <Label htmlFor="location">Location / Link</Label>
+            <div className="flex justify-between items-center">
+                <Label htmlFor="location">Location / Link</Label>
+                {canEdit && <Button variant="outline" size="sm" onClick={handleCreateMeet} disabled={isCreatingMeet}><Video className="mr-2 h-4 w-4"/>Create Google Meet</Button>}
+            </div>
             <Input
               id="location"
               value={formData.location}
@@ -308,3 +382,4 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     </Dialog>
   );
 }
+
