@@ -1,10 +1,11 @@
 
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, doc, setDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
-import type { ActivityLogType, Client, Employee, Engagement, Todo } from "./data";
+import type { ActivityLogType, Client, Employee, Engagement, Todo, Notification, NotificationType } from "./data";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -39,6 +40,7 @@ interface LogActivityOptions {
         to?: string;
         taskName?: string;
         noteText?: string;
+        eventName?: string;
     };
 }
 
@@ -48,7 +50,7 @@ export const logActivity = async ({ engagement, clientId, type, user, details }:
         await setDoc(logRef, {
             id: logRef.id,
             engagementId: engagement?.id,
-            clientId: clientId || "general", // Use "general" if clientId is not provided
+            clientId: engagement?.clientId || clientId || "general",
             type,
             timestamp: new Date().toISOString(),
             userId: user.id,
@@ -60,8 +62,38 @@ export const logActivity = async ({ engagement, clientId, type, user, details }:
         });
     } catch (error) {
         console.error("Failed to log activity:", error);
-        // Optionally, you might want to show a non-intrusive error to the user
     }
 }
+
+interface NotifyOptions {
+    recipients: string[]; // User IDs
+    type: NotificationType;
+    text: string;
+    relatedEntity: Notification['relatedEntity'];
+    triggeringUser: Employee;
+}
+
+export const notify = async ({ recipients, type, text, relatedEntity, triggeringUser }: NotifyOptions) => {
+    const uniqueRecipients = new Set(recipients.filter(id => id !== triggeringUser.id)); // Don't notify the user who triggered the action
+
+    for (const userId of uniqueRecipients) {
+        try {
+            const notificationRef = doc(collection(db, "notifications"));
+            const newNotification: Notification = {
+                id: notificationRef.id,
+                userId,
+                type,
+                text,
+                relatedEntity,
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                createdBy: triggeringUser.id,
+            };
+            await setDoc(notificationRef, newNotification);
+        } catch (error) {
+            console.error(`Failed to create notification for user ${userId}:`, error);
+        }
+    }
+};
 
 export { app, db, auth };

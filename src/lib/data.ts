@@ -227,7 +227,8 @@ export type ActivityLogType =
     | 'ASSIGNEE_CHANGED'
     | 'REMARKS_CHANGED'
     | 'TASK_COMPLETED'
-    | 'MENTIONED_IN_NOTE';
+    | 'MENTIONED_IN_NOTE'
+    | 'EVENT_CREATED';
 
 export interface ActivityLog {
     id: string;
@@ -243,6 +244,7 @@ export interface ActivityLog {
         to?: string;
         taskName?: string;
         noteText?: string;
+        eventName?: string;
     };
 }
 
@@ -309,6 +311,25 @@ export interface LeaveRequest {
   status: "Pending" | "Approved" | "Rejected";
   approvedBy?: string; // Employee ID of manager/partner
   createdAt: string; // ISO 8601
+}
+
+export type NotificationType = 
+    | 'STATUS_CHANGE'
+    | 'EVENT_INVITE'
+    | 'MENTIONED_IN_TODO';
+
+export interface Notification {
+    id: string;
+    userId: string; // The user who receives the notification
+    type: NotificationType;
+    text: string;
+    relatedEntity: {
+        type: 'engagement' | 'event' | 'todo';
+        id: string;
+    };
+    isRead: boolean;
+    createdAt: string; // ISO
+    createdBy: string; // User ID of who triggered the notification
 }
 
 

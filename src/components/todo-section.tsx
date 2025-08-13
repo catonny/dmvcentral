@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -6,7 +7,7 @@ import type { Client, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Check, ChevronDown, Edit, Loader2, MoreHorizontal, PlusCircle, Send, Trash2, User, Users } from "lucide-react";
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { db, logActivity } from "@/lib/firebase";
+import { db, logActivity, notify } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -102,20 +103,13 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
             };
             await setDoc(newTodoRef, newTodo);
 
-            // Log activity for each mentioned user
-            for (const mentioned of mentionedEmployees) {
-                if (mentioned.id !== currentUser.id) { // Don't log self-mentions
-                     await logActivity({
-                        clientId: 'general', // Or determine a client context if possible
-                        type: 'MENTIONED_IN_NOTE',
-                        user: currentUser,
-                        details: {
-                            noteText: newTodoText.substring(0, 50) + "..." // Truncate for brevity
-                        }
-                    });
-                }
-            }
-
+            await notify({
+                recipients: Array.from(assignedToIds),
+                type: 'MENTIONED_IN_TODO',
+                text: `${currentUser.name} mentioned you in a to-do: "${newTodoText.substring(0, 30)}..."`,
+                relatedEntity: { type: 'todo', id: newTodo.id },
+                triggeringUser: currentUser,
+            });
 
             toast({ title: "To-Do Added" });
             setNewTodoText("");
@@ -253,7 +247,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         const cursorPos = textareaRef.current?.selectionStart || 0;
         const textBeforeCursor = text.slice(0, cursorPos);
         
-        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+        const mentionMatch = textBeforeCursor.match(/(?:\s|^)@(\w*)$/);
         if (mentionMatch) {
             const mentionStartIndex = mentionMatch.index || 0;
             const newText = 

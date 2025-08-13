@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -26,7 +27,7 @@ import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ScrollArea } from "../ui/scroll-area";
 import { GoogleAuthProvider, reauthenticateWithPopup, signInWithPopup } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, logActivity, notify } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 interface EventDialogProps {
@@ -150,8 +151,28 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     });
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!currentUser) return;
+    const currentUserEmployee = employees.find(e => e.email === currentUser?.email);
+    if (!currentUserEmployee) return;
+
     onSave(formData);
+
+    if (!formData.id) { // Only log and notify for new events
+        await logActivity({
+            type: 'EVENT_CREATED',
+            user: currentUserEmployee,
+            details: { eventName: formData.title },
+            clientId: 'general',
+        });
+        await notify({
+            recipients: formData.attendees || [],
+            type: 'EVENT_INVITE',
+            text: `${currentUserEmployee.name} invited you to the event: "${formData.title}"`,
+            relatedEntity: { type: 'event', id: formData.id! }, // ID will be set by parent onSave
+            triggeringUser: currentUserEmployee,
+        });
+    }
   };
   
   const handleDelete = () => {
@@ -421,5 +442,3 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     </Dialog>
   );
 }
-
-    
