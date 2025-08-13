@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, getDocs, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Employee, Engagement } from "@/lib/data";
+import type { Employee, Engagement, Permission, FeatureName } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 import { WorkloadDistribution } from "@/components/dashboard/workload-distribution";
 
@@ -31,7 +31,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, isDisabled = fals
           <CardDescription className="mt-2">{description}</CardDescription>
         </div>
          <div className="flex flex-col items-end gap-2">
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className={cn("h-5 w-5 text-muted-foreground", !isDisabled && "group-hover:translate-x-1 transition-transform")} />
         </div>
       </div>
     </CardHeader>
@@ -44,6 +44,8 @@ export default function ReportsPage() {
     const [loading, setLoading] = React.useState(true);
     const [engagements, setEngagements] = React.useState<Engagement[]>([]);
     const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
+    const [permissions, setPermissions] = React.useState<Permission[]>([]);
 
     React.useEffect(() => {
         if (authLoading) return;
@@ -51,25 +53,46 @@ export default function ReportsPage() {
             setLoading(false);
             return;
         }
+
+        const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+            setEmployees(snapshot.docs.map(doc => doc.data() as Employee));
+            
+            const currentUserProfile = snapshot.docs.map(doc => doc.data() as Employee).find(e => e.email === user.email);
+            if (currentUserProfile) {
+                setCurrentUserEmployee(currentUserProfile);
+            }
+        });
         
         const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
             setEngagements(snapshot.docs.map(doc => doc.data() as Engagement));
         });
         
-        const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
-            setEmployees(snapshot.docs.map(doc => doc.data() as Employee));
+        const unsubPermissions = onSnapshot(collection(db, "permissions"), (snapshot) => {
+            setPermissions(snapshot.docs.map(doc => doc.data() as Permission));
         });
         
-        // Use a timeout to ensure both listeners have a chance to fire
+        // Use a timeout to ensure all listeners have a chance to fire
         const timer = setTimeout(() => setLoading(false), 1500);
 
         return () => {
             unsubEngagements();
             unsubEmployees();
+            unsubPermissions();
             clearTimeout(timer);
         }
 
     }, [user, authLoading]);
+
+    const checkPermission = (feature: FeatureName) => {
+        if (!currentUserEmployee) return false;
+        if (currentUserEmployee.role.includes("Admin")) return true;
+        
+        const permission = permissions.find(p => p.feature === feature);
+        if (!permission) return false;
+        
+        return currentUserEmployee.role.some(role => permission.departments.includes(role));
+    }
+
 
      if (loading) {
         return (
@@ -114,12 +137,14 @@ export default function ReportsPage() {
                 description="Key performance indicators for your firm's health and growth."
                 icon={BarChart}
                 onClick={() => router.push('/reports/kpi-dashboard')}
+                isDisabled={!checkPermission("firm-analytics")}
             />
             <ReportCard 
                 title="Custom Reports"
                 description="Drill down into engagements with multi-level task and status filters."
                 icon={SlidersHorizontal}
                 onClick={() => router.push('/reports/advanced-engagement-report')}
+                 isDisabled={!checkPermission("firm-analytics")} // Assuming custom reports have same access level as KPIs
             />
         </div>
     </div>
