@@ -124,7 +124,9 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, e
                             onScheduleMeeting={handleScheduleMeeting}
                         />
 
-                        {allDepartments.map(dept => {
+                        {allDepartments
+                          .filter(dept => dept.name !== 'Admin')
+                          .map(dept => {
                             const departmentEmployees = allEmployees.filter(emp => emp.role.includes(dept.name));
                             return (
                                 <DepartmentColumn
