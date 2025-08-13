@@ -33,6 +33,7 @@ import {
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { doc, setDoc, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EditClientSheet } from "../dashboard/edit-client-sheet";
 import { Checkbox } from "../ui/checkbox";
