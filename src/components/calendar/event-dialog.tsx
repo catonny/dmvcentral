@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ScrollArea } from "../ui/scroll-area";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, reauthenticateWithPopup, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -159,7 +159,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     provider.addScope("https://www.googleapis.com/auth/calendar.events");
     
     try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await reauthenticateWithPopup(currentUser, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         const accessToken = credential?.accessToken;
 
