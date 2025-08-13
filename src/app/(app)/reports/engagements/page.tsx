@@ -52,7 +52,7 @@ export default function EngagementsReportPage() {
             const employeeSnapshot = await getDocs(employeeQuery);
             if (!employeeSnapshot.empty) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin") || employeeData.role.includes("Administration")) {
                     setHasAccess(true);
                 }
             }
