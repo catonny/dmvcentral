@@ -29,12 +29,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandCreate
 } from "@/components/ui/command";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { doc, setDoc, collection, addDoc, serverTimestamp, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, setDoc, collection } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { EditClientSheet } from "../dashboard/edit-client-sheet";
 import { Checkbox } from "../ui/checkbox";
@@ -46,6 +44,7 @@ const engagementSchema = z.object({
   clientId: z.string({ required_error: "Please select a client." }),
   dueDate: z.date({ required_error: "Please select a due date." }),
   remarks: z.string().min(1, "Remarks are required."),
+  assignedTo: z.array(z.string()).min(1, "At least one assignee is required."),
   reportedTo: z.string().optional(),
   saveAsTemplate: z.boolean().default(false),
   templateName: z.string().optional(),
@@ -89,6 +88,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         remarks: "",
         clientId: "",
         type: "",
+        assignedTo: [],
         reportedTo: "",
         saveAsTemplate: false,
     }
@@ -187,15 +187,13 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   
   const handleSaveNewClient = async (clientData: Partial<Client>) => {
     try {
-        const batch = writeBatch(db);
-        const clientRef = doc(collection(db, "clients"));
-        const newClient = { ...clientData, id: clientRef.id, lastUpdated: new Date().toISOString() };
-        batch.set(clientRef, newClient);
-        await batch.commit();
+        const newDocRef = doc(collection(db, "clients"));
+        const newClient = { ...clientData, id: newDocRef.id, lastUpdated: new Date().toISOString() };
+        await setDoc(newDocRef, newClient);
 
         toast({ title: "Success", description: "New client added successfully." });
         
-        setValue("clientId", clientRef.id, { shouldValidate: true });
+        setValue("clientId", newDocRef.id, { shouldValidate: true });
         
         setIsClientSheetOpen(false);
         setNewClientData(null);
@@ -227,7 +225,6 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   
   const selectedTypeId = watch("type");
   const isExistingType = engagementTypes.some(et => et.id === selectedTypeId);
-  const currentDueDate = watch("dueDate");
 
   return (
     <>
@@ -424,6 +421,48 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
             />
             {errors.dueDate && <p className="text-sm text-red-500">{errors.dueDate.message}</p>}
           </div>
+          
+           <div className="grid gap-2">
+                <Label>Assign To</Label>
+                <Controller
+                  name="assignedTo"
+                  control={control}
+                  render={({ field }) => (
+                     <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start">{field.value?.length > 0 ? `${field.value.length} selected` : "Select employees..."}</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search..." />
+                            <CommandList>
+                               <CommandEmpty>No results found.</CommandEmpty>
+                               <CommandGroup>
+                                {allEmployees.map(employee => (
+                                    <CommandItem
+                                    key={employee.id}
+                                    onSelect={() => {
+                                        const newValue = field.value?.includes(employee.id)
+                                        ? field.value.filter(id => id !== employee.id)
+                                        : [...(field.value || []), employee.id];
+                                        field.onChange(newValue);
+                                    }}
+                                    >
+                                    <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", field.value?.includes(employee.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
+                                        <Check className="h-4 w-4" />
+                                    </div>
+                                    {employee.name}
+                                    </CommandItem>
+                                ))}
+                               </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                  )}
+                />
+                 {errors.assignedTo && <p className="text-sm text-destructive">{errors.assignedTo.message}</p>}
+          </div>
 
           <div className="grid gap-2">
             <Label>Report to</Label>
@@ -496,5 +535,3 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     </>
   );
 }
-
-    
