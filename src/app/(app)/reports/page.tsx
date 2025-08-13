@@ -58,7 +58,7 @@ export default function ReportsPage() {
             const employeeSnapshot = await getDocs(employeeQuery);
             if (!employeeSnapshot.empty) {
                 const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner")) {
+                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
                     setHasAccess(true);
                 }
             }
@@ -111,7 +111,7 @@ export default function ReportsPage() {
                     <CardTitle>Access Denied</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p>You do not have the required permissions to view reports. This view is for Partners only.</p>
+                    <p>You do not have the required permissions to view reports.</p>
                 </CardContent>
             </Card>
         );
