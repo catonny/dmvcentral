@@ -42,7 +42,6 @@ export default function ReportsPage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
-    const [hasAccess, setHasAccess] = React.useState(false);
     const [engagements, setEngagements] = React.useState<Engagement[]>([]);
     const [employees, setEmployees] = React.useState<Employee[]>([]);
 
@@ -53,67 +52,30 @@ export default function ReportsPage() {
             return;
         }
         
-        const checkUserRole = async () => {
-            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-            const employeeSnapshot = await getDocs(employeeQuery);
-            if (!employeeSnapshot.empty) {
-                const employeeData = employeeSnapshot.docs[0].data() as Employee;
-                if (employeeData.role.includes("Partner") || employeeData.role.includes("Admin")) {
-                    setHasAccess(true);
-                }
-            }
-        };
-        checkUserRole();
-
-    }, [user, authLoading]);
-
-    React.useEffect(() => {
-        if (!hasAccess) {
-            setLoading(false);
-            return;
-        }
-        
         const unsubEngagements = onSnapshot(collection(db, "engagements"), (snapshot) => {
             setEngagements(snapshot.docs.map(doc => doc.data() as Engagement));
-            checkDataLoaded();
         });
         
         const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
             setEmployees(snapshot.docs.map(doc => doc.data() as Employee));
-            checkDataLoaded();
         });
-
-        const checkDataLoaded = () => {
-            if (engagements.length > 0 && employees.length > 0) {
-                 setLoading(false);
-            }
-        }
         
+        // Use a timeout to ensure both listeners have a chance to fire
+        const timer = setTimeout(() => setLoading(false), 1500);
+
         return () => {
             unsubEngagements();
             unsubEmployees();
+            clearTimeout(timer);
         }
 
-    }, [hasAccess, engagements, employees]);
+    }, [user, authLoading]);
 
      if (loading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-        );
-    }
-    
-    if (!hasAccess) {
-         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Access Denied</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>You do not have the required permissions to view reports.</p>
-                </CardContent>
-            </Card>
         );
     }
 
