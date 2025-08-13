@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, doc, setDoc } from "firebase/firestore";
@@ -29,7 +30,7 @@ if (typeof window !== 'undefined') {
 
 interface LogActivityOptions {
     engagement?: Engagement;
-    clientId: string;
+    clientId?: string; // Make clientId optional to handle general logs
     type: ActivityLogType;
     user: Employee;
     details: {
@@ -47,7 +48,7 @@ export const logActivity = async ({ engagement, clientId, type, user, details }:
         await setDoc(logRef, {
             id: logRef.id,
             engagementId: engagement?.id,
-            clientId: clientId,
+            clientId: clientId || "general", // Use "general" if clientId is not provided
             type,
             timestamp: new Date().toISOString(),
             userId: user.id,
