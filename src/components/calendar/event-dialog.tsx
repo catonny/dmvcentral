@@ -186,7 +186,13 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     provider.addScope("https://www.googleapis.com/auth/calendar.events");
     
     try {
-        const result = await reauthenticateWithPopup(currentUser, provider);
+        const result = await reauthenticateWithPopup(currentUser, provider).catch(error => {
+            if (error.code === 'auth/popup-closed-by-user') {
+                return signInWithPopup(auth, provider);
+            }
+            throw error;
+        });
+
         const credential = GoogleAuthProvider.credentialFromResult(result);
         const accessToken = credential?.accessToken;
 
@@ -194,11 +200,9 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
             throw new Error("Could not get access token for Google Calendar.");
         }
 
-        const event = {
+        const eventPayload: any = {
             'summary': formData.title,
             'description': formData.description,
-            'start': { 'dateTime': formData.start, 'timeZone': formData.timezone },
-            'end': { 'dateTime': formData.end, 'timeZone': formData.timezone },
             'attendees': (formData.attendees || []).map(id => ({'email': employees.find(e => e.id === id)?.email})).filter(e => e.email),
             'conferenceData': {
                 'createRequest': {
@@ -208,13 +212,21 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
             }
         };
 
+        if (formData.allDay) {
+            eventPayload.start = { 'date': formData.start.split('T')[0] };
+            eventPayload.end = { 'date': formData.end.split('T')[0] };
+        } else {
+            eventPayload.start = { 'dateTime': formData.start, 'timeZone': formData.timezone };
+            eventPayload.end = { 'dateTime': formData.end, 'timeZone': formData.timezone };
+        }
+
         const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(event)
+            body: JSON.stringify(eventPayload)
         });
 
         if (!response.ok) {
