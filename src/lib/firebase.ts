@@ -47,9 +47,8 @@ interface LogActivityOptions {
 export const logActivity = async ({ engagement, clientId, type, user, details }: LogActivityOptions) => {
     try {
         const logRef = doc(collection(db, 'activityLog'));
-        await setDoc(logRef, {
+        const logData: any = {
             id: logRef.id,
-            engagementId: engagement?.id,
             clientId: engagement?.clientId || clientId || "general",
             type,
             timestamp: new Date().toISOString(),
@@ -59,7 +58,13 @@ export const logActivity = async ({ engagement, clientId, type, user, details }:
                 engagementName: engagement?.remarks || details.engagementName,
                 ...details,
             },
-        });
+        };
+
+        if (engagement?.id) {
+            logData.engagementId = engagement.id;
+        }
+
+        await setDoc(logRef, logData);
     } catch (error) {
         console.error("Failed to log activity:", error);
     }
