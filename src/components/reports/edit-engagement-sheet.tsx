@@ -29,7 +29,7 @@ import { CalendarIcon } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
-import { ReportsEngagement } from '@/app/(app)/reports/page';
+import { ReportsEngagement } from '@/app/(app)/reports/engagements/page';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
@@ -149,7 +149,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
+                                    <Command shouldFilter={false}>
                                         <CommandInput placeholder="Search employees..." />
                                         <CommandList>
                                             <CommandEmpty>No employees found.</CommandEmpty>

@@ -75,7 +75,7 @@ export function EditableAssignees({ engagement, allEmployees, onAssigneesChange 
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[250px] p-0">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput 
             placeholder="Search employees..." 
           />
@@ -99,3 +99,5 @@ export function EditableAssignees({ engagement, allEmployees, onAssigneesChange 
     </Popover>
   );
 }
+
+    

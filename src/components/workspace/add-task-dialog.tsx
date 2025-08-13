@@ -261,7 +261,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
+                      <Command shouldFilter={false}>
                         <CommandInput 
                           placeholder="Search client..." 
                           value={clientSearchQuery}
@@ -331,7 +331,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
+                    <Command shouldFilter={false}>
                       <CommandInput 
                         placeholder="Search type..."
                         value={engagementSearchQuery}
@@ -496,3 +496,5 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     </>
   );
 }
+
+    

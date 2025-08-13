@@ -265,7 +265,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
 
     return (
         <>
-            <Card className="h-full flex flex-col">
+            <Card className="h-full flex flex-col shadow-none border-none">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -285,7 +285,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                                 />
                             </PopoverTrigger>
                             <PopoverContent className="w-[300px] p-0" align="start">
-                                <Command>
+                                <Command shouldFilter={false}>
                                     <CommandInput placeholder="Search employee..." value={mentionQuery || ''} onValueChange={setMentionQuery} />
                                     <CommandList>
                                         <CommandEmpty>No employee found.</CommandEmpty>
@@ -428,3 +428,5 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         </>
     );
 }
+
+    

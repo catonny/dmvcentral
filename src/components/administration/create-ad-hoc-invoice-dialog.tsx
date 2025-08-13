@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode, Invoice, InvoiceLineItem } from "@/lib/data";
+import type { Engagement, Client, EngagementType, Firm, SalesItem, TaxRate, HsnSacCode, Invoice, InvoiceLineItem, Employee } from "@/lib/data";
 import { indianStatesAndUTs } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2, Check, ChevronsUpDown } from "lucide-react";
@@ -281,7 +281,7 @@ export function CreateAdHocInvoiceDialog({
                                 <Button variant="outline" className="w-full justify-start">{assignedTo.length > 0 ? `${assignedTo.length} selected` : "Select employees..."}</Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-full p-0">
-                                <Command>
+                                <Command shouldFilter={false}>
                                     <CommandInput placeholder="Search..." />
                                     <CommandList>
                                         <CommandEmpty>No results found.</CommandEmpty>
@@ -437,3 +437,5 @@ interface LineItem {
     taxRateId: string;
     sacCodeId: string;
 }
+
+    

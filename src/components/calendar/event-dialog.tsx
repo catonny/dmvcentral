@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -187,7 +186,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     
     try {
         const result = await reauthenticateWithPopup(currentUser, provider).catch(error => {
-            if (error.code === 'auth/popup-closed-by-user') {
+            if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
                 return signInWithPopup(auth, provider);
             }
             throw error;
@@ -381,7 +380,7 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
+                    <Command shouldFilter={false}>
                         <CommandInput placeholder="Search employees..." />
                         <CommandList>
                             <CommandEmpty>No employees found.</CommandEmpty>
@@ -422,3 +421,5 @@ export function EventDialog({ isOpen, onClose, onSave, onDelete, eventInfo, empl
     </Dialog>
   );
 }
+
+    

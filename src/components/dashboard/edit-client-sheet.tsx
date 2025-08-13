@@ -326,7 +326,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                                 </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
+                                <Command shouldFilter={false}>
                                     <CommandInput placeholder="Search clients..." />
                                     <CommandList>
                                         <CommandEmpty>No clients found.</CommandEmpty>
@@ -439,3 +439,5 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         </Sheet>
     )
 }
+
+    
