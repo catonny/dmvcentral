@@ -115,19 +115,28 @@ export function WorkspaceBoard({ allEngagements, allEmployees, allDepartments, e
             <div className="flex h-full flex-grow overflow-hidden">
                 <ScrollArea className="w-full h-full">
                     <div className="flex h-full gap-4 pb-4">
-                        <DepartmentColumn 
-                            department={{ id: 'unassigned', name: 'Unassigned', order: 0 }}
-                            employees={[]}
-                            engagements={unassignedEngagements}
-                            engagementTypes={engagementTypes}
-                            clientMap={clientMap}
-                            onScheduleMeeting={handleScheduleMeeting}
-                        />
+                        {(unassignedEngagements.length > 0) && (
+                            <DepartmentColumn 
+                                department={{ id: 'unassigned', name: 'Unassigned', order: 0 }}
+                                employees={[]}
+                                engagements={unassignedEngagements}
+                                engagementTypes={engagementTypes}
+                                clientMap={clientMap}
+                                onScheduleMeeting={handleScheduleMeeting}
+                            />
+                        )}
 
                         {allDepartments
                           .filter(dept => dept.name !== 'Admin')
                           .map(dept => {
                             const departmentEmployees = allEmployees.filter(emp => emp.role.includes(dept.name));
+                            const departmentEmployeeIds = new Set(departmentEmployees.map(e => e.id));
+                            const departmentEngagements = engagements.filter(e => e.assignedTo.some(id => departmentEmployeeIds.has(id)));
+                            
+                            if(departmentEmployees.length === 0 && departmentEngagements.length === 0) {
+                                return null;
+                            }
+
                             return (
                                 <DepartmentColumn
                                     key={dept.id}
