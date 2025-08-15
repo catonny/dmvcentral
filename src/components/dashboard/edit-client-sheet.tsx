@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,9 @@ interface EditClientSheetProps {
     onDelete: (client: Client) => void;
     allClients?: Client[];
 }
+
+const residentialStatuses: Client['residentialStatus'][] = ["Resident", "Non-Resident", "Resident but not Ordinarily Resident"];
+
 
 export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, allClients = [] }: EditClientSheetProps) {
     const [formData, setFormData] = React.useState<Partial<Client>>({});
@@ -115,6 +119,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 linkedClientIds: [],
                 'Contact Person': '',
                 'Contact Person Designation': '',
+                residentialStatus: undefined,
             };
             setFormData(initialData);
             if (initialData['Date of Birth']) {
@@ -195,6 +200,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     }
     
     const showContactPersonFields = formData.Category && formData.Category !== 'Individual';
+    const showResidentialStatus = formData.Category === 'Individual';
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -287,6 +293,22 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {showResidentialStatus && (
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="residentialStatus" className="text-right">Residential Status</Label>
+                            <Select onValueChange={handleSelectChange('residentialStatus')} value={formData.residentialStatus}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {residentialStatuses.map((s) => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                     {showContactPersonFields && (
                         <>
