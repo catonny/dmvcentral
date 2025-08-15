@@ -122,7 +122,7 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                         <Input id="monthlySalary" type="number" value={formData.monthlySalary || 0} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="chargeOutRate" className="text-right">Charge-Out Rate</Label>
+                        <Label htmlFor="chargeOutRate" className="text-right">Charge out Rate Per Hour</Label>
                         <Input id="chargeOutRate" type="number" value={formData.chargeOutRate || 0} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
