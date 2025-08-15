@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -141,7 +142,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
 
         await batch.commit();
 
-        toast({ title: "Success", description: `Client ${selectedClient.Name} and all associated engagements have been deleted.` });
+        toast({ title: "Success", description: `Client ${selectedClient.name} and all associated engagements have been deleted.` });
         handleCloseEditSheet();
     } catch (error) {
         console.error("Error deleting client:", error);
@@ -243,7 +244,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the client{" "}
-              <strong>{selectedClient?.Name}</strong> and all of their associated engagements.
+              <strong>{selectedClient?.name}</strong> and all of their associated engagements.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

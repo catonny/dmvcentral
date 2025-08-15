@@ -109,7 +109,7 @@ const engagementSchedulerPrompt = ai.definePrompt({
 
     **CLIENTS TO ASSIGN:**
     {{#each clients}}
-    - Client ID: {{id}}, Client Name: {{Name}}
+    - Client ID: {{id}}, Client Name: {{name}}
     {{/each}}
   `,
 });

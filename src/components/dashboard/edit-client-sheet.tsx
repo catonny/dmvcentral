@@ -101,30 +101,30 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     React.useEffect(() => {
         if (isOpen) {
             const initialData = client || {
-                Name: '',
-                'Mail ID': '',
-                'Mobile Number': '',
-                'Phone Number': '',
-                PAN: '',
-                GSTN: '',
-                'Billing Address Line 1': '',
-                'Billing Address Line 2': '',
-                'Billing Address Line 3': '',
+                name: '',
+                mailId: '',
+                mobileNumber: '',
+                phoneNumber: '',
+                pan: '',
+                gstin: '',
+                billingAddressLine1: '',
+                billingAddressLine2: '',
+                billingAddressLine3: '',
                 pincode: '',
-                State: '',
-                Country: 'India',
+                state: '',
+                country: 'India',
                 partnerId: partners.length > 0 ? partners[0].id : undefined,
-                Category: undefined,
-                'Date of Birth': undefined,
+                category: undefined,
+                dateOfBirth: undefined,
                 linkedClientIds: [],
-                'Contact Person': '',
-                'Contact Person Designation': '',
+                contactPerson: '',
+                contactPersonDesignation: '',
                 residentialStatus: undefined,
             };
             setFormData(initialData);
-            if (initialData['Date of Birth']) {
+            if (initialData.dateOfBirth) {
                 try {
-                    setDobString(format(new Date(initialData['Date of Birth']), 'dd/MM/yyyy'));
+                    setDobString(format(new Date(initialData.dateOfBirth), 'dd/MM/yyyy'));
                 } catch {
                     setDobString("");
                 }
@@ -135,17 +135,17 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     }, [client, isOpen, partners]);
 
     const handleSave = async () => {
-        if (!formData.Name || !formData['Mobile Number'] || !formData['Mail ID'] || !formData.Category || !formData.partnerId) {
+        if (!formData.name || !formData.mobileNumber || !formData.mailId || !formData.category || !formData.partnerId) {
             toast({ title: "Validation Error", description: "Name, Mobile, Email, Category, and Partner are required.", variant: "destructive" });
             return;
         }
 
         const dataToSave = { ...formData };
-        if (dataToSave.Name) {
-            dataToSave.Name = capitalizeWords(dataToSave.Name);
+        if (dataToSave.name) {
+            dataToSave.name = capitalizeWords(dataToSave.name);
         }
-        if (dataToSave['Date of Birth'] === undefined) {
-            delete dataToSave['Date of Birth'];
+        if (dataToSave.dateOfBirth === undefined) {
+            delete dataToSave.dateOfBirth;
         }
 
         await onSave(dataToSave);
@@ -162,7 +162,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
 
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
-            setFormData({ ...formData, 'Date of Birth': date.toISOString() });
+            setFormData({ ...formData, dateOfBirth: date.toISOString() });
             setDobString(format(date, 'dd/MM/yyyy'));
         }
     }
@@ -180,7 +180,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         if (value.length === 10) {
             const parsedDate = parse(value, 'dd/MM/yyyy', new Date());
             if (isValid(parsedDate)) {
-                 setFormData({ ...formData, 'Date of Birth': parsedDate.toISOString() });
+                 setFormData({ ...formData, dateOfBirth: parsedDate.toISOString() });
             }
         }
     };
@@ -193,8 +193,8 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         setFormData({ ...formData, linkedClientIds: newLinks });
     }
     
-    const showContactPersonFields = formData.Category && formData.Category !== 'Individual';
-    const showResidentialStatus = formData.Category === 'Individual';
+    const showContactPersonFields = formData.category && formData.category !== 'Individual';
+    const showResidentialStatus = formData.category === 'Individual';
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -223,26 +223,26 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 <ScrollArea className="h-[calc(100vh-12rem)] pr-6">
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Name" className="text-right">Name*</Label>
-                        <Input id="Name" value={formData.Name || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="name" className="text-right">Name*</Label>
+                        <Input id="name" value={formData.name || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Mail ID" className="text-right">Email*</Label>
-                        <Input id="Mail ID" type="email" value={formData['Mail ID'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="mailId" className="text-right">Email*</Label>
+                        <Input id="mailId" type="email" value={formData.mailId || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Mobile Number" className="text-right">Mobile*</Label>
-                        <Input id="Mobile Number" value={formData['Mobile Number'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="mobileNumber" className="text-right">Mobile*</Label>
+                        <Input id="mobileNumber" value={formData.mobileNumber || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Phone Number" className="text-right">Phone</Label>
-                        <Input id="Phone Number" value={formData['Phone Number'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="phoneNumber" className="text-right">Phone</Label>
+                        <Input id="phoneNumber" value={formData.phoneNumber || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Date of Birth" className="text-right">DOB</Label>
+                        <Label htmlFor="dateOfBirth" className="text-right">DOB</Label>
                         <div className="col-span-3 flex items-center gap-2">
                              <Input 
-                                id="Date of Birth" 
+                                id="dateOfBirth" 
                                 placeholder="dd/MM/yyyy"
                                 value={dobString}
                                 onChange={handleDobStringChange}
@@ -259,7 +259,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                                 <PopoverContent className="w-auto p-0">
                                     <Calendar
                                         mode="single"
-                                        selected={formData['Date of Birth'] ? new Date(formData['Date of Birth']) : undefined}
+                                        selected={formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined}
                                         onSelect={handleDateChange}
                                         initialFocus
                                         captionLayout="dropdown-buttons"
@@ -271,12 +271,12 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="PAN" className="text-right">PAN</Label>
-                        <Input id="PAN" value={formData.PAN || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="pan" className="text-right">PAN</Label>
+                        <Input id="pan" value={formData.pan || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Category" className="text-right">Category*</Label>
-                        <Select onValueChange={handleSelectChange('Category')} value={formData.Category}>
+                        <Label htmlFor="category" className="text-right">Category*</Label>
+                        <Select onValueChange={handleSelectChange('category')} value={formData.category}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
@@ -307,12 +307,12 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                     {showContactPersonFields && (
                         <>
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="Contact Person" className="text-right">Contact Person</Label>
-                                <Input id="Contact Person" value={formData['Contact Person'] || ''} onChange={handleChange} className="col-span-3" />
+                                <Label htmlFor="contactPerson" className="text-right">Contact Person</Label>
+                                <Input id="contactPerson" value={formData.contactPerson || ''} onChange={handleChange} className="col-span-3" />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="Contact Person Designation" className="text-right">Designation</Label>
-                                <Input id="Contact Person Designation" value={formData['Contact Person Designation'] || ''} onChange={handleChange} className="col-span-3" />
+                                <Label htmlFor="contactPersonDesignation" className="text-right">Designation</Label>
+                                <Input id="contactPersonDesignation" value={formData.contactPersonDesignation || ''} onChange={handleChange} className="col-span-3" />
                             </div>
                         </>
                     )}
@@ -355,11 +355,11 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                                             .map((c) => (
                                                 <CommandItem
                                                     key={c.id}
-                                                    value={c.Name}
+                                                    value={c.name}
                                                     onSelect={() => handleLinkClientToggle(c.id)}
                                                 >
                                                     <Check className={cn("mr-2 h-4 w-4", (formData.linkedClientIds || []).includes(c.id) ? "opacity-100" : "opacity-0")} />
-                                                    {c.Name}
+                                                    {c.name}
                                                 </CommandItem>
                                             ))}
                                         </CommandGroup>
@@ -373,7 +373,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                                     if (!linkedClient) return null;
                                     return (
                                         <Badge key={id} variant="secondary">
-                                            {linkedClient.Name}
+                                            {linkedClient.name}
                                             <button onClick={() => handleLinkClientToggle(id)} className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2">
                                                 <XIcon className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                             </button>
@@ -384,28 +384,28 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="GSTN" className="text-right">GSTN</Label>
-                        <Input id="GSTN" value={formData.GSTN || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="gstin" className="text-right">GSTN</Label>
+                        <Input id="gstin" value={formData.gstin || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Billing Address Line 1" className="text-right">Address 1</Label>
-                        <Input id="Billing Address Line 1" value={formData['Billing Address Line 1'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="billingAddressLine1" className="text-right">Address 1</Label>
+                        <Input id="billingAddressLine1" value={formData.billingAddressLine1 || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Billing Address Line 2" className="text-right">Address 2</Label>
-                        <Input id="Billing Address Line 2" value={formData['Billing Address Line 2'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="billingAddressLine2" className="text-right">Address 2</Label>
+                        <Input id="billingAddressLine2" value={formData.billingAddressLine2 || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Billing Address Line 3" className="text-right">Address 3</Label>
-                        <Input id="Billing Address Line 3" value={formData['Billing Address Line 3'] || ''} onChange={handleChange} className="col-span-3" />
+                        <Label htmlFor="billingAddressLine3" className="text-right">Address 3</Label>
+                        <Input id="billingAddressLine3" value={formData.billingAddressLine3 || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="pincode" className="text-right">Pincode</Label>
                         <Input id="pincode" value={formData.pincode || ''} onChange={handleChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="Country" className="text-right">Country</Label>
-                        <Select onValueChange={handleSelectChange('Country')} value={formData.Country}>
+                        <Label htmlFor="country" className="text-right">Country</Label>
+                        <Select onValueChange={handleSelectChange('country')} value={formData.country}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select country" />
                             </SelectTrigger>
@@ -417,9 +417,9 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                         </Select>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="State" className="text-right">State</Label>
-                        {formData.Country === 'India' ? (
-                            <Select onValueChange={handleSelectChange('State')} value={formData.State}>
+                        <Label htmlFor="state" className="text-right">State</Label>
+                        {formData.country === 'India' ? (
+                            <Select onValueChange={handleSelectChange('state')} value={formData.state}>
                                 <SelectTrigger className="col-span-3">
                                     <SelectValue placeholder="Select state" />
                                 </SelectTrigger>
@@ -430,7 +430,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                                 </SelectContent>
                             </Select>
                         ) : (
-                            <Input id="State" value={formData.State || ''} onChange={handleChange} className="col-span-3" />
+                            <Input id="state" value={formData.state || ''} onChange={handleChange} className="col-span-3" />
                         )}
                     </div>
                 </div>

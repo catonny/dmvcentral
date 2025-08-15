@@ -48,7 +48,7 @@ const getClientAndTeamByEmail = ai.defineTool(
     },
     async ({ email }) => {
         const clientsRef = collection(db, "clients");
-        const q = query(clientsRef, where("Mail ID", "==", email));
+        const q = query(clientsRef, where("mailId", "==", email));
         const clientSnapshot = await getDocs(q);
 
         if (clientSnapshot.empty) {

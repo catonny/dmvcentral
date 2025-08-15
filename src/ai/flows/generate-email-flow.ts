@@ -83,8 +83,8 @@ const emailGeneratorPrompt = ai.definePrompt({
   
   **DETAILS**
   - **Template to Use:** {{{templateName}}}
-  - **Client Name:** {{{client.Name}}}
-  - **Client Contact Person:** {{{client.Contact Person}}}
+  - **Client Name:** {{{client.name}}}
+  - **Client Contact Person:** {{{client.contactPerson}}}
   - **Firm Name:** {{{firm.name}}}
   - **Partner Name:** {{{partner.name}}}
   - **Partner Designation:** {{{partner.designation}}}

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -22,28 +23,28 @@ type MasterType = "Clients"; // Extendable to other types later
 
 // Note: 'id' and 'lastUpdated' are system-managed and should not be in the bulk template.
 export const CLIENT_HEADERS = [
-    "Name",
-    "Mail ID",
-    "Mobile Number",
-    "Category",
-    "Partner",
-    "Firm Name",
-    "Phone Number",
-    "Date of Birth",
+    "name",
+    "mailId",
+    "mobileNumber",
+    "category",
+    "partner",
+    "firmName",
+    "phoneNumber",
+    "dateOfBirth",
     "linkedClientIds",
-    "PAN",
-    "GSTN",
-    "Billing Address Line 1",
-    "Billing Address Line 2",
-    "Billing Address Line 3",
-    "Pincode",
-    "State",
-    "Country",
-    "Contact Person",
-    "Contact Person Designation"
+    "pan",
+    "gstin",
+    "billingAddressLine1",
+    "billingAddressLine2",
+    "billingAddressLine3",
+    "pincode",
+    "state",
+    "country",
+    "contactPerson",
+    "contactPersonDesignation"
 ];
 
-export const MANDATORY_CLIENT_HEADERS = ["Name", "Mail ID", "Mobile Number", "Category", "Partner", "Firm Name"];
+export const MANDATORY_CLIENT_HEADERS = ["name", "mailId", "mobileNumber", "category", "partner", "firmName"];
 
 
 export function BulkUpdateData({ onBack }: { onBack: () => void }) {
@@ -76,46 +77,46 @@ export function BulkUpdateData({ onBack }: { onBack: () => void }) {
         );
         dummyData = [
             {
-                "Name*": "Example Corp",
-                "Mail ID*": "contact@examplecorp.com",
-                "Mobile Number*": "9876543210",
-                "Category*": "Corporate",
-                "Partner*": "Dojo Davis",
-                "Firm Name*": "Davis, Martin & Varghese",
-                "Phone Number": "0484-2345678",
-                "Date of Birth": "",
+                "name*": "Example Corp",
+                "mailId*": "contact@examplecorp.com",
+                "mobileNumber*": "9876543210",
+                "category*": "Corporate",
+                "partner*": "Dojo Davis",
+                "firmName*": "Davis, Martin & Varghese",
+                "phoneNumber": "0484-2345678",
+                "dateOfBirth": "",
                 "linkedClientIds": "",
-                "PAN": "AABCE1234F",
-                "GSTN": "22AABCE1234F1Z5",
-                "Billing Address Line 1": "123 Business Ave",
-                "Billing Address Line 2": "Commerce Street",
-                "Billing Address Line 3": "Financial District",
-                "Pincode": "400001",
-                "State": "Maharashtra",
-                "Country": "India",
-                "Contact Person": "Rohan Sharma",
-                "Contact Person Designation": "Finance Head"
+                "pan": "AABCE1234F",
+                "gstin": "22AABCE1234F1Z5",
+                "billingAddressLine1": "123 Business Ave",
+                "billingAddressLine2": "Commerce Street",
+                "billingAddressLine3": "Financial District",
+                "pincode": "400001",
+                "state": "Maharashtra",
+                "country": "India",
+                "contactPerson": "Rohan Sharma",
+                "contactPersonDesignation": "Finance Head"
             },
             {
-                "Name*": "Jane Smith",
-                "Mail ID*": "jane.smith@email.com",
-                "Mobile Number*": "9123456780",
-                "Category*": "Individual",
-                "Partner*": "Dojo Davis",
-                "Firm Name*": "Davis, Martin & Varghese",
-                "Phone Number": "",
-                "Date of Birth": "15/05/1990",
+                "name*": "Jane Smith",
+                "mailId*": "jane.smith@email.com",
+                "mobileNumber*": "9123456780",
+                "category*": "Individual",
+                "partner*": "Dojo Davis",
+                "firmName*": "Davis, Martin & Varghese",
+                "phoneNumber": "",
+                "dateOfBirth": "15/05/1990",
                 "linkedClientIds": "",
-                "PAN": "JKLMN5678G",
-                "GSTN": "",
-                "Billing Address Line 1": "Apt 4B, Residence Towers",
-                "Billing Address Line 2": "Green Valley",
-                "Billing Address Line 3": "",
-                "Pincode": "560001",
-                "State": "Karnataka",
-                "Country": "India",
-                "Contact Person": "",
-                "Contact Person Designation": ""
+                "pan": "JKLMN5678G",
+                "gstin": "",
+                "billingAddressLine1": "Apt 4B, Residence Towers",
+                "billingAddressLine2": "Green Valley",
+                "billingAddressLine3": "",
+                "pincode": "560001",
+                "state": "Karnataka",
+                "country": "India",
+                "contactPerson": "",
+                "contactPersonDesignation": ""
             }
         ];
     }

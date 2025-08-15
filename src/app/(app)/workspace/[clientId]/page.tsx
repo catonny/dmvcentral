@@ -1,12 +1,11 @@
 
+
 "use client";
 
 import * as React from "react";
 import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
 import { db } from "@/lib/firebase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -149,9 +148,9 @@ export default function ClientWorkspacePage() {
       <Card className="mb-6">
         <CardHeader className="flex flex-row items-start justify-between">
             <div>
-              <CardTitle className="font-headline text-2xl">{client.Name}'s Workspace</CardTitle>
+              <CardTitle className="font-headline text-2xl">{client.name}'s Workspace</CardTitle>
               <CardDescription>
-                Viewing all engagements for {client.Name} (PAN: {client.pan || 'N/A'}).
+                Viewing all engagements for {client.name} (PAN: {client.pan || 'N/A'}).
               </CardDescription>
             </div>
              <div className="flex items-center gap-2">
@@ -255,7 +254,7 @@ export default function ClientWorkspacePage() {
         isOpen={isPastEngagementsOpen}
         onClose={() => setIsPastEngagementsOpen(false)}
         clientId={clientId}
-        clientName={client.Name}
+        clientName={client.name}
         employees={employees}
         engagementTypes={engagementTypes}
         currentUser={currentUserEmployee}
@@ -264,7 +263,7 @@ export default function ClientWorkspacePage() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         clientId={clientId}
-        clientName={client.Name}
+        clientName={client.name}
         employees={employees}
         engagementTypes={engagementTypes}
       />
