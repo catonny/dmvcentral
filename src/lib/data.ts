@@ -45,6 +45,7 @@ export interface Employee {
   leaveAllowance?: number;
   leavesTaken?: number;
   monthlySalary?: number;
+  chargeOutRate?: number;
 }
 
 export interface Client {
@@ -95,6 +96,7 @@ export interface Department {
     id: string;
     name: EmployeeRole;
     order: number;
+    standardWeeklyHours?: number;
 }
 
 export interface Engagement {
@@ -229,7 +231,7 @@ export type ActivityLogType =
     | 'ASSIGNEE_CHANGED'
     | 'REMARKS_CHANGED'
     | 'TASK_COMPLETED'
-    | 'MENTIONED_IN_NOTE'
+    | 'MENTIONED_IN_TODO'
     | 'EVENT_CREATED';
 
 export interface ActivityLog {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -144,6 +144,13 @@ export default function ReportsPage() {
                 icon={Timer}
                 onClick={() => router.push('/reports/timesheet')}
                 isDisabled={!checkPermission("reports")}
+            />
+             <ReportCard 
+                title="Profitability & Rate Card"
+                description="Manage employee costs and define billable charge-out rates."
+                icon={DollarSign}
+                onClick={() => router.push('/reports/profitability')}
+                isDisabled={!checkPermission("firm-analytics")}
             />
             <ReportCard 
                 title="Custom Reports"

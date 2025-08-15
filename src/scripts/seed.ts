@@ -92,6 +92,8 @@ export const seedDatabase = async () => {
         role: ["Admin", "Partner"],
         leaveAllowance: 24,
         leavesTaken: 0,
+        monthlySalary: 500000,
+        chargeOutRate: 5000,
     };
     
     const employees = [adminUser, ...defaultEmployees];
