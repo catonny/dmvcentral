@@ -41,7 +41,7 @@ export default function QuotePlannerPage() {
     const [selectedClientId, setSelectedClientId] = React.useState<string>("");
     const [selectedEngagementTypeId, setSelectedEngagementTypeId] = React.useState<string>("");
     const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>([]);
-    const [plannedDays, setPlannedDays] = React.useState<number>(1);
+    const [plannedHours, setPlannedHours] = React.useState<number>(0);
     const [calculation, setCalculation] = React.useState<CalculationResult | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
     const [quotedAmount, setQuotedAmount] = React.useState<number>(0);
@@ -67,13 +67,23 @@ export default function QuotePlannerPage() {
         return () => unsubs.forEach(unsub => unsub());
     }, []);
 
+    React.useEffect(() => {
+        if (selectedEngagementTypeId) {
+            const engagementType = allEngagementTypes.find(et => et.id === selectedEngagementTypeId);
+            if (engagementType?.standardHours) {
+                setPlannedHours(engagementType.standardHours);
+            } else {
+                setPlannedHours(0);
+            }
+        }
+    }, [selectedEngagementTypeId, allEngagementTypes]);
+
     const handleCalculateQuote = () => {
-        if (selectedEmployeeIds.length === 0 || !plannedDays || plannedDays <= 0) {
-            toast({ title: "Missing Information", description: "Please select employees and enter valid planned days.", variant: "destructive" });
+        if (selectedEmployeeIds.length === 0 || !plannedHours || plannedHours <= 0) {
+            toast({ title: "Missing Information", description: "Please select employees and enter valid planned hours.", variant: "destructive" });
             return;
         }
 
-        const plannedHours = plannedDays * 8;
         let totalCost = 0;
         let totalChargeOut = 0;
 
@@ -109,8 +119,8 @@ export default function QuotePlannerPage() {
                 id: quoteRef.id,
                 clientId: selectedClientId,
                 engagementTypeId: selectedEngagementTypeId,
-                plannedDays,
-                plannedHours: plannedDays * 8,
+                plannedDays: plannedHours / 8, // Assuming 8-hour day
+                plannedHours: plannedHours,
                 assignedEmployeeIds: selectedEmployeeIds,
                 estimatedCost: calculation.estimatedCost,
                 quotedAmount: quotedAmount,
@@ -133,7 +143,7 @@ export default function QuotePlannerPage() {
             setSelectedClientId("");
             setSelectedEngagementTypeId("");
             setSelectedEmployeeIds([]);
-            setPlannedDays(1);
+            setPlannedHours(0);
             setCalculation(null);
             setQuotedAmount(0);
 
@@ -201,8 +211,8 @@ export default function QuotePlannerPage() {
                             </Popover>
                         </div>
                         <div className="space-y-2">
-                            <Label>Planned Days</Label>
-                            <Input type="number" value={plannedDays} onChange={(e) => setPlannedDays(Number(e.target.value))} placeholder="e.g., 5"/>
+                            <Label>Planned Hours</Label>
+                            <Input type="number" value={plannedHours || ""} onChange={(e) => setPlannedHours(Number(e.target.value))} placeholder="e.g., 40"/>
                         </div>
                         <Button onClick={handleCalculateQuote}><Calculator className="mr-2"/>Calculate Quote</Button>
                     </div>

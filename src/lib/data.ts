@@ -118,6 +118,7 @@ export interface Engagement {
   // New field for quote linkage
   quoteId?: string;
   budgetedHours?: number;
+  notes?: string;
 }
 
 export interface Quote {
@@ -138,17 +139,11 @@ export interface Quote {
 export interface Bonus {
     id: string;
     employeeId: string;
-    engagementId: string;
-    quoteId: string;
-    amount: number;
-    reason: string;
-    createdAt: string;
-}
-
-export interface BonusRule {
-    id: string; // Should be a singleton, e.g., "default"
-    savingsThresholdPercentage: number; // e.g., 20
-    bonusSharePercentage: number; // e.g., 50 (for 50% of excess savings)
+    engagementId?: string; // Engagement that triggered the bonus, if applicable
+    period: string; // e.g., "2024-07" for monthly bonuses
+    amount: number; // The calculated bonus amount
+    reason: string; // e.g., "Exceeded monthly revenue target"
+    createdAt: string; // When the bonus record was created
 }
 
 
@@ -268,7 +263,8 @@ export type ActivityLogType =
     | 'REMARKS_CHANGED'
     | 'TASK_COMPLETED'
     | 'EVENT_CREATED'
-    | 'MENTIONED_IN_TODO';
+    | 'MENTIONED_IN_TODO'
+    | 'NOTE_ADDED';
 
 export interface ActivityLog {
     id: string;
@@ -845,6 +841,7 @@ export const engagementTypes: EngagementType[] = [
         description: "Income Tax Return Filing for Individuals and Businesses",
         subTaskTitles: ["Contact Client", "Collect Documents", "Prepare Computation", "Finalise Computation", "File ITR", "e-Verify ITR", "Send ITR-V to Client"],
         recurrence: "Yearly",
+        standardHours: 10,
     },
     { 
         id: "ET02", 
@@ -852,6 +849,7 @@ export const engagementTypes: EngagementType[] = [
         description: "Monthly and Quarterly GST Return Filing",
         subTaskTitles: ["Request Sales Data", "Request Purchase Data", "Reconcile GSTR-2B", "Prepare GSTR-3B", "File GSTR-3B", "File GSTR-1"],
         recurrence: "Monthly",
+        standardHours: 8,
     },
     {
         id: "ET03",
@@ -859,46 +857,53 @@ export const engagementTypes: EngagementType[] = [
         description: "Quarterly TDS Return Filing",
         subTaskTitles: ["Collect TDS Data", "Prepare TDS Return", "Validate TDS Return", "File TDS Return", "Download Form 16/16A", "Issue Certificates"],
         recurrence: "Quarterly",
+        standardHours: 12,
     },
     { 
         id: "ET04", 
         name: "Tax Audit", 
         description: "Audit under section 44AB of the Income Tax Act",
-        subTaskTitles: ["Send Audit Request List", "Collect Financial Statements", "Vouching and Verification", "Prepare Audit Report", "Finalize Audit Report", "Upload Tax Audit Report"]
+        subTaskTitles: ["Send Audit Request List", "Collect Financial Statements", "Vouching and Verification", "Prepare Audit Report", "Finalize Audit Report", "Upload Tax Audit Report"],
+        standardHours: 80,
     },
     {
         id: "ET05",
         name: "Company Audit",
         description: "Statutory audit for companies",
         subTaskTitles: ["Engagement Acceptance", "Planning", "Risk Assessment", "Fieldwork", "Review", "Reporting", "Finalisation"],
-        applicableCategories: ["Corporate", "LLP"]
+        applicableCategories: ["Corporate", "LLP"],
+        standardHours: 120,
     },
     {
         id: "ET06",
         name: "Net Worth Certificates",
         description: "Issuing net worth certificates for visa or other purposes",
         subTaskTitles: ["Collect Asset/Liability Docs", "Verify Documents", "Draft Certificate", "Finalize Certificate", "Issue Certificate"],
-        applicableCategories: ["Individual"]
+        applicableCategories: ["Individual"],
+        standardHours: 5,
     },
     {
         id: "ET07",
         name: "Internal Audit",
         description: "Conducting internal audit for companies",
         subTaskTitles: ["Planning", "Fieldwork", "Reporting", "Follow-up"],
-        applicableCategories: ["Corporate", "LLP"]
+        applicableCategories: ["Corporate", "LLP"],
+        standardHours: 100,
     },
     {
         id: "ET08",
         name: "Book Keeping",
         description: "Maintaining books of accounts",
-        subTaskTitles: ["Collect Bank Statements", "Record Transactions", "Bank Reconciliation", "Prepare Financials", "Review"]
+        subTaskTitles: ["Collect Bank Statements", "Record Transactions", "Bank Reconciliation", "Prepare Financials", "Review"],
+        standardHours: 20,
     },
     { 
         id: "ET09", 
         name: "ROC Forms", 
         description: "Annual filings with the Registrar of Companies",
         subTaskTitles: ["Prepare Board Resolutions", "Hold Board Meeting", "Draft Annual Report", "File AOC-4", "File MGT-7"],
-        applicableCategories: ["Corporate", "LLP"]
+        applicableCategories: ["Corporate", "LLP"],
+        standardHours: 15,
     },
 ];
 
