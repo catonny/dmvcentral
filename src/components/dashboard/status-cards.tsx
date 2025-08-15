@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Client, Engagement, Task } from "@/lib/data";
 import { Users, Briefcase, UserX, ListTodo, AlertTriangle, GanttChartSquare } from "lucide-react";
 import * as React from 'react';
-import { isThisWeek, parseISO } from 'date-fns';
+import { isThisWeek, parseISO, isPast } from 'date-fns';
 
 interface StatusCardProps {
     title: string;
@@ -43,12 +43,14 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
         if (!data) return [];
         
         const { clients, engagements, tasks } = data;
+        const overdueCount = engagements.filter(e => isPast(parseISO(e.dueDate)) && e.status !== 'Completed' && e.status !== 'Cancelled').length;
         
         if (userRole === 'Admin') {
             return [
                 { title: 'Total Clients', value: clients.length, description: 'Total clients across the firm.', icon: Users },
                 { title: 'Total Engagements', value: engagements.length, description: 'All active engagements in the firm.', icon: Briefcase },
                 { title: 'Unassigned Engagements', value: engagements.filter(e => !e.assignedTo || e.assignedTo.length === 0).length, description: 'Engagements not assigned to any team member.', icon: UserX },
+                { title: 'Overdue Engagements', value: overdueCount, description: 'Engagements past their due date.', icon: AlertTriangle },
             ];
         }
 
@@ -58,6 +60,7 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
                 { title: 'My Active Clients', value: clients.length, description: 'Clients for whom you are the partner.', icon: Users },
                 { title: 'Total Engagements', value: engagements.length, description: 'Active engagements for your clients.', icon: Briefcase },
                 { title: 'Unassigned Engagements', value: unassignedEngagements.length, description: 'Engagements for your clients needing assignment.', icon: UserX },
+                { title: 'Overdue Engagements', value: overdueCount, description: 'Engagements for your clients that are overdue.', icon: AlertTriangle },
             ];
         }
         
@@ -70,9 +73,9 @@ export function StatusCards({ data, userRole }: StatusCardsProps) {
 
         return [
             { title: 'My Active Engagements', value: engagements.length, description: 'Your current active workload.', icon: GanttChartSquare },
-            { title: 'Clients Assigned To', value: clients.length, description: 'Number of clients you are currently working for.', icon: Users },
-            { title: 'All Pending Tasks', value: pendingTasks.length, description: 'Your total number of pending tasks.', icon: ListTodo },
-            { title: 'Tasks Due This Week', value: pendingThisWeek.length, description: 'Tasks with an engagement due date this week.', icon: AlertTriangle },
+            { title: 'My Overdue Engagements', value: overdueCount, description: 'Your engagements that are past their due date.', icon: AlertTriangle },
+            { title: 'All My Pending Tasks', value: pendingTasks.length, description: 'Your total number of pending tasks.', icon: ListTodo },
+            { title: 'My Tasks Due This Week', value: pendingThisWeek.length, description: 'Tasks with an engagement due date this week.', icon: AlertTriangle },
         ];
         
     }, [data, userRole]);
