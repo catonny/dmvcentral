@@ -113,23 +113,23 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
     setSelectedDept(null);
   }
 
-  const handleSaveDept = async (deptData: { id?: string; name: string }) => {
+  const handleSaveDept = async (deptData: Partial<Department>) => {
     try {
         if (deptData.id) { // Editing existing department
             const deptRef = doc(db, "departments", deptData.id);
-            await updateDoc(deptRef, { name: deptData.name });
+            await updateDoc(deptRef, deptData);
             toast({ title: "Success", description: "Department updated." });
         } else { // Adding new department
             // Check for duplicates before creating
             const existingDepts = departments.map(d => d.name.toLowerCase());
-            if (existingDepts.includes(deptData.name.toLowerCase())) {
+            if (existingDepts.includes(deptData.name!.toLowerCase())) {
                  toast({ title: "Duplicate Department", description: `A department with the name "${deptData.name}" already exists.`, variant: "destructive" });
                  return;
             }
 
             const newDeptRef = doc(collection(db, "departments"));
             const newOrder = departments.length > 0 ? Math.max(...departments.map(d => d.order)) + 1 : 1;
-            await setDoc(newDeptRef, { id: newDeptRef.id, name: deptData.name, order: newOrder });
+            await setDoc(newDeptRef, { ...deptData, id: newDeptRef.id, order: newOrder });
             toast({ title: "Success", description: "New department added." });
         }
         handleCloseDeptDialog();
