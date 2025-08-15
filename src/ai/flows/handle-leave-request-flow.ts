@@ -11,9 +11,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { CalendarEvent, Engagement, Employee } from '@/lib/data';
+import type { CalendarEvent, Engagement, Employee, Todo } from '@/lib/data';
 
 
 // Schema Definitions
@@ -138,10 +138,29 @@ const handleLeaveRequestFlow = ai.defineFlow(
       throw new Error("The AI model failed to produce a valid plan.");
     }
     
-    // Log the plan to the server console for now
-    console.log("--- AI Leave Agent Plan ---");
-    console.log(JSON.stringify(output, null, 2));
-    console.log("---------------------------");
+    // Create To-Do items for suggested replacements
+    for (const item of output.plan) {
+        if (item.suggestedReplacementId && item.engagementId) {
+             const todoRef = doc(collection(db, "todos"));
+             const engagementDoc = await getDoc(doc(db, "engagements", item.engagementId));
+             const engagementRemarks = engagementDoc.exists() ? engagementDoc.data().remarks : "an engagement";
+
+             const newTodo: Todo = {
+                id: todoRef.id,
+                type: "GENERAL_TASK",
+                text: `Cover for ${employee.name} on "${engagementRemarks}" due to their leave. Reason: ${item.reasoning}`,
+                createdBy: "system", // System-generated
+                assignedTo: [item.suggestedReplacementId],
+                isCompleted: false,
+                createdAt: new Date().toISOString(),
+                relatedEntity: {
+                    type: 'engagement',
+                    id: item.engagementId,
+                }
+            };
+            await setDoc(todoRef, newTodo);
+        }
+    }
     
     return output;
   }
