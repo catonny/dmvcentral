@@ -7,7 +7,7 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import { DialogFooter, DialogClose, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, capitalizeWords } from "@/lib/utils";
 import { MANDATORY_CLIENT_HEADERS } from "./bulk-update-data";
 import { Loader2, AlertTriangle, DatabaseBackup, SkipForward, Download } from "lucide-react";
 import { writeBatch, collection, doc, getDocs, query, where, setDoc } from "firebase/firestore";
@@ -250,7 +250,7 @@ export function ValidationTable({ data, onComplete }: ValidationTableProps) {
 
             const clientData: Partial<Client> = {
                 ...row,
-                name: row.Name,
+                name: capitalizeWords(row.Name),
                 mailId: (!row['Mail ID'] || !emailRegex.test(row['Mail ID'])) ? 'unassigned' : row['Mail ID'],
                 mobileNumber: !row['Mobile Number'] ? '1111111111' : row['Mobile Number'],
                 pan: !row['PAN'] && !isUpdate ? 'PANNOTAVLBL' : row['PAN'],

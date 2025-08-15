@@ -30,7 +30,7 @@ import { db } from "@/lib/firebase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown, XIcon, Copy, Trash2 } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, capitalizeWords } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Badge } from "../ui/badge";
@@ -142,6 +142,9 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         }
 
         const dataToSave = { ...formData };
+        if (dataToSave.Name) {
+            dataToSave.Name = capitalizeWords(dataToSave.Name);
+        }
         if (dataToSave['Date of Birth'] === undefined) {
             delete dataToSave['Date of Birth'];
         }
@@ -439,5 +442,3 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         </Sheet>
     )
 }
-
-    

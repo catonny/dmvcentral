@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, EmployeeRole, Department } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { Checkbox } from "../ui/checkbox";
+import { capitalizeWords } from "@/lib/utils";
 
 interface EditEmployeeSheetProps {
     employee: Employee | null;
@@ -53,7 +54,13 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
             toast({ title: "Validation Error", description: "Name, Email, and at least one Role are required.", variant: "destructive" });
             return;
         }
-        await onSave(formData);
+
+        const dataToSave = {
+            ...formData,
+            name: capitalizeWords(formData.name),
+        };
+
+        await onSave(dataToSave);
         onClose();
     }
 

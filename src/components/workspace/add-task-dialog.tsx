@@ -21,7 +21,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Client, EngagementType, Employee, Department } from "@/lib/data";
-import { cn } from "@/lib/utils";
+import { cn, capitalizeWords } from "@/lib/utils";
 import {
   Command,
   CommandEmpty,
@@ -181,7 +181,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   };
   
   const handleCreateNewClient = () => {
-    setNewClientData({ Name: clientSearchQuery });
+    setNewClientData({ Name: capitalizeWords(clientSearchQuery) });
     setIsClientPopoverOpen(false);
     setIsClientSheetOpen(true);
   };
@@ -189,7 +189,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const handleSaveNewClient = async (clientData: Partial<Client>) => {
     try {
         const newDocRef = doc(collection(db, "clients"));
-        const newClient = { ...clientData, id: newDocRef.id, lastUpdated: new Date().toISOString() };
+        const newClient = { ...clientData, name: capitalizeWords(clientData.name), id: newDocRef.id, lastUpdated: new Date().toISOString() };
         await setDoc(newDocRef, newClient);
 
         toast({ title: "Success", description: "New client added successfully." });

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Department, Employee } from "@/lib/data";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, capitalizeWords } from "@/lib/utils";
 import { writeBatch, doc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ScrollArea } from "../ui/scroll-area";
@@ -224,7 +224,7 @@ export function BulkCreateEmployees({ allDepartments }: BulkCreateEmployeesProps
     
     rowsToProcess.forEach(({ row, action, existingEmployeeId }) => {
         const employeeData: Omit<Employee, 'id'> = {
-            name: row["Name"],
+            name: capitalizeWords(row["Name"]),
             email: row["Email"],
             designation: row["Designation"] || "",
             role: [row["Role"]],
