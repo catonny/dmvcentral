@@ -151,6 +151,13 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
     try {
         const docRef = doc(db, collectionName, recordToEdit.id);
         const { id, ...dataToUpdate } = editFormData; // Exclude ID from update payload
+        
+        // Ensure standardWeeklyHours is a number or null
+        if (dataToUpdate.standardWeeklyHours !== undefined) {
+            const hours = Number(dataToUpdate.standardWeeklyHours);
+            dataToUpdate.standardWeeklyHours = isNaN(hours) || hours <= 0 ? null : hours;
+        }
+
         await updateDoc(docRef, dataToUpdate);
         toast({ title: "Success", description: "Record updated successfully." });
         setData(prev => prev.map(item => item.id === recordToEdit.id ? { ...item, ...editFormData } : item));
@@ -291,6 +298,19 @@ export function AlterMasterData({ onBack }: { onBack: () => void }) {
                             className="col-span-3"
                         />
                     </div>
+                     {selectedMaster === 'Departments' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                           <Label htmlFor="standardWeeklyHours" className="text-right">Standard Weekly Hours</Label>
+                           <Input
+                                id="standardWeeklyHours"
+                                type="number"
+                                value={editFormData?.standardWeeklyHours || ""}
+                                onChange={(e) => setEditFormData({ ...editFormData, standardWeeklyHours: e.target.value })}
+                                className="col-span-3"
+                                placeholder="e.g., 40"
+                           />
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

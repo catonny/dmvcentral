@@ -13,25 +13,6 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, PlusCircle, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { EditEmployeeSheet } from "@/components/employee/edit-employee-sheet";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { EditDepartmentDialog } from "@/components/employee/edit-department-dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function EmployeeManager({ onBack }: { onBack: () => void }) {
@@ -40,8 +21,6 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = React.useState(true);
   const [isEmployeeSheetOpen, setIsEmployeeSheetOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
-  const [isDeptDialogOpen, setIsDeptDialogOpen] = React.useState(false);
-  const [selectedDept, setSelectedDept] = React.useState<Department | null>(null);
   
   const { toast } = useToast();
 
@@ -102,53 +81,7 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
       toast({ title: "Error", description: "Failed to save employee data.", variant: "destructive" });
     }
   };
-
-  const handleOpenDeptDialog = (dept: Department | null) => {
-    setSelectedDept(dept);
-    setIsDeptDialogOpen(true);
-  }
-
-  const handleCloseDeptDialog = () => {
-    setIsDeptDialogOpen(false);
-    setSelectedDept(null);
-  }
-
-  const handleSaveDept = async (deptData: Partial<Department>) => {
-    try {
-        if (deptData.id) { // Editing existing department
-            const deptRef = doc(db, "departments", deptData.id);
-            await updateDoc(deptRef, deptData);
-            toast({ title: "Success", description: "Department updated." });
-        } else { // Adding new department
-            // Check for duplicates before creating
-            const existingDepts = departments.map(d => d.name.toLowerCase());
-            if (existingDepts.includes(deptData.name!.toLowerCase())) {
-                 toast({ title: "Duplicate Department", description: `A department with the name "${deptData.name}" already exists.`, variant: "destructive" });
-                 return;
-            }
-
-            const newDeptRef = doc(collection(db, "departments"));
-            const newOrder = departments.length > 0 ? Math.max(...departments.map(d => d.order)) + 1 : 1;
-            await setDoc(newDeptRef, { ...deptData, id: newDeptRef.id, order: newOrder });
-            toast({ title: "Success", description: "New department added." });
-        }
-        handleCloseDeptDialog();
-    } catch (error) {
-        console.error("Error saving department:", error);
-        toast({ title: "Error", description: "Failed to save department.", variant: "destructive" });
-    }
-  }
-
-  const handleDeleteDept = async (deptId: string) => {
-    try {
-        await deleteDoc(doc(db, "departments", deptId));
-        toast({ title: "Success", description: "Department deleted." });
-    } catch (error) {
-        console.error("Error deleting department:", error);
-        toast({ title: "Error", description: "Failed to delete department.", variant: "destructive" });
-    }
-  }
-
+  
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center">Loading employees...</div>;
   }
@@ -221,12 +154,6 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
         departments={departments}
-      />
-      <EditDepartmentDialog
-        isOpen={isDeptDialogOpen}
-        onClose={handleCloseDeptDialog}
-        onSave={handleSaveDept}
-        department={selectedDept}
       />
     </>
   );
