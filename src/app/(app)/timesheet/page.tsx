@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Timesheet, Employee, Engagement, Client } from "@/lib/data";
+import type { Timesheet, Employee, Engagement, Client, EngagementType } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,7 +45,8 @@ function TeamTimesheetView({
     loading,
     timesheets,
     engagements,
-    clients
+    clients,
+    engagementTypes
 }: {
     date: Date,
     setDate: (date: Date) => void,
@@ -53,7 +54,8 @@ function TeamTimesheetView({
     loading: boolean,
     timesheets: Timesheet[],
     engagements: Map<string, Engagement>,
-    clients: Map<string, Client>
+    clients: Map<string, Client>,
+    engagementTypes: Map<string, EngagementType>
 }) {
     const [openCollapsibleId, setOpenCollapsibleId] = React.useState<string | null>(null);
     const weeklyHoursSummary = timesheets.sort((a,b) => a.userName.localeCompare(b.userName));
@@ -138,13 +140,14 @@ function TeamTimesheetView({
                                                 </TableRow>
                                                 <CollapsibleContent asChild>
                                                     <tr>
-                                                        <td colSpan={3} className="p-0">
+                                                        <td colSpan={4} className="p-0">
                                                             <div className="p-4 bg-muted/50">
                                                                 <h4 className="font-semibold mb-2 text-sm pl-4">Engagement Breakdown</h4>
                                                                 <Table>
                                                                     <TableHeader>
                                                                         <TableRow>
-                                                                            <TableHead className="pl-8">Engagement</TableHead>
+                                                                            <TableHead className="pl-8">Engagement Type</TableHead>
+                                                                            <TableHead>Remarks</TableHead>
                                                                             <TableHead>Client</TableHead>
                                                                             <TableHead className="text-right">Hours Logged</TableHead>
                                                                         </TableRow>
@@ -153,10 +156,12 @@ function TeamTimesheetView({
                                                                         {ts.entries.map(entry => {
                                                                             const engagement = engagements.get(entry.engagementId);
                                                                             const client = engagement ? clients.get(engagement.clientId) : undefined;
+                                                                            const engagementType = engagement ? engagementTypes.get(engagement.type) : undefined;
                                                                             return (
                                                                                 <TableRow key={entry.engagementId}>
-                                                                                    <TableCell className="pl-8">{engagement?.remarks || 'Engagement not found'}</TableCell>
-                                                                                    <TableCell>{client?.Name || 'Client not found'}</TableCell>
+                                                                                    <TableCell className="pl-8">{engagementType?.name || 'N/A'}</TableCell>
+                                                                                    <TableCell>{engagement?.remarks || 'Engagement not found'}</TableCell>
+                                                                                    <TableCell>{client?.name || 'Client not found'}</TableCell>
                                                                                     <TableCell className="text-right">{entry.hours.toFixed(2)}</TableCell>
                                                                                 </TableRow>
                                                                             )
@@ -279,7 +284,7 @@ function EmployeeTimesheetView({
                                     return (
                                         <TableRow key={entry.engagementId}>
                                             <TableCell>{engagement?.remarks || 'Engagement not found'}</TableCell>
-                                            <TableCell>{client?.Name || 'Client not found'}</TableCell>
+                                            <TableCell>{client?.name || 'Client not found'}</TableCell>
                                             <TableCell className="text-right">{entry.hours.toFixed(2)}</TableCell>
                                         </TableRow>
                                     )
@@ -310,6 +315,7 @@ export default function TimesheetPage() {
   const [timesheets, setTimesheets] = React.useState<Timesheet[]>([]);
   const [engagements, setEngagements] = React.useState<Map<string, Engagement>>(new Map());
   const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
+  const [engagementTypes, setEngagementTypes] = React.useState<Map<string, EngagementType>>(new Map());
   
   const [date, setDate] = React.useState<Date>(new Date());
   const [weekStart, setWeekStart] = React.useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -347,10 +353,14 @@ export default function TimesheetPage() {
      const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
         setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
     });
+    const unsubEngagementTypes = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
+        setEngagementTypes(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as EngagementType])));
+    });
     
     return () => {
         unsubEngagements();
         unsubClients();
+        unsubEngagementTypes();
     }
   }, []);
   
@@ -417,7 +427,7 @@ export default function TimesheetPage() {
     );
   }
   
-  const viewProps = { date, setDate, weekStart, loading, timesheets, engagements, clients };
+  const viewProps = { date, setDate, weekStart, loading, timesheets, engagements, clients, engagementTypes };
 
   return isTeamView ? <TeamTimesheetView {...viewProps} /> : <EmployeeTimesheetView {...viewProps} />
 }
