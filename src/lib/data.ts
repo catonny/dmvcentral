@@ -109,6 +109,7 @@ export interface Engagement {
   reportedTo: string; // Corresponds to Employee.id (Manager or Partner)
   dueDate: string; // ISO 8601
   status: EngagementStatus;
+  financialYear?: string; // e.g. "2024-25"
   // Billing fields
   billStatus?: BillStatus;
   billSubmissionDate?: string; // ISO 8601 format
@@ -139,9 +140,10 @@ export interface Quote {
 export interface Bonus {
     id: string;
     employeeId: string;
-    engagementId?: string; // Engagement that triggered the bonus, if applicable
     period: string; // e.g., "2024-07" for monthly bonuses
-    amount: number; // The calculated bonus amount
+    attributedRevenue: number;
+    revenueTarget: number;
+    bonusAmount: number;
     reason: string; // e.g., "Exceeded monthly revenue target"
     createdAt: string; // When the bonus record was created
 }
@@ -919,16 +921,16 @@ const getPastDate = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 
 
 export const engagements: Omit<Engagement, 'id'>[] = [
     // PENDING (3)
-    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(10), status: "Pending", fees: 5000 },
-    { clientId: "client2_id_placeholder", remarks: "GST Filing for June 2024", type: "ET02", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(5), status: "Pending", fees: 8000 },
-    { clientId: "client3_id_placeholder", remarks: "Book Keeping Q2 2024", type: "ET08", assignedTo: ["S001"], reportedTo: "S001", dueDate: getDueDate(20), status: "Pending", fees: 15000 },
+    { clientId: "client1_id_placeholder", remarks: "ITR Filing for FY 2023-24", type: "ET01", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(10), status: "Pending", fees: 5000, financialYear: "2024-25" },
+    { clientId: "client2_id_placeholder", remarks: "GST Filing for June 2024", type: "ET02", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(5), status: "Pending", fees: 8000, financialYear: "2024-25" },
+    { clientId: "client3_id_placeholder", remarks: "Book Keeping Q2 2024", type: "ET08", assignedTo: ["S001"], reportedTo: "S001", dueDate: getDueDate(20), status: "Pending", fees: 15000, financialYear: "2024-25" },
 
     // IN PROCESS (2)
-    { clientId: "client1_id_placeholder", remarks: "Company Audit FY 23-24", type: "ET05", assignedTo: ["S006", "S001"], reportedTo: "S001", dueDate: getDueDate(90), status: "In Process", fees: 50000 },
-    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 23-24", type: "ET04", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(60), status: "In Process", fees: 75000 },
+    { clientId: "client1_id_placeholder", remarks: "Company Audit FY 23-24", type: "ET05", assignedTo: ["S006", "S001"], reportedTo: "S001", dueDate: getDueDate(90), status: "In Process", fees: 50000, financialYear: "2023-24" },
+    { clientId: "client2_id_placeholder", remarks: "Tax Audit FY 23-24", type: "ET04", assignedTo: ["S006"], reportedTo: "S006", dueDate: getDueDate(60), status: "In Process", fees: 75000, financialYear: "2023-24" },
     
     // COMPLETED (1)
-    { clientId: "client3_id_placeholder", remarks: "TDS Filing Q4 FY23", type: "ET03", assignedTo: ["S001"], reportedTo: "S001", dueDate: getPastDate(60), status: "Completed", billStatus: "Collected", fees: 6500 },
+    { clientId: "client3_id_placeholder", remarks: "TDS Filing Q4 FY23", type: "ET03", assignedTo: ["S001"], reportedTo: "S001", dueDate: getPastDate(60), status: "Completed", billStatus: "Collected", fees: 6500, financialYear: "2023-24" },
 
 ];
 

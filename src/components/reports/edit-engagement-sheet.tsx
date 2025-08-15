@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -127,6 +128,10 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="engagementTypeName" className="text-right">Type</Label>
                         <Input id="engagementTypeName" value={engagement?.engagementTypeName || ''} disabled className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="financialYear" className="text-right">Financial Year</Label>
+                        <Input id="financialYear" value={formData.financialYear || ''} onChange={handleChange} placeholder="e.g., 2024-25" className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="remarks" className="text-right">Remarks</Label>

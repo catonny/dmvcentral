@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -45,6 +46,7 @@ const engagementSchema = z.object({
   clientId: z.string({ required_error: "Please select a client." }),
   dueDate: z.date({ required_error: "Please select a due date." }),
   remarks: z.string().min(1, "Remarks are required."),
+  financialYear: z.string().optional(),
   assignedTo: z.array(z.string()).min(1, "At least one assignee is required."),
   reportedTo: z.string().optional(),
   saveAsTemplate: z.boolean().default(false),
@@ -72,6 +74,15 @@ interface AddTaskDialogProps {
   currentUserEmployee: Employee | null;
 }
 
+const getCurrentFinancialYear = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentYear = today.getFullYear();
+    // If before April, it's the previous financial year
+    const financialYearStart = currentMonth >= 3 ? currentYear : currentYear - 1;
+    return `${financialYearStart}-${(financialYearStart + 1).toString().slice(-2)}`;
+};
+
 export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -92,6 +103,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         assignedTo: [],
         reportedTo: "",
         saveAsTemplate: false,
+        financialYear: getCurrentFinancialYear(),
     }
   });
   
@@ -369,59 +381,42 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
             {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
           </div>
           
-           <div className="grid gap-2">
-            <Label>Due Date</Label>
-            <Controller
-                name="dueDate"
-                control={control}
-                render={({ field }) => (
-                    <div className="flex items-center gap-2">
-                        <Input
-                            placeholder="dd/MM/yyyy"
-                            value={dueDateString}
-                            onChange={(e) => {
-                                let value = e.target.value.replace(/[^0-9]/g, '');
-                                if (value.length > 2) value = `${value.substring(0, 2)}/${value.substring(2)}`;
-                                if (value.length > 5) value = `${value.substring(0, 5)}/${value.substring(5, 9)}`;
-                                setDueDateString(value);
-
-                                if (value.length === 10) {
-                                    const parsedDate = parse(value, 'dd/MM/yyyy', new Date());
-                                    if (isValid(parsedDate)) {
-                                        field.onChange(parsedDate);
-                                    }
-                                }
-                            }}
-                        />
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className="p-2 h-auto"
-                            >
-                                <CalendarIcon className="h-4 w-4" />
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={(date) => {
-                                        field.onChange(date);
-                                        if (date) setDueDateString(format(date, 'dd/MM/yyyy'));
-                                    }}
-                                    initialFocus
-                                    captionLayout="dropdown-buttons"
-                                    fromYear={new Date().getFullYear() - 10}
-                                    toYear={new Date().getFullYear() + 10}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                )}
-            />
-            {errors.dueDate && <p className="text-sm text-red-500">{errors.dueDate.message}</p>}
-          </div>
+           <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label>Due Date</Label>
+                    <Controller
+                        name="dueDate"
+                        control={control}
+                        render={({ field }) => (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        )}
+                    />
+                    {errors.dueDate && <p className="text-sm text-red-500">{errors.dueDate.message}</p>}
+                </div>
+                <div className="grid gap-2">
+                    <Label>Financial Year</Label>
+                    <Input {...register("financialYear")} placeholder="e.g., 2024-25" />
+                    {errors.financialYear && <p className="text-sm text-red-500">{errors.financialYear.message}</p>}
+                </div>
+           </div>
           
            <div className="grid gap-2">
                 <Label>Assign To</Label>

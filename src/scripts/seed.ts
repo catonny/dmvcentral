@@ -73,7 +73,8 @@ export const seedDatabase = async () => {
         'salesItems',
         'recurringEngagements',
         'todos',
-        '_metadata'
+        '_metadata',
+        'bonuses'
     ];
 
     console.log('Deleting existing data...');
@@ -226,7 +227,7 @@ export const seedDatabase = async () => {
         const clientRefData = clientRefs[engagement.clientId];
         if (clientRefData) {
           const engagementDocRef = db.collection('engagements').doc();
-          const newEngagement = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id };
+          const newEngagement = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id, financialYear: engagement.financialYear || "2024-25" };
           batch.set(engagementDocRef, newEngagement);
 
           // Log creation
