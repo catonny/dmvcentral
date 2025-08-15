@@ -40,6 +40,8 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                 email: '',
                 role: ['Employee'],
                 designation: '',
+                monthlySalary: 0,
+                chargeOutRate: 0,
                 avatar: `https://placehold.co/40x40.png`,
             });
         }
@@ -56,7 +58,11 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.id]: e.target.value });
+        const { id, value, type } = e.target;
+        setFormData({ 
+            ...formData, 
+            [id]: type === 'number' ? Number(value) : value 
+        });
     }
 
     const handleRoleChange = (roleName: EmployeeRole, isChecked: boolean) => {
@@ -110,6 +116,14 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                                 </div>
                             ))}
                         </div>
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="monthlySalary" className="text-right">Monthly Salary</Label>
+                        <Input id="monthlySalary" type="number" value={formData.monthlySalary || 0} onChange={handleChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="chargeOutRate" className="text-right">Charge-Out Rate</Label>
+                        <Input id="chargeOutRate" type="number" value={formData.chargeOutRate || 0} onChange={handleChange} className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="avatar" className="text-right">Avatar URL</Label>
