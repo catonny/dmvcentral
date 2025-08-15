@@ -17,7 +17,7 @@ import {
   firms,
   taxRates,
 } from '@/lib/data';
-import type { Task, Permission, Employee, HsnSacCode, SalesItem } from '@/lib/data';
+import type { Task, Permission, Employee, HsnSacCode, SalesItem, ChatThread, ChatMessage } from '@/lib/data';
 
 
 // This will be automatically populated by the Firebase environment in production,
@@ -61,6 +61,7 @@ export const seedDatabase = async () => {
         'pendingInvoices',
         'invoices',
         'timesheets',
+        'chatThreads',
         'chatMessages',
         'communications',
         'leaveRequests',
@@ -305,6 +306,36 @@ export const seedDatabase = async () => {
           });
       }
     });
+    
+    console.log('Seeding chat data...');
+    const thread1Ref = db.collection('chatThreads').doc();
+    const thread1: ChatThread = {
+        id: thread1Ref.id,
+        participants: ['S001', 'S006'],
+        participantDetails: {
+            'S001': { name: adminUser.name, avatar: adminUser.avatar },
+            'S006': { name: 'Dojo Davis', avatar: 'https://placehold.co/40x40.png' }
+        },
+        lastMessage: {
+            text: 'Great, see you then.',
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            senderId: 'S001'
+        },
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    };
+    batch.set(thread1Ref, thread1);
+    
+    const message1Ref = db.collection('chatMessages').doc();
+    const message1: ChatMessage = { id: message1Ref.id, threadId: thread1Ref.id, senderId: 'S006', text: 'Hey, are we on for the client meeting tomorrow?', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() };
+    batch.set(message1Ref, message1);
+
+    const message2Ref = db.collection('chatMessages').doc();
+    const message2: ChatMessage = { id: message2Ref.id, threadId: thread1Ref.id, senderId: 'S001', text: 'Yes, 10 AM at their office.', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString() };
+    batch.set(message2Ref, message2);
+
+    const message3Ref = db.collection('chatMessages').doc();
+    const message3: ChatMessage = { id: message3Ref.id, threadId: thread1Ref.id, senderId: 'S001', text: 'Great, see you then.', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() };
+    batch.set(message3Ref, message3);
 
 
     console.log('Committing batch to database...');

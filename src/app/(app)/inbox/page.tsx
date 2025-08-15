@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, where, onSnapshot, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Communication, Employee, Todo } from "@/lib/data";
+import type { Communication, Employee, Todo, ChatThread } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Inbox, Link as LinkIcon, Users, FileText, ListChecks, Mail, Bell, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChatLobby } from "@/components/chat/chat-lobby";
 
 function ClientEmailInbox({ communications, selectedComm, setSelectedComm }: { communications: Communication[], selectedComm: Communication | null, setSelectedComm: (comm: Communication | null) => void }) {
     if (communications.length === 0) {
@@ -112,19 +113,6 @@ function NotificationsInbox() {
     )
 }
 
-function ChatInbox() {
-     return (
-         <div className="flex-grow flex items-center justify-center">
-            <Card className="text-center p-8 border-dashed w-full max-w-md">
-                <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Chat is coming soon</h3>
-                <p className="mt-2 text-sm text-muted-foreground">A universal chat feature is under development.</p>
-            </Card>
-        </div>
-    )
-}
-
-
 export default function InboxPage() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
@@ -132,8 +120,9 @@ export default function InboxPage() {
     const [loading, setLoading] = React.useState(true);
     const [selectedComm, setSelectedComm] = React.useState<Communication | null>(null);
     const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
+    const [chatThreads, setChatThreads] = React.useState<ChatThread[]>([]);
+    const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     
-    // Unread counts - will be implemented later
     const [unreadEmails, setUnreadEmails] = React.useState(0);
     const [unreadNotifications, setUnreadNotifications] = React.useState(0);
     const [unreadChats, setUnreadChats] = React.useState(0);
@@ -143,19 +132,23 @@ export default function InboxPage() {
         if (!user) return;
         setLoading(true);
 
+        const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+            setAllEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+        });
+
         const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-        getDocs(employeeQuery).then(employeeSnapshot => {
+        const unsubCurrentUser = onSnapshot(employeeQuery, (employeeSnapshot) => {
             if (!employeeSnapshot.empty) {
                 const employeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
                 setCurrentUserEmployee(employeeProfile);
 
-                const q = query(
+                const commsQuery = query(
                     collection(db, "communications"),
                     where("visibleTo", "array-contains", employeeProfile.id),
                     orderBy("receivedAt", "desc")
                 );
 
-                const unsubscribe = onSnapshot(q, (snapshot) => {
+                const unsubComms = onSnapshot(commsQuery, (snapshot) => {
                     const commsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Communication);
                     setCommunications(commsData);
                     setUnreadEmails(commsData.length); // Placeholder for real unread logic
@@ -169,12 +162,31 @@ export default function InboxPage() {
                     setLoading(false);
                 });
 
-                return () => unsubscribe();
+                const chatQuery = query(
+                    collection(db, 'chatThreads'),
+                    where('participants', 'array-contains', employeeProfile.id),
+                    orderBy('updatedAt', 'desc')
+                );
+
+                const unsubChat = onSnapshot(chatQuery, (snapshot) => {
+                    setChatThreads(snapshot.docs.map(d => ({id: d.id, ...d.data()} as ChatThread)));
+                });
+                
+                return () => {
+                    unsubComms();
+                    unsubChat();
+                };
+
             } else {
                 setLoading(false);
                 toast({ title: "Error", description: "Could not find your employee profile.", variant: "destructive"});
             }
         });
+        
+        return () => {
+            unsubEmployees();
+            unsubCurrentUser();
+        };
 
     }, [user, toast, selectedComm]);
 
@@ -217,7 +229,11 @@ export default function InboxPage() {
                     <NotificationsInbox />
                 </TabsContent>
                 <TabsContent value="chats" className="flex-grow mt-4">
-                    <ChatInbox />
+                    <ChatLobby
+                        currentUser={currentUserEmployee}
+                        threads={chatThreads}
+                        allEmployees={allEmployees}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

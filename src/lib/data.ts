@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -356,6 +355,7 @@ export type NotificationType =
     | 'STATUS_CHANGE'
     | 'EVENT_INVITE'
     | 'MENTIONED_IN_TODO'
+    | 'MENTIONED_IN_NOTE'
     | 'BUDGET_OVERRIDE';
 
 export interface Notification {
