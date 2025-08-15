@@ -127,6 +127,7 @@ export interface Quote {
     id: string;
     engagementTypeId: string;
     clientId: string;
+    partnerId: string;
     plannedDays: number;
     plannedHours: number;
     assignedEmployeeIds: string[];

@@ -42,6 +42,7 @@ export default function QuotePlannerPage() {
     const [selectedClientId, setSelectedClientId] = React.useState<string>("");
     const [selectedEngagementTypeId, setSelectedEngagementTypeId] = React.useState<string>("");
     const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>([]);
+    const [selectedPartnerId, setSelectedPartnerId] = React.useState<string>("");
     const [plannedHours, setPlannedHours] = React.useState<number>(0);
     const [calculation, setCalculation] = React.useState<CalculationResult | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
@@ -85,6 +86,21 @@ export default function QuotePlannerPage() {
         }
     }, [selectedEngagementTypeId, allEngagementTypes]);
     
+    React.useEffect(() => {
+        if (selectedClientId) {
+            const client = allClients.find(c => c.id === selectedClientId);
+            if (client?.partnerId) {
+                setSelectedPartnerId(client.partnerId);
+            }
+        }
+    }, [selectedClientId, allClients]);
+    
+    const partners = React.useMemo(() => {
+        const partnerDept = allDepartments.find(d => d.name.toLowerCase() === 'partner');
+        if (!partnerDept) return [];
+        return allEmployees.filter(s => Array.isArray(s.role) && s.role.includes(partnerDept.name));
+    }, [allEmployees, allDepartments]);
+
     const handleClientSelect = (clientId: string) => {
         setSelectedClientId(clientId);
         setIsClientPopoverOpen(false);
@@ -142,8 +158,8 @@ export default function QuotePlannerPage() {
     };
     
     const handleSaveQuote = async (status: 'Draft' | 'Confirmed') => {
-        if (!calculation || !selectedClientId || !selectedEngagementTypeId || !currentUser || !quotedAmount) {
-             toast({ title: "Error", description: "Please calculate a quote and select a client/type first.", variant: "destructive" });
+        if (!calculation || !selectedClientId || !selectedEngagementTypeId || !currentUser || !quotedAmount || !selectedPartnerId) {
+             toast({ title: "Error", description: "Please calculate a quote and select a client, partner, and type first.", variant: "destructive" });
             return;
         }
         setIsSaving(true);
@@ -153,6 +169,7 @@ export default function QuotePlannerPage() {
                 id: quoteRef.id,
                 clientId: selectedClientId,
                 engagementTypeId: selectedEngagementTypeId,
+                partnerId: selectedPartnerId,
                 plannedDays: plannedHours / 8, // Assuming 8-hour day
                 plannedHours: plannedHours,
                 assignedEmployeeIds: selectedEmployeeIds,
@@ -177,6 +194,7 @@ export default function QuotePlannerPage() {
             setSelectedClientId("");
             setSelectedEngagementTypeId("");
             setSelectedEmployeeIds([]);
+            setSelectedPartnerId("");
             setPlannedHours(0);
             setCalculation(null);
             setQuotedAmount(0);
@@ -275,6 +293,17 @@ export default function QuotePlannerPage() {
                                     </Command>
                                     </PopoverContent>
                                 </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Partner</Label>
+                                <Select value={selectedPartnerId} onValueChange={setSelectedPartnerId} disabled={!selectedClientId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select partner..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label>Engagement Type</Label>
