@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Check, ChevronsUpDown, PlusCircle } from "lucide-react";
-import { format, parse, isValid } from "date-fns";
+import { format, parse, isValid, startOfWeek, endOfWeek } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -142,22 +142,27 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     let requiresApproval = false;
 
     // --- Start Over-allocation Check ---
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+    
     for (const assigneeId of data.assignedTo) {
         const employee = allEmployees.find(e => e.id === assigneeId);
         const department = departments.find(d => d.name === employee?.role[0]);
         if (!employee || !department || !department.standardWeeklyHours) continue;
 
-        const engagementsQuery = query(
-            collection(db, "engagements"),
-            where("assignedTo", "array-contains", assigneeId),
-            where("status", "in", ["Pending", "In Process", "Awaiting Documents", "On Hold"])
+        const timesheetsQuery = query(
+            collection(db, "timesheets"),
+            where("userId", "==", assigneeId),
+            where("weekStartDate", ">=", weekStart.toISOString()),
+            where("weekStartDate", "<=", weekEnd.toISOString())
         );
-        const snapshot = await getDocs(engagementsQuery);
-        const currentAssignedHours = snapshot.docs
-            .map(doc => (doc.data() as Engagement).budgetedHours || 0)
-            .reduce((sum, hours) => sum + hours, 0);
 
-        const newTotalHours = currentAssignedHours + newEngagementHours;
+        const snapshot = await getDocs(timesheetsQuery);
+        const currentLoggedHours = snapshot.docs
+            .map(doc => (doc.data() as any).totalHours || 0)
+            .reduce((sum, hours) => sum + hours, 0);
+        
+        const newTotalHours = currentLoggedHours + newEngagementHours;
         const weeklyTarget = department.standardWeeklyHours;
         const allocationThreshold = weeklyTarget * 1.10; // 110%
 
@@ -257,7 +262,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const handleSaveNewClient = async (clientData: Partial<Client>) => {
     try {
         const newDocRef = doc(collection(db, "clients"));
-        const newClient = { ...clientData, name: capitalizeWords(clientData.name), id: newDocRef.id, lastUpdated: new Date().toISOString() };
+        const newClient = { ...clientData, name: capitalizeWords(clientData.name as string), id: newDocRef.id, lastUpdated: new Date().toISOString() };
         await setDoc(newDocRef, newClient);
 
         toast({ title: "Success", description: "New client added successfully." });
