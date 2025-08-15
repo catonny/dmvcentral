@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -149,9 +149,16 @@ export default function ReportsPage() {
             />
              <ReportCard 
                 title="Firm Analytics (KPIs)"
-                description="Key performance indicators for your firm's health and growth."
+                description="Key performance indicators for the firm's health and growth."
                 icon={BarChart}
                 onClick={() => router.push('/reports/kpi-dashboard')}
+                isDisabled={!checkPermission("firm-analytics")}
+            />
+             <ReportCard 
+                title="Budget & Cash Flow"
+                description="Manage expenses and view a 12-month cash flow forecast."
+                icon={Banknote}
+                onClick={() => router.push('/reports/budget')}
                 isDisabled={!checkPermission("firm-analytics")}
             />
         </div>

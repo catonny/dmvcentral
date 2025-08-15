@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -493,6 +492,22 @@ export interface SalesItem {
     defaultSacId: string;
     associatedEngagementTypeId?: string;
 }
+
+export interface Expense {
+    id: string;
+    name: string;
+    type: 'Monthly' | 'Annual';
+    amount: number;
+}
+
+export interface Budget {
+    id: string; // e.g., "2024-07"
+    year: number;
+    month: number;
+    totalBudgetedExpenses: number;
+    // Potentially add breakdowns here later
+}
+
 
 export const indianStatesAndUTs: string[] = [
     "Andhra Pradesh",
