@@ -39,7 +39,7 @@ function EngagementGrid({ engagements, tasks, clients }: { engagements: Engageme
                     <Link href={`/workflow/${engagement.id}`} key={engagement.id}>
                         <Card className="h-full flex flex-col hover:border-primary/80 hover:shadow-lg transition-all">
                             <CardHeader>
-                                <CardTitle className="text-lg">{client?.name || 'Loading client...'}</CardTitle>
+                                <CardTitle className="text-lg">{client?.Name || 'Loading client...'}</CardTitle>
                                 <CardDescription>{engagement.remarks}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow">
@@ -82,10 +82,10 @@ export default function WorkflowPage() {
             setLoading(false);
             return;
         }
-        setLoading(true);
 
         const fetchInitialData = async () => {
              try {
+                setLoading(true);
                 const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
                 const employeeSnapshot = await getDocs(employeeQuery);
 
@@ -96,43 +96,35 @@ export default function WorkflowPage() {
                 const currentUserProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
                 setCurrentUser(currentUserProfile);
                 
-                 const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => {
-                   setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
-                });
-                
-                const engagementTypesUnsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => {
-                    setEngagementTypes(snapshot.docs.map(doc => doc.data() as EngagementType));
-                });
+                const clientsPromise = getDocs(collection(db, "clients")).then(snapshot => 
+                    setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])))
+                );
 
-                const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+                const engagementTypesPromise = getDocs(collection(db, "engagementTypes")).then(snapshot => 
+                    setEngagementTypes(snapshot.docs.map(doc => doc.data() as EngagementType))
+                );
+
+                const allTasksPromise = getDocs(collection(db, "tasks")).then(snapshot =>
+                    setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)))
+                );
                 
+                const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
                 const myEngagementsQuery = query(
                    collection(db, "engagements"), 
                    where("assignedTo", "array-contains", currentUserProfile.id), 
                    where("status", "in", activeStatuses)
-               );
-                const unsubMyEngagements = onSnapshot(myEngagementsQuery, (engagementsSnapshot) => {
+                );
+                const myEngagementsPromise = getDocs(myEngagementsQuery).then(engagementsSnapshot => {
                     const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
                     setMyEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
-                    setLoading(false);
-                }, () => setLoading(false));
-                
-                const allTasksQuery = query(collection(db, "tasks"));
-                const unsubTasks = onSnapshot(allTasksQuery, (tasksSnapshot) => {
-                    const allTasks = tasksSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task));
-                    setTasks(allTasks);
                 });
-
-                return () => {
-                    unsubMyEngagements();
-                    clientsUnsub();
-                    unsubTasks();
-                    engagementTypesUnsub();
-                }
+                
+                await Promise.all([clientsPromise, engagementTypesPromise, allTasksPromise, myEngagementsPromise]);
 
              } catch(error) {
                  console.error("Error fetching workflow data:", error)
-                 setLoading(false)
+             } finally {
+                 setLoading(false);
              }
         }
         
