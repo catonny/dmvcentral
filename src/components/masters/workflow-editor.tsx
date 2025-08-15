@@ -105,6 +105,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
     const [editingTypeName, setEditingTypeName] = React.useState('');
     const [editingDescription, setEditingDescription] = React.useState('');
     const [editingRecurrence, setEditingRecurrence] = React.useState<EngagementType['recurrence'] | ''>('');
+    const [editingStandardHours, setEditingStandardHours] = React.useState<number | ''>('');
     const [typeToDelete, setTypeToDelete] = React.useState<EngagementType | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -134,11 +135,13 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
             setEditingTypeName(selectedType.name);
             setEditingDescription(selectedType.description || '');
             setEditingRecurrence(selectedType.recurrence || '');
+            setEditingStandardHours(selectedType.standardHours || '');
         } else {
             setTasks([]);
             setEditingTypeName('');
             setEditingDescription('');
             setEditingRecurrence('');
+            setEditingStandardHours('');
         }
     }, [selectedType]);
     
@@ -155,6 +158,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                 description: editingDescription,
                 subTaskTitles: tasks,
                 recurrence: editingRecurrence || null,
+                standardHours: Number(editingStandardHours) || null,
             });
             toast({ title: "Success", description: `Workflow for "${editingTypeName}" updated successfully.` });
         } catch (error) {
@@ -172,7 +176,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                 subTaskTitles: ["Task 1", "Task 2"]
             });
             await updateDoc(newDocRef, { id: newDocRef.id });
-            const newType = { id: newDocRef.id, name: newTypeName, description: "A new workflow template.", subTaskTitles: ["Task 1", "Task 2"], recurrence: undefined };
+            const newType: EngagementType = { id: newDocRef.id, name: newTypeName, description: "A new workflow template.", subTaskTitles: ["Task 1", "Task 2"], recurrence: undefined };
             setSelectedType(newType);
             toast({ title: "Success", description: "New engagement type created." });
         } catch (error) {
@@ -315,19 +319,25 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                     <Textarea id="typeDescription" value={editingDescription} onChange={(e) => setEditingDescription(e.target.value)} placeholder="Describe what this engagement type is for." />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="typeRecurrence">Recurrence</Label>
-                                    <Select value={editingRecurrence} onValueChange={(value) => setEditingRecurrence(value as EngagementType['recurrence'])}>
-                                        <SelectTrigger id="typeRecurrence">
-                                            <SelectValue placeholder="No Recurrence" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value=" ">No Recurrence</SelectItem>
-                                            <SelectItem value="Monthly">Monthly</SelectItem>
-                                            <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                            <SelectItem value="Yearly">Yearly</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="typeRecurrence">Recurrence</Label>
+                                        <Select value={editingRecurrence} onValueChange={(value) => setEditingRecurrence(value as EngagementType['recurrence'])}>
+                                            <SelectTrigger id="typeRecurrence">
+                                                <SelectValue placeholder="No Recurrence" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value=" ">No Recurrence</SelectItem>
+                                                <SelectItem value="Monthly">Monthly</SelectItem>
+                                                <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                                <SelectItem value="Yearly">Yearly</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="standardHours">Standard Hours</Label>
+                                        <Input id="standardHours" type="number" value={editingStandardHours} onChange={(e) => setEditingStandardHours(Number(e.target.value))} placeholder="e.g., 40" />
+                                    </div>
                                 </div>
                                                                 
                                 <h4 className="font-semibold text-foreground pt-4 border-t">Task Checklist</h4>

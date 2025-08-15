@@ -87,6 +87,7 @@ export interface EngagementType {
   subTaskTitles: string[]; 
   applicableCategories?: string[]; // Optional: ["Corporate", "LLP"], etc.
   recurrence?: 'Monthly' | 'Quarterly' | 'Yearly';
+  standardHours?: number;
 }
 
 export type EngagementStatus = "Pending" | "Awaiting Documents" | "In Process" | "Partner Review" | "On Hold" | "Completed" | "Cancelled";
@@ -116,6 +117,7 @@ export interface Engagement {
   salesItemId?: string;
   // New field for quote linkage
   quoteId?: string;
+  budgetedHours?: number;
 }
 
 export interface Quote {
@@ -348,7 +350,8 @@ export interface LeaveRequest {
 export type NotificationType = 
     | 'STATUS_CHANGE'
     | 'EVENT_INVITE'
-    | 'MENTIONED_IN_TODO';
+    | 'MENTIONED_IN_TODO'
+    | 'BUDGET_OVERRIDE';
 
 export interface Notification {
     id: string;
@@ -512,8 +515,10 @@ const adminUser: Employee = {
     role: ["Admin", "Partner"],
     leaveAllowance: 24,
     leavesTaken: 0,
+    monthlySalary: 500000,
+    chargeOutRate: 5000,
 };
-
+    
 const defaultEmployees: Employee[] = [
   { 
     id: "S006", 
