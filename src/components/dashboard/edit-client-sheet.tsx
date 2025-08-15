@@ -113,7 +113,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 pincode: '',
                 State: '',
                 Country: 'India',
-                partnerId: undefined,
+                partnerId: partners.length > 0 ? partners[0].id : undefined,
                 Category: undefined,
                 'Date of Birth': undefined,
                 linkedClientIds: [],
@@ -132,13 +132,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 setDobString("");
             }
         }
-    }, [client, isOpen]);
-
-    React.useEffect(() => {
-        if (isOpen && (!client || !('id' in client)) && partners.length > 0 && !formData.partnerId) {
-            setFormData(prev => ({ ...prev, partnerId: partners[0].id }));
-        }
-    }, [isOpen, client, partners, formData.partnerId]);
+    }, [client, isOpen, partners]);
 
     const handleSave = async () => {
         if (!formData.Name || !formData['Mobile Number'] || !formData['Mail ID'] || !formData.Category || !formData.partnerId) {
