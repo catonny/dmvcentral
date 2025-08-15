@@ -113,19 +113,34 @@ export default function ReportsPage() {
 
        <WorkloadDistribution engagements={engagements} employees={employees} />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <ReportCard 
-                title="Engagement Reports"
-                description="High-level summary and a detailed list of all engagements."
-                icon={FileText}
-                onClick={() => router.push('/reports/engagements')}
-            />
+      <section>
+        <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Operational Reports</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ReportCard 
-                title="Exception Reports"
-                description="Find clients and engagements that require immediate attention."
-                icon={AlertTriangle}
-                onClick={() => router.push('/reports/exceptions')}
-            />
+                    title="Engagement Reports"
+                    description="High-level summary and a detailed list of all engagements."
+                    icon={FileText}
+                    onClick={() => router.push('/reports/engagements')}
+                />
+                <ReportCard 
+                    title="Exception Reports"
+                    description="Find clients and engagements that require immediate attention."
+                    icon={AlertTriangle}
+                    onClick={() => router.push('/reports/exceptions')}
+                />
+                 <ReportCard 
+                    title="Custom Reports"
+                    description="Drill down into engagements with multi-level task and status filters."
+                    icon={SlidersHorizontal}
+                    onClick={() => router.push('/reports/advanced-engagement-report')}
+                    isDisabled={!checkPermission("firm-analytics")}
+                />
+        </div>
+      </section>
+
+       <section>
+        <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">Financial Reports</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              <ReportCard 
                 title="Accounts Reports"
                 description="Access detailed invoice, revenue, and collection reports."
@@ -139,6 +154,12 @@ export default function ReportsPage() {
                 onClick={() => router.push('/reports/kpi-dashboard')}
                 isDisabled={!checkPermission("firm-analytics")}
             />
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">HR Reports</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ReportCard 
                 title="Timesheet Report"
                 description="View employee hours, billed revenue, and pending amounts."
@@ -160,14 +181,8 @@ export default function ReportsPage() {
                 onClick={() => router.push('/reports/bonus')}
                 isDisabled={!checkPermission("firm-analytics")}
             />
-            <ReportCard 
-                title="Custom Reports"
-                description="Drill down into engagements with multi-level task and status filters."
-                icon={SlidersHorizontal}
-                onClick={() => router.push('/reports/advanced-engagement-report')}
-                 isDisabled={!checkPermission("firm-analytics")} // Assuming custom reports have same access level as KPIs
-            />
         </div>
+      </section>
     </div>
   );
 }
