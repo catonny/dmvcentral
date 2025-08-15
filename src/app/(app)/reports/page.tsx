@@ -1,9 +1,8 @@
-
 "use client";
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -138,6 +137,13 @@ export default function ReportsPage() {
                 icon={BarChart}
                 onClick={() => router.push('/reports/kpi-dashboard')}
                 isDisabled={!checkPermission("firm-analytics")}
+            />
+            <ReportCard 
+                title="Timesheet Report"
+                description="View employee hours, billed revenue, and pending amounts."
+                icon={Timer}
+                onClick={() => router.push('/reports/timesheet')}
+                isDisabled={!checkPermission("reports")}
             />
             <ReportCard 
                 title="Custom Reports"
