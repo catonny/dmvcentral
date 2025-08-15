@@ -19,6 +19,11 @@ import { Input } from "@/components/ui/input";
 
 // NOTE: The bonus calculation logic is now intended to be run by a scheduled backend process monthly.
 // This report now simply displays the results logged in the 'bonuses' collection.
+// The logic for calculation is as follows:
+// 1. At month-end, for each employee, sum their proportional revenue share from all completed & collected engagements.
+// 2. Revenue share is calculated based on hours logged. If Employee A logs 10 hours and Employee B logs 30 hours on a 10,000 fee engagement, A's share is 2,500 and B's is 7,500.
+// 3. Compare this total monthly revenue share against their monthly target (Standard Dept Hours * 4 * Charge-Out Rate).
+// 4. If revenue share > target, a bonus record is created for the excess amount.
 
 export default function BonusReportPage() {
     const { user } = useAuth();
@@ -125,14 +130,15 @@ export default function BonusReportPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Trophy/>Employee Bonus Report</CardTitle>
                     <CardDescription>
-                        Summary and details of bonuses earned by employees for exceeding monthly performance targets.
+                        Summary and details of bonuses earned by employees for exceeding monthly revenue targets. 
+                        Revenue is attributed proportionally based on hours logged on each engagement.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card>
                              <CardHeader>
-                                <CardTitle>Bonus Summary</CardTitle>
+                                <CardTitle>Bonus Summary (Year to Date)</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <Table>
@@ -155,7 +161,7 @@ export default function BonusReportPage() {
                         </Card>
                          <Card>
                              <CardHeader>
-                                <CardTitle>Detailed Log</CardTitle>
+                                <CardTitle>Detailed Bonus Log</CardTitle>
                                 <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select Employee..." />
@@ -171,7 +177,7 @@ export default function BonusReportPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Employee</TableHead>
-                                            <TableHead>Date</TableHead>
+                                            <TableHead>Period</TableHead>
                                             <TableHead>Reason</TableHead>
                                             <TableHead className="text-right">Amount (₹)</TableHead>
                                         </TableRow>
@@ -180,7 +186,7 @@ export default function BonusReportPage() {
                                         {filteredBonuses.map(item => (
                                             <TableRow key={item.id}>
                                                 <TableCell>{employeeMap.get(item.employeeId)}</TableCell>
-                                                <TableCell>{format(parseISO(item.createdAt), "dd MMM, yyyy")}</TableCell>
+                                                <TableCell>{item.period}</TableCell>
                                                 <TableCell>{item.reason}</TableCell>
                                                 <TableCell className="text-right font-mono">{item.amount.toFixed(2)}</TableCell>
                                             </TableRow>
