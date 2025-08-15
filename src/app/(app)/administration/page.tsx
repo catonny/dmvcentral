@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot, MailSearch } from "lucide-react";
+import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot, MailSearch, FileSignature } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -92,6 +92,12 @@ export default function AdministrationPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <ActionCard 
+                    title="Quote Planner"
+                    description="Plan and generate quotes for new engagements."
+                    icon={FileSignature}
+                    onClick={() => router.push('/administration/quote-planner')}
+                />
                 <ActionCard 
                     title="Billing Dashboard"
                     description="Process submitted engagements and generate invoices."

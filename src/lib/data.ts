@@ -114,7 +114,35 @@ export interface Engagement {
   fees?: number;
   recurringEngagementId?: string;
   salesItemId?: string;
+  // New field for quote linkage
+  quoteId?: string;
 }
+
+export interface Quote {
+    id: string;
+    engagementTypeId: string;
+    clientId: string;
+    plannedDays: number;
+    plannedHours: number;
+    assignedEmployeeIds: string[];
+    estimatedCost: number;
+    quotedAmount: number;
+    costPlus50: number; // For reference
+    status: 'Draft' | 'Confirmed';
+    createdAt: string; // ISO string
+    createdBy: string; // Employee ID
+}
+
+export interface Bonus {
+    id: string;
+    employeeId: string;
+    engagementId: string;
+    quoteId: string;
+    amount: number;
+    reason: string;
+    createdAt: string;
+}
+
 
 export interface InvoiceLineItem {
     id: string;
@@ -231,8 +259,8 @@ export type ActivityLogType =
     | 'ASSIGNEE_CHANGED'
     | 'REMARKS_CHANGED'
     | 'TASK_COMPLETED'
-    | 'MENTIONED_IN_TODO'
-    | 'EVENT_CREATED';
+    | 'EVENT_CREATED'
+    | 'MENTIONED_IN_TODO';
 
 export interface ActivityLog {
     id: string;
@@ -503,12 +531,12 @@ export const employees: Employee[] = [adminUser, ...defaultEmployees];
 
 
 export const departments: Omit<Department, "id">[] = [
-    { name: "Admin", order: 1 },
-    { name: "Partner", order: 2 },
-    { name: "Administration", order: 3 },
-    { name: "Manager", order: 4 },
-    { name: "Employee", order: 5 },
-    { name: "Articles", order: 6 },
+    { name: "Admin", order: 1, standardWeeklyHours: 40 },
+    { name: "Partner", order: 2, standardWeeklyHours: 40 },
+    { name: "Administration", order: 3, standardWeeklyHours: 40 },
+    { name: "Manager", order: 4, standardWeeklyHours: 45 },
+    { name: "Employee", order: 5, standardWeeklyHours: 45 },
+    { name: "Articles", order: 6, standardWeeklyHours: 40 },
 ];
 
 
