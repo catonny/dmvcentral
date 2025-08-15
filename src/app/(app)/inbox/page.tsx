@@ -164,12 +164,14 @@ export default function InboxPage() {
 
                 const chatQuery = query(
                     collection(db, 'chatThreads'),
-                    where('participants', 'array-contains', employeeProfile.id),
-                    orderBy('updatedAt', 'desc')
+                    where('participants', 'array-contains', employeeProfile.id)
                 );
 
                 const unsubChat = onSnapshot(chatQuery, (snapshot) => {
-                    setChatThreads(snapshot.docs.map(d => ({id: d.id, ...d.data()} as ChatThread)));
+                    const threads = snapshot.docs.map(d => ({id: d.id, ...d.data()} as ChatThread));
+                    // Sort threads by updatedAt client-side to avoid composite index
+                    threads.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                    setChatThreads(threads);
                 });
                 
                 return () => {
