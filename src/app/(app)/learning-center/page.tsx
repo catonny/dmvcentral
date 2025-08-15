@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Workshop, LearningLog, Employee } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,24 +34,35 @@ export default function LearningCenterPage() {
             setAllEmployees(employeesData);
             const currentUserProfile = employeesData.find(e => e.email === user.email);
             setCurrentUser(currentUserProfile || null);
-        }, (err) => toast({ title: "Error", description: "Could not fetch employees.", variant: "destructive" }));
+
+            // Fetch logs only after we have the current user's ID
+            if (currentUserProfile) {
+                const logsQuery = query(collection(db, "learningLogs"), where("userId", "==", currentUserProfile.id));
+                const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
+                    setLearningLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LearningLog)));
+                    setLoading(false);
+                }, (err) => {
+                    toast({ title: "Error", description: "Could not fetch your learning logs.", variant: "destructive" });
+                    setLoading(false);
+                });
+                return unsubLogs; // This will be cleaned up by the outer return function
+            } else {
+                 setLoading(false);
+            }
+        }, (err) => {
+            toast({ title: "Error", description: "Could not fetch employees.", variant: "destructive" });
+            setLoading(false);
+        });
         
         const unsubWorkshops = onSnapshot(collection(db, "workshops"), (snapshot) => {
             setWorkshops(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workshop)));
         }, (err) => toast({ title: "Error", description: "Could not fetch workshops.", variant: "destructive" }));
         
-        const unsubLogs = onSnapshot(collection(db, "learningLogs"), (snapshot) => {
-            setLearningLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LearningLog)));
-            setLoading(false);
-        }, (err) => {
-             toast({ title: "Error", description: "Could not fetch learning logs.", variant: "destructive" });
-             setLoading(false);
-        });
         
         return () => {
             unsubEmployees();
             unsubWorkshops();
-            unsubLogs();
+            // The logs unsub is handled inside the employee fetcher
         }
     }, [user, toast]);
     
