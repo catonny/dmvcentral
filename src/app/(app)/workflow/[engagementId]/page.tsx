@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -260,7 +261,7 @@ export default function EngagementWorkflowPage() {
 
   const typedSelectedEngagement = {
     ...engagement,
-    clientName: client.Name,
+    clientName: client.name,
     engagementTypeName: engagementType?.name || engagement.type,
   };
   
@@ -292,7 +293,7 @@ export default function EngagementWorkflowPage() {
                  <div>
                     <CardTitle className="font-headline text-2xl">{engagementType?.name || engagement.type}</CardTitle>
                     <CardDescription>
-                        Client: {client.Name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
+                        Client: {client.name} | Due: {format(parseISO(engagement.dueDate), "dd MMM, yyyy")}
                     </CardDescription>
                  </div>
                  <EditableStatus 

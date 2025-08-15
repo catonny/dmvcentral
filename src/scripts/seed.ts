@@ -75,7 +75,10 @@ export const seedDatabase = async () => {
         'recurringEngagements',
         'todos',
         '_metadata',
-        'bonuses'
+        'bonuses',
+        'quotes',
+        'learningLogs',
+        'workshops'
     ];
 
     console.log('Deleting existing data...');
@@ -186,8 +189,8 @@ export const seedDatabase = async () => {
 
     console.log('Seeding sales items...');
     const salesItems: Omit<SalesItem, 'id'>[] = [
-        { name: 'Statutory Audit Fee', description: 'Fee for statutory audit services.', standardPrice: 50000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId },
-        { name: 'ITR Filing Fee', description: 'Fee for income tax return filing.', standardPrice: 5000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId },
+        { name: 'Statutory Audit Fee', description: 'Fee for statutory audit services.', standardPrice: 50000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId, associatedEngagementTypeId: "ET05" },
+        { name: 'ITR Filing Fee', description: 'Fee for income tax return filing.', standardPrice: 5000, defaultTaxRateId: defaultTaxRateId, defaultSacId: defaultSacId, associatedEngagementTypeId: "ET01" },
     ];
      salesItems.forEach(item => {
         const docRef = db.collection('salesItems').doc();
@@ -198,7 +201,7 @@ export const seedDatabase = async () => {
     const permissions: Permission[] = [
         { feature: 'reports', departments: ['Admin', 'Partner'] },
         { feature: 'administration', departments: ['Admin', 'Partner', 'Administration'] },
-        { feature: 'timesheet', departments: ['Admin', 'Partner'] },
+        { feature: 'timesheet', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles'] },
         { feature: 'calendar', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
         { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
         { feature: 'firm-analytics', departments: ['Admin', 'Partner'] },
@@ -225,7 +228,7 @@ export const seedDatabase = async () => {
 
     console.log('Seeding engagements and tasks...');
     engagements.forEach((engagement) => {
-        const clientRefData = clientRefs[engagement.clientId];
+        const clientRefData = clientRefs[engagement.clientId as keyof typeof clientRefs];
         if (clientRefData) {
           const engagementDocRef = db.collection('engagements').doc();
           const newEngagement = { ...engagement, id: engagementDocRef.id, clientId: clientRefData.id, financialYear: engagement.financialYear || "2024-25" };
