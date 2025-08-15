@@ -2,13 +2,13 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, setDoc, addDoc, where } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, setDoc, addDoc, where, orderBy } from "firebase/firestore";
 import { db, logActivity } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee, Client, EngagementType, Quote } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, PlusCircle, Check, ChevronsUpDown, Calculator, FileSignature, Save } from "lucide-react";
+import { Loader2, ArrowLeft, PlusCircle, Check, ChevronsUpDown, Calculator, FileSignature, Save, Briefcase, FileClock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,10 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn, capitalizeWords } from "@/lib/utils";
 import { EditClientSheet } from "@/components/dashboard/edit-client-sheet";
 import { BudgetHoursDialog } from "@/components/administration/budget-hours-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 
 interface CalculationResult {
@@ -39,6 +43,7 @@ export default function QuotePlannerPage() {
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     const [allEngagementTypes, setAllEngagementTypes] = React.useState<EngagementType[]>([]);
     const [allDepartments, setAllDepartments] = React.useState<any[]>([]);
+    const [allQuotes, setAllQuotes] = React.useState<Quote[]>([]);
 
     // Form State
     const [selectedClientId, setSelectedClientId] = React.useState<string>("");
@@ -73,6 +78,7 @@ export default function QuotePlannerPage() {
             onSnapshot(collection(db, "employees"), snap => setAllEmployees(snap.docs.map(d => ({id: d.id, ...d.data()}) as Employee))),
             onSnapshot(collection(db, "engagementTypes"), snap => setAllEngagementTypes(snap.docs.map(d => ({id: d.id, ...d.data()}) as EngagementType))),
             onSnapshot(collection(db, "departments"), snap => setAllDepartments(snap.docs.map(d => d.data()))),
+            onSnapshot(query(collection(db, "quotes"), orderBy("createdAt", "desc")), snap => setAllQuotes(snap.docs.map(d => d.data() as Quote)))
         ];
         setLoading(false);
         return () => unsubs.forEach(unsub => unsub());
@@ -206,12 +212,56 @@ export default function QuotePlannerPage() {
 
     const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name && c.name.toLowerCase() === clientSearchQuery.toLowerCase());
 
+    const confirmedQuotes = allQuotes.filter(q => q.status === 'Confirmed');
+    const draftQuotes = allQuotes.filter(q => q.status === 'Draft');
 
     if (loading) {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
     const teamToBudget = allEmployees.filter(e => selectedEmployeeIds.includes(e.id));
+    
+    const renderQuotesTable = (quotes: Quote[]) => {
+        return (
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Engagement Type</TableHead>
+                        <TableHead>Quoted Amount</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {quotes.length > 0 ? quotes.map(quote => {
+                        const client = allClients.find(c => c.id === quote.clientId);
+                        const engagementType = allEngagementTypes.find(et => et.id === quote.engagementTypeId);
+                        return (
+                            <TableRow key={quote.id}>
+                                <TableCell>{client?.name || 'N/A'}</TableCell>
+                                <TableCell>{engagementType?.name || 'N/A'}</TableCell>
+                                <TableCell>₹{quote.quotedAmount.toLocaleString()}</TableCell>
+                                <TableCell>{format(new Date(quote.createdAt), "dd MMM yyyy")}</TableCell>
+                                <TableCell className="text-right">
+                                    {quote.status === 'Confirmed' && (
+                                        <Button size="sm"><Briefcase className="mr-2"/>Create Engagement</Button>
+                                    )}
+                                    {quote.status === 'Draft' && (
+                                        <Button size="sm" variant="secondary">View / Edit</Button>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    }) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center h-24">No quotes in this category.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        )
+    }
 
     return (
         <>
@@ -380,6 +430,27 @@ export default function QuotePlannerPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Existing Quotes</CardTitle>
+                        <CardDescription>View and manage all saved quotes.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs defaultValue="confirmed">
+                            <TabsList>
+                                <TabsTrigger value="confirmed"><Check className="mr-2"/>Confirmed Quotes</TabsTrigger>
+                                <TabsTrigger value="drafts"><FileClock className="mr-2"/>Draft Quotes</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="confirmed">
+                                {renderQuotesTable(confirmedQuotes)}
+                            </TabsContent>
+                            <TabsContent value="drafts">
+                                {renderQuotesTable(draftQuotes)}
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
             </div>
             <EditClientSheet
                 client={newClientData}
@@ -399,3 +470,4 @@ export default function QuotePlannerPage() {
         </>
     );
 }
+
