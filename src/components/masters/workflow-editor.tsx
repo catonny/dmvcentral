@@ -322,7 +322,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="typeRecurrence">Recurrence</Label>
-                                        <Select value={editingRecurrence} onValueChange={(value) => setEditingRecurrence(value as EngagementType['recurrence'])}>
+                                        <Select value={editingRecurrence || ""} onValueChange={(value) => setEditingRecurrence(value as EngagementType['recurrence'])}>
                                             <SelectTrigger id="typeRecurrence">
                                                 <SelectValue placeholder="No Recurrence" />
                                             </SelectTrigger>
@@ -336,7 +336,7 @@ export function WorkflowEditor({ onBack }: { onBack: () => void }) {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="standardHours">Standard Hours</Label>
-                                        <Input id="standardHours" type="number" value={editingStandardHours} onChange={(e) => setEditingStandardHours(Number(e.target.value))} placeholder="e.g., 40" />
+                                        <Input id="standardHours" type="number" value={editingStandardHours || ""} onChange={(e) => setEditingStandardHours(Number(e.target.value))} placeholder="e.g., 40" />
                                     </div>
                                 </div>
                                                                 
