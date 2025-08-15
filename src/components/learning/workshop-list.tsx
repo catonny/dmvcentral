@@ -8,7 +8,7 @@ import type { Workshop, Employee, LearningLog } from "@/lib/data";
 import { format, isPast } from "date-fns";
 import { Calendar, Clock, PlusCircle, User, Users } from "lucide-react";
 import { CreateWorkshopDialog } from "./create-workshop-dialog";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, collection, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,11 +26,32 @@ export function WorkshopList({ workshops, allEmployees, currentUser }: WorkshopL
       if (!currentUser) return;
       
       const workshopRef = doc(db, "workshops", workshop.id);
+      const learningLogRef = doc(collection(db, "learningLogs"));
+      
       try {
-          await updateDoc(workshopRef, {
+          const batch = db.batch();
+          
+          // Add user to attendee list
+          batch.update(workshopRef, {
               attendeeIds: arrayUnion(currentUser.id)
           });
-          toast({ title: "Success", description: `You have been marked as attending "${workshop.topic}".`});
+          
+          // Create corresponding learning log
+          const newLog: LearningLog = {
+              id: learningLogRef.id,
+              userId: currentUser.id,
+              date: workshop.scheduledAt,
+              durationHours: workshop.durationHours,
+              area: workshop.area,
+              topic: workshop.topic,
+              description: `Attended workshop by ${workshop.speaker}.`,
+              workshopId: workshop.id,
+          };
+          batch.set(learningLogRef, newLog);
+
+          await batch.commit();
+
+          toast({ title: "Success", description: `You have been marked as attending and your learning log has been updated.`});
       } catch (error) {
           console.error("Error marking attendance:", error);
           toast({ title: "Error", description: "Could not mark attendance.", variant: "destructive"});
