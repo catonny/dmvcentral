@@ -238,6 +238,11 @@ export interface TimesheetEntry {
     description?: string;
 }
 
+export interface LearningEntry {
+    learningLogId: string;
+    hours: number;
+}
+
 export interface Timesheet {
     id: string; // Composite key: userId_weekStartDate (e.g., S003_2024-07-22)
     userId: string;
@@ -245,7 +250,10 @@ export interface Timesheet {
     isPartner: boolean;
     weekStartDate: string; // ISO 8601 string for the Monday of that week
     totalHours: number;
+    totalEngagementHours: number;
+    totalLearningHours: number;
     entries: TimesheetEntry[];
+    learningEntries: LearningEntry[];
 }
 
 
@@ -372,6 +380,32 @@ export interface Notification {
     isRead: boolean;
     createdAt: string; // ISO
     createdBy: string; // User ID of who triggered the notification
+}
+
+export type WorkshopArea = "Companies Act" | "Audit" | "Income Tax" | "GST" | "Other";
+
+export interface Workshop {
+    id: string;
+    topic: string;
+    area: WorkshopArea;
+    speaker: string;
+    scheduledAt: string; // ISO string
+    durationHours: number;
+    attendeeIds: string[]; // List of Employee IDs who attended
+    invitedIds: string[]; // List of Employee IDs who were invited
+    createdBy: string; // Employee ID
+    createdAt: string;
+}
+
+export interface LearningLog {
+    id: string;
+    userId: string; // Employee ID
+    date: string; // ISO string
+    durationHours: number;
+    area: WorkshopArea;
+    topic: string; // Can be workshop topic or self-study topic
+    description: string;
+    workshopId?: string; // Optional link to a workshop
 }
 
 
@@ -950,11 +984,14 @@ export const timesheets: Omit<Timesheet, 'id' | 'userName' | 'isPartner'>[] = [
         userId: "S006",
         weekStartDate: "2024-07-22T00:00:00.000Z",
         totalHours: 40,
+        totalEngagementHours: 40,
+        totalLearningHours: 0,
         entries: [
             { engagementId: "eng_S006_1", hours: 20 }, // ITR Filing
             { engagementId: "eng_S006_2", hours: 10 }, // GST Filing
             { engagementId: "eng_S006_3", hours: 10 }, // Company Audit
-        ]
+        ],
+        learningEntries: []
     },
 ];
 
