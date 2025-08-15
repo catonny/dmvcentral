@@ -1,4 +1,5 @@
 
+
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -202,7 +203,7 @@ export interface RecurringEngagement {
   dueDateMonth?: number; // Month of the year (1-12), for yearly recurrences
 }
 
-export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK' | 'PERFORMANCE_REVIEW';
+export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK' | 'PERFORMANCE_REVIEW' | 'BUDGET_OVERRIDE';
 
 export interface Todo {
     id: string;
@@ -211,9 +212,10 @@ export interface Todo {
     createdBy: string; // Employee ID of the creator
     assignedTo: string[]; // Employee IDs of assignees
     relatedEntity?: {
-        type: 'client' | 'engagement';
+        type: 'client' | 'engagement' | 'engagement_creation_request';
         id: string;
     };
+    relatedData?: any; // To store temporary data for creation requests
     isCompleted: boolean;
     createdAt: string; // ISO String
     completedAt?: string; // ISO String

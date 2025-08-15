@@ -21,7 +21,7 @@ import { format, parse, isValid } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Client, EngagementType, Employee, Department } from "@/lib/data";
+import { Client, EngagementType, Employee, Department, Engagement, Task, Todo } from "@/lib/data";
 import { cn, capitalizeWords } from "@/lib/utils";
 import {
   Command,
@@ -33,8 +33,8 @@ import {
 } from "@/components/ui/command";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { doc, setDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, setDoc, collection, getDocs, query, where, writeBatch } from "firebase/firestore";
+import { db, logActivity } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { EditClientSheet } from "../dashboard/edit-client-sheet";
 import { Checkbox } from "../ui/checkbox";
@@ -132,12 +132,68 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
 
 
   const handleFormSubmit = async (data: EngagementFormData) => {
+    if (!currentUserEmployee) return;
+
+    const engagementType = engagementTypes.find(et => et.id === data.type);
+    const newEngagementHours = engagementType?.standardHours || 0;
     const client = clients.find(c => c.id === data.clientId);
-    let reporterId = data.reportedTo;
-    
-    if (!reporterId && client && client.partnerId) {
-        reporterId = client.partnerId;
+
+    const batch = writeBatch(db);
+    let requiresApproval = false;
+
+    // --- Start Over-allocation Check ---
+    for (const assigneeId of data.assignedTo) {
+        const employee = allEmployees.find(e => e.id === assigneeId);
+        const department = departments.find(d => d.name === employee?.role[0]);
+        if (!employee || !department || !department.standardWeeklyHours) continue;
+
+        const engagementsQuery = query(
+            collection(db, "engagements"),
+            where("assignedTo", "array-contains", assigneeId),
+            where("status", "in", ["Pending", "In Process", "Awaiting Documents", "On Hold"])
+        );
+        const snapshot = await getDocs(engagementsQuery);
+        const currentAssignedHours = snapshot.docs
+            .map(doc => (doc.data() as Engagement).budgetedHours || 0)
+            .reduce((sum, hours) => sum + hours, 0);
+
+        const newTotalHours = currentAssignedHours + newEngagementHours;
+        const weeklyTarget = department.standardWeeklyHours;
+        const allocationThreshold = weeklyTarget * 1.10; // 110%
+
+        if (newTotalHours > allocationThreshold) {
+            requiresApproval = true;
+            const partnerId = client?.partnerId;
+            if (!partnerId) {
+                toast({ title: "Error", description: `Client ${client?.name} has no partner assigned. Cannot request override.`, variant: "destructive"});
+                return;
+            }
+
+            const todoRef = doc(collection(db, "todos"));
+            const newTodo: Omit<Todo, 'id'> = {
+                type: 'BUDGET_OVERRIDE',
+                text: `Approve over-allocation for ${employee.name} on engagement "${data.remarks}" for client ${client?.name}.`,
+                createdBy: currentUserEmployee.id,
+                assignedTo: [partnerId],
+                isCompleted: false,
+                createdAt: new Date().toISOString(),
+                relatedEntity: { type: 'engagement_creation_request', id: todoRef.id },
+                relatedData: { ...data, budgetedHours: newEngagementHours } // Store request data
+            };
+            batch.set(todoRef, {...newTodo, id: todoRef.id});
+        }
     }
+    // --- End Over-allocation Check ---
+    
+    if (requiresApproval) {
+        await batch.commit();
+        toast({ title: "Approval Required", description: "This assignment exceeds an employee's standard hours. A request has been sent to the partner for approval." });
+        handleClose();
+        return;
+    }
+
+
+    const reporterId = data.reportedTo || client?.partnerId;
     
     const newEngagementDocRef = doc(collection(db, 'engagements'));
     await onSave(data, client, reporterId, newEngagementDocRef.id);
