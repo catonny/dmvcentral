@@ -1,4 +1,5 @@
 
+
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -132,9 +133,10 @@ export interface Quote {
     estimatedCost: number;
     quotedAmount: number;
     costPlus50: number; // For reference
-    status: 'Draft' | 'Confirmed';
+    status: 'Draft' | 'Confirmed' | 'Archived';
     createdAt: string; // ISO string
     createdBy: string; // Employee ID
+    engagementId?: string; // Link to the created engagement
 }
 
 

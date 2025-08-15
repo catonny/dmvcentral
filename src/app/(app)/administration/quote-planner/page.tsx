@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, getDocs, doc, setDoc, addDoc, where, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, doc, setDoc, addDoc, where, orderBy, writeBatch, updateDoc } from "firebase/firestore";
 import { db, logActivity } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Employee, Client, EngagementType, Quote } from "@/lib/data";
+import type { Employee, Client, EngagementType, Quote, Engagement, Task } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, PlusCircle, Check, ChevronsUpDown, Calculator, FileSignature, Save, Briefcase, FileClock } from "lucide-react";
@@ -61,6 +62,7 @@ export default function QuotePlannerPage() {
     const [isClientSheetOpen, setIsClientSheetOpen] = React.useState(false);
     const [newClientData, setNewClientData] = React.useState<Partial<Client> | null>(null);
     const [isBudgetHoursDialogOpen, setIsBudgetHoursDialogOpen] = React.useState(false);
+    const [isProcessing, setIsProcessing] = React.useState<string | null>(null);
 
 
     React.useEffect(() => {
@@ -205,12 +207,73 @@ export default function QuotePlannerPage() {
         }
     };
     
+     const handleCreateEngagementFromQuote = async (quote: Quote) => {
+        if (!currentUser) {
+            toast({ title: "Authentication Error", description: "Could not identify current user.", variant: "destructive" });
+            return;
+        }
+        setIsProcessing(quote.id);
+        
+        try {
+            const batch = writeBatch(db);
+            const engagementType = allEngagementTypes.find(et => et.id === quote.engagementTypeId);
+            if (!engagementType) throw new Error("Could not find the engagement type for this quote.");
+
+            const engagementDocRef = doc(collection(db, 'engagements'));
+            const newEngagement: Engagement = {
+                id: engagementDocRef.id,
+                clientId: quote.clientId,
+                type: quote.engagementTypeId,
+                remarks: `Engagement from Quote #${quote.id.substring(0, 5)}`,
+                assignedTo: quote.budgetedResources.map(r => r.employeeId),
+                reportedTo: quote.partnerId,
+                status: 'Pending',
+                dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(), // Default 30 days
+                budgetedHours: quote.totalPlannedHours,
+                fees: quote.quotedAmount,
+                quoteId: quote.id
+            };
+            batch.set(engagementDocRef, newEngagement);
+
+            (engagementType.subTaskTitles || []).forEach((title, index) => {
+                const taskDocRef = doc(collection(db, 'tasks'));
+                const newTask: Task = {
+                    id: taskDocRef.id,
+                    engagementId: engagementDocRef.id,
+                    title,
+                    status: 'Pending',
+                    order: index + 1,
+                    assignedTo: newEngagement.assignedTo[0] || '', // Assign to first member
+                };
+                batch.set(taskDocRef, newTask);
+            });
+            
+            const quoteRef = doc(db, 'quotes', quote.id);
+            batch.update(quoteRef, { status: 'Archived', engagementId: engagementDocRef.id });
+
+            await batch.commit();
+
+            toast({
+                title: "Engagement Created!",
+                description: "The quote has been successfully converted into a new engagement.",
+            });
+
+            router.push(`/workflow/${engagementDocRef.id}`);
+
+        } catch (error) {
+            console.error("Error creating engagement from quote:", error);
+            toast({ title: "Creation Failed", description: "Could not create the engagement from this quote.", variant: "destructive" });
+        } finally {
+            setIsProcessing(null);
+        }
+    };
+
     const filteredClients = React.useMemo(() => {
         if (!clientSearchQuery) return allClients;
-        return allClients.filter(c => c.name && c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
+        return allClients.filter(c => c.name?.toLowerCase().includes(clientSearchQuery.toLowerCase()));
     }, [allClients, clientSearchQuery]);
 
-    const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name && c.name.toLowerCase() === clientSearchQuery.toLowerCase());
+    const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name?.toLowerCase() === clientSearchQuery.toLowerCase());
 
     const confirmedQuotes = allQuotes.filter(q => q.status === 'Confirmed');
     const draftQuotes = allQuotes.filter(q => q.status === 'Draft');
@@ -245,7 +308,10 @@ export default function QuotePlannerPage() {
                                 <TableCell>{format(new Date(quote.createdAt), "dd MMM yyyy")}</TableCell>
                                 <TableCell className="text-right">
                                     {quote.status === 'Confirmed' && (
-                                        <Button size="sm"><Briefcase className="mr-2"/>Create Engagement</Button>
+                                        <Button size="sm" onClick={() => handleCreateEngagementFromQuote(quote)} disabled={!!isProcessing}>
+                                            {isProcessing === quote.id ? <Loader2 className="mr-2 animate-spin"/> : <Briefcase className="mr-2"/>}
+                                            Create Engagement
+                                        </Button>
                                     )}
                                     {quote.status === 'Draft' && (
                                         <Button size="sm" variant="secondary">View / Edit</Button>
@@ -470,4 +536,3 @@ export default function QuotePlannerPage() {
         </>
     );
 }
-
