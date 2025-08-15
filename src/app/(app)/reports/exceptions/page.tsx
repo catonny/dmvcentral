@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Users, FileText, AlertTriangle } from "lucide-react";
+import { ArrowRight, Users, FileText, AlertTriangle, UserX, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -50,11 +51,11 @@ export default function ExceptionReportsPage() {
             Exception Reports
           </h2>
           <p className="text-muted-foreground">
-            Find clients and engagements that require your immediate attention.
+            Find items and team performance that require your immediate attention.
           </p>
         </div>
       </div>
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ActionCard 
                 title="Incomplete Client Data"
                 description="Find clients with missing mandatory information like PAN or email."
@@ -72,6 +73,18 @@ export default function ExceptionReportsPage() {
                 description="Active engagements that have passed their due date."
                 icon={FileText}
                 onClick={() => router.push('/reports/exceptions/overdue-engagements')}
+            />
+             <ActionCard 
+                title="Monthly Hours Deficit"
+                description="Employees who have not met their monthly target hours."
+                icon={UserX}
+                onClick={() => router.push('/reports/exceptions/monthly-hours-deficit')}
+            />
+             <ActionCard 
+                title="Budget Overruns"
+                description="Engagements where logged hours exceed the budgeted hours."
+                icon={Hourglass}
+                onClick={() => router.push('/reports/exceptions/budget-overruns')}
             />
         </div>
     </div>

@@ -203,7 +203,7 @@ export interface RecurringEngagement {
   dueDateMonth?: number; // Month of the year (1-12), for yearly recurrences
 }
 
-export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK';
+export type TodoType = 'FEE_REVISION_APPROVAL' | 'INCOMPLETE_CLIENT_DATA' | 'GENERAL_TASK' | 'PERFORMANCE_REVIEW';
 
 export interface Todo {
     id: string;
