@@ -3,8 +3,8 @@
 
 import * as React from "react";
 import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc, setDoc } from "firebase/firestore";
-import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus } from "@/lib/data";
-import { db, logActivity } from "@/lib/firebase";
+import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus, EngagementStatus } from "@/lib/data";
+import { db, logActivity, notify } from "@/lib/firebase";
 import { notFound, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -192,7 +192,7 @@ export default function EngagementWorkflowPage() {
   };
 
   const handleStatusChange = async (engagementId: string, newStatus: EngagementStatus, submitToBilling?: boolean) => {
-    if (!currentUserEmployee || !engagement) return;
+    if (!currentUserEmployee || !engagement || !client) return;
     
     try {
         const engagementRef = doc(db, "engagements", engagementId);
@@ -209,6 +209,17 @@ export default function EngagementWorkflowPage() {
             user: currentUserEmployee,
             details: { from: engagement.status, to: newStatus }
         });
+        
+        // Notify the partner
+        if (client.partnerId) {
+            await notify({
+                recipients: [client.partnerId],
+                type: 'STATUS_CHANGE',
+                text: `${currentUserEmployee.name} changed status of "${engagement.remarks}" to ${newStatus}.`,
+                relatedEntity: { type: 'engagement', id: engagement.id },
+                triggeringUser: currentUserEmployee,
+            });
+        }
 
         toast({
             title: "Success",

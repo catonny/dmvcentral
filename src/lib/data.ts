@@ -266,7 +266,8 @@ export type ActivityLogType =
     | 'TASK_COMPLETED'
     | 'EVENT_CREATED'
     | 'MENTIONED_IN_TODO'
-    | 'NOTE_ADDED';
+    | 'NOTE_ADDED'
+    | 'MENTIONED_IN_NOTE';
 
 export interface ActivityLog {
     id: string;

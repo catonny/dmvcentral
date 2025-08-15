@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -7,7 +6,7 @@ import type { Client, Employee, Todo } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Check, ChevronDown, Edit, Loader2, MoreHorizontal, PlusCircle, Send, Trash2, User, Users } from "lucide-react";
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { db, logActivity, notify } from "@/lib/firebase";
+import { db, notify } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -102,7 +101,8 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
                 createdAt: new Date().toISOString(),
             };
             await setDoc(newTodoRef, newTodo);
-
+            
+            // Notify mentioned users
             await notify({
                 recipients: Array.from(assignedToIds),
                 type: 'MENTIONED_IN_TODO',
@@ -247,7 +247,7 @@ export function TodoSection({ currentUser, allClients, allEmployees }: { current
         const cursorPos = textareaRef.current?.selectionStart || 0;
         const textBeforeCursor = text.slice(0, cursorPos);
         
-        const mentionMatch = textBeforeCursor.match(/(?:\s|^)@(\w*)$/);
+        const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
         if (mentionMatch) {
             const mentionStartIndex = mentionMatch.index || 0;
             const newText = 
