@@ -180,6 +180,13 @@ export default function EngagementWorkflowPage() {
                 user: currentUserEmployee,
                 details: { from: engagement.dueDate, to: engagementData.dueDate }
             });
+            await notify({
+                recipients: engagement.assignedTo,
+                type: 'STATUS_CHANGE',
+                text: `${currentUserEmployee.name} changed due date for "${engagement.remarks}" to ${format(parseISO(engagementData.dueDate), "dd MMM, yyyy")}.`,
+                relatedEntity: { type: 'engagement', id: engagement.id },
+                triggeringUser: currentUserEmployee,
+            });
         }
         
         await updateDoc(engagementRef, engagementData);
