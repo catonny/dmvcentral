@@ -2,18 +2,97 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Bonus, Employee } from "@/lib/data";
+import type { Bonus, BonusRule, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Trophy } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Settings, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
+function BonusRulesManager({ hasAccess }: { hasAccess: boolean }) {
+    const { toast } = useToast();
+    const [rules, setRules] = React.useState<Partial<BonusRule>>({
+        savingsThresholdPercentage: 20,
+        bonusSharePercentage: 100,
+    });
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!hasAccess) {
+            setIsLoading(false);
+            return;
+        }
+        const ruleRef = doc(db, "bonusRules", "default");
+        const unsub = onSnapshot(ruleRef, (doc) => {
+            if (doc.exists()) {
+                setRules(doc.data() as BonusRule);
+            }
+            setIsLoading(false);
+        });
+        return () => unsub();
+    }, [hasAccess]);
+
+    const handleSaveRules = async () => {
+        setIsSaving(true);
+        try {
+            const ruleRef = doc(db, "bonusRules", "default");
+            await setDoc(ruleRef, { ...rules, id: 'default' }, { merge: true });
+            toast({ title: "Success", description: "Bonus rules have been updated." });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not save bonus rules.", variant: "destructive" });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!hasAccess) return null;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Settings />Bonus Calculation Rules</CardTitle>
+                <CardDescription>Define how employee bonuses are calculated based on engagement profitability.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div className="space-y-2">
+                    <Label htmlFor="savingsThreshold">Savings Threshold (%)</Label>
+                    <Input
+                        id="savingsThreshold"
+                        type="number"
+                        value={rules.savingsThresholdPercentage || ''}
+                        onChange={(e) => setRules(prev => ({ ...prev, savingsThresholdPercentage: Number(e.target.value) }))}
+                        placeholder="e.g., 20"
+                    />
+                    <p className="text-xs text-muted-foreground">A bonus is considered only if cost savings exceed this percentage.</p>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="bonusShare">Bonus Share of Excess Savings (%)</Label>
+                     <Input
+                        id="bonusShare"
+                        type="number"
+                        value={rules.bonusSharePercentage || ''}
+                        onChange={(e) => setRules(prev => ({ ...prev, bonusSharePercentage: Number(e.target.value) }))}
+                        placeholder="e.g., 50"
+                    />
+                    <p className="text-xs text-muted-foreground">The percentage of the *excess* savings (above the threshold) to be distributed as a bonus.</p>
+                </div>
+                 <Button onClick={handleSaveRules} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Rules
+                </Button>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function BonusReportPage() {
     const { user } = useAuth();
@@ -115,6 +194,9 @@ export default function BonusReportPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Reports
             </Button>
+            
+            <BonusRulesManager hasAccess={hasAccess} />
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Trophy/>Employee Bonus Report</CardTitle>

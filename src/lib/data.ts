@@ -145,6 +145,12 @@ export interface Bonus {
     createdAt: string;
 }
 
+export interface BonusRule {
+    id: string; // Should be a singleton, e.g., "default"
+    savingsThresholdPercentage: number; // e.g., 20
+    bonusSharePercentage: number; // e.g., 50 (for 50% of excess savings)
+}
+
 
 export interface InvoiceLineItem {
     id: string;
