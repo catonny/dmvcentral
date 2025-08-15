@@ -2,12 +2,12 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, where, onSnapshot, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import type { Communication, Employee, Todo, ChatThread } from "@/lib/data";
+import type { Communication, Employee, Todo, ChatThread, Notification } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Inbox, Link as LinkIcon, Users, FileText, ListChecks, Mail, Bell, MessageSquare } from "lucide-react";
+import { Loader2, Inbox, Link as LinkIcon, Users, FileText, ListChecks, Mail, Bell, MessageSquare, Check, Circle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatLobby } from "@/components/chat/chat-lobby";
+import { cn } from "@/lib/utils";
 
 function ClientEmailInbox({ communications, selectedComm, setSelectedComm }: { communications: Communication[], selectedComm: Communication | null, setSelectedComm: (comm: Communication | null) => void }) {
     if (communications.length === 0) {
@@ -101,30 +102,77 @@ function ClientEmailInbox({ communications, selectedComm, setSelectedComm }: { c
     )
 }
 
-function NotificationsInbox() {
+function NotificationsInbox({ notifications, onMarkAsRead }: { notifications: Notification[], onMarkAsRead: (id: string) => void }) {
+    if (notifications.length === 0) {
+        return (
+            <div className="flex-grow flex items-center justify-center">
+                <Card className="text-center p-8 border-dashed w-full max-w-md">
+                    <Bell className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-medium">No new notifications</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">Mentions and other alerts will appear here.</p>
+                </Card>
+            </div>
+        );
+    }
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
     return (
-         <div className="flex-grow flex items-center justify-center">
-            <Card className="text-center p-8 border-dashed w-full max-w-md">
-                <Bell className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">No new notifications</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Mentions and other alerts will appear here.</p>
-            </Card>
-        </div>
-    )
+        <Card className="flex-grow">
+            <CardHeader>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>You have {unreadCount} unread notification(s).</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-[60vh]">
+                    <div className="space-y-3">
+                        {notifications.map(notif => {
+                            const Icon = notif.isRead ? Check : Circle;
+                            const linkHref = notif.relatedEntity.type === 'engagement' ? `/workflow/${notif.relatedEntity.id}` : '#';
+                            return (
+                                <div
+                                    key={notif.id}
+                                    className={cn(
+                                        "flex items-start gap-4 p-3 rounded-lg border",
+                                        notif.isRead ? "border-transparent bg-muted/50 text-muted-foreground" : "bg-primary/10 border-primary/20 cursor-pointer hover:bg-primary/20"
+                                    )}
+                                    onClick={() => !notif.isRead && onMarkAsRead(notif.id)}
+                                >
+                                    <Icon className={cn("mt-1 h-5 w-5 flex-shrink-0", !notif.isRead && "text-primary")} />
+                                    <div className="flex-grow">
+                                        <p className="text-sm">{notif.text}</p>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-xs text-muted-foreground">{formatDistanceToNow(parseISO(notif.createdAt), { addSuffix: true })}</p>
+                                            {notif.relatedEntity.id && (
+                                                <Button variant="link" size="sm" asChild className="p-0 h-auto">
+                                                    <Link href={linkHref}>View Item</Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
 }
 
 export default function InboxPage() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [communications, setCommunications] = React.useState<Communication[]>([]);
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedComm, setSelectedComm] = React.useState<Communication | null>(null);
     const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
     const [chatThreads, setChatThreads] = React.useState<ChatThread[]>([]);
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     
-    const [unreadEmails, setUnreadEmails] = React.useState(0);
-    const [unreadNotifications, setUnreadNotifications] = React.useState(0);
+    const unreadEmails = communications.length; // Placeholder for real unread logic
+    const unreadNotifications = notifications.filter(n => !n.isRead).length;
     const [unreadChats, setUnreadChats] = React.useState(0);
 
 
@@ -142,40 +190,46 @@ export default function InboxPage() {
                 const employeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
                 setCurrentUserEmployee(employeeProfile);
 
+                // Fetch Communications
                 const commsQuery = query(
                     collection(db, "communications"),
                     where("visibleTo", "array-contains", employeeProfile.id),
                     orderBy("receivedAt", "desc")
                 );
-
                 const unsubComms = onSnapshot(commsQuery, (snapshot) => {
                     const commsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Communication);
                     setCommunications(commsData);
-                    setUnreadEmails(commsData.length); // Placeholder for real unread logic
                     if (commsData.length > 0 && !selectedComm) {
                         setSelectedComm(commsData[0]);
                     }
-                    setLoading(false);
-                }, (error) => {
-                    console.error("Error fetching communications:", error);
-                    toast({ title: "Error", description: "Could not fetch inbox data.", variant: "destructive" });
-                    setLoading(false);
-                });
+                }, (error) => toast({ title: "Error", description: "Could not fetch emails.", variant: "destructive" }));
 
+                // Fetch Notifications
+                const notifsQuery = query(
+                    collection(db, "notifications"),
+                    where("userId", "==", employeeProfile.id),
+                    orderBy("createdAt", "desc")
+                );
+                const unsubNotifs = onSnapshot(notifsQuery, (snapshot) => {
+                    setNotifications(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Notification)));
+                }, (error) => toast({ title: "Error", description: "Could not fetch notifications.", variant: "destructive" }));
+
+
+                // Fetch Chats
                 const chatQuery = query(
                     collection(db, 'chatThreads'),
                     where('participants', 'array-contains', employeeProfile.id)
                 );
-
                 const unsubChat = onSnapshot(chatQuery, (snapshot) => {
                     const threads = snapshot.docs.map(d => ({id: d.id, ...d.data()} as ChatThread));
-                    // Sort threads by updatedAt client-side to avoid composite index
                     threads.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
                     setChatThreads(threads);
                 });
                 
+                setLoading(false);
                 return () => {
                     unsubComms();
+                    unsubNotifs();
                     unsubChat();
                 };
 
@@ -191,6 +245,16 @@ export default function InboxPage() {
         };
 
     }, [user, toast, selectedComm]);
+
+    const handleMarkAsRead = async (notificationId: string) => {
+        const notifRef = doc(db, "notifications", notificationId);
+        try {
+            await updateDoc(notifRef, { isRead: true });
+        } catch (error) {
+            console.error("Error marking notification as read:", error);
+            toast({ title: "Error", description: "Could not update notification.", variant: "destructive" });
+        }
+    };
 
     if (loading || authLoading) {
         return (
@@ -228,7 +292,7 @@ export default function InboxPage() {
                    <ClientEmailInbox communications={communications} selectedComm={selectedComm} setSelectedComm={setSelectedComm}/>
                 </TabsContent>
                 <TabsContent value="notifications" className="flex-grow mt-4">
-                    <NotificationsInbox />
+                    <NotificationsInbox notifications={notifications} onMarkAsRead={handleMarkAsRead} />
                 </TabsContent>
                 <TabsContent value="chats" className="flex-grow mt-4">
                     <ChatLobby

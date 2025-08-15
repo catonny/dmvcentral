@@ -17,14 +17,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { collection, writeBatch, getDocs, query, doc, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, getDocs, query, doc, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink } from 'lucide-react';
+import { Download, Loader2, Upload, DatabaseZap, ShieldCheck, Edit, Trash2, Database, ExternalLink, Trash } from 'lucide-react';
 import type { Client, Engagement, Employee } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import Papa from "papaparse";
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { addDays } from 'date-fns';
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = React.useState(false);
   const [backupFileInfo, setBackupFileInfo] = React.useState<{type: 'master' | 'transactional' | 'full' | 'unknown', date?: string} | null>(null);
   const [deleteTransactionalConfirmText, setDeleteTransactionalConfirmText] = React.useState('');
+  const [loadingCleanup, setLoadingCleanup] = React.useState(false);
 
   const isAdmin = user?.email === 'ca.tonnyvarghese@gmail.com';
   
@@ -44,7 +46,7 @@ export default function SettingsPage() {
     setLoadingBackup(type);
     
     const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
-    const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
+    const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos', 'notifications'];
     
     let collectionsToBackup: string[] = [];
     if (type === 'transactional') collectionsToBackup = transactionalCollections;
@@ -131,7 +133,7 @@ export default function SettingsPage() {
         const backupData = JSON.parse(fileContent);
 
         const masterCollections = ['employees', 'departments', 'engagementTypes', 'clientCategories', 'countries', 'permissions', 'firms', 'taxRates', 'hsnSacCodes', 'salesItems'];
-        const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
+        const transactionalCollections = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos', 'notifications'];
 
         let collectionsToRestore: string[] = [];
         if (backupFileInfo.type === 'transactional') collectionsToRestore = transactionalCollections;
@@ -184,7 +186,7 @@ export default function SettingsPage() {
     try {
       const batch = writeBatch(db);
       
-      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos'];
+      const collectionsToDelete = ['clients', 'engagements', 'tasks', 'pendingInvoices', 'communications', 'chatMessages', 'leaveRequests', 'events', 'timesheets', 'activityLog', 'recurringEngagements', 'todos', 'notifications'];
       
       for (const collectionName of collectionsToDelete) {
           const snapshot = await getDocs(query(collection(db, collectionName)));
@@ -207,6 +209,36 @@ export default function SettingsPage() {
     } finally {
       setLoadingDeleteTransactional(false);
       setDeleteTransactionalConfirmText('');
+    }
+  };
+
+  const handleCleanupOldNotifications = async () => {
+    setLoadingCleanup(true);
+    try {
+        const sevenDaysAgo = addDays(new Date(), -7).toISOString();
+        const q = query(
+            collection(db, 'notifications'), 
+            where('isRead', '==', true), 
+            where('createdAt', '<', sevenDaysAgo)
+        );
+        
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            toast({ title: 'No Old Notifications', description: 'There are no read notifications older than 7 days to delete.' });
+            setLoadingCleanup(false);
+            return;
+        }
+
+        const batch = writeBatch(db);
+        snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
+        toast({ title: 'Cleanup Complete', description: `Deleted ${snapshot.size} old notification(s).` });
+    } catch (error) {
+        console.error('Error cleaning up notifications:', error);
+        toast({ title: 'Error', description: 'Failed to clean up old notifications.', variant: 'destructive'});
+    } finally {
+        setLoadingCleanup(false);
     }
   };
 
@@ -401,6 +433,18 @@ export default function SettingsPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
+                     <div className="flex items-center justify-between rounded-lg border border-yellow-500/50 p-4">
+                        <div>
+                            <h3 className="font-semibold">Cleanup Read Notifications</h3>
+                            <p className="text-sm text-muted-foreground">
+                            Permanently delete notifications that were marked as read more than 7 days ago.
+                            </p>
+                        </div>
+                        <Button variant="secondary" onClick={handleCleanupOldNotifications} disabled={loadingCleanup}>
+                            {loadingCleanup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash className="mr-2 h-4 w-4" />}
+                            Cleanup
+                        </Button>
+                    </div>
                     <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
                         <div>
                             <h3 className="font-semibold">Delete Transactional Data</h3>
