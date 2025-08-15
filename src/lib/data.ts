@@ -1,5 +1,4 @@
 
-
 export type EmployeeRole = string;
 
 export type BillStatus = "To Bill" | "Pending Collection" | "Collected";
@@ -125,12 +124,11 @@ export interface Engagement {
 
 export interface Quote {
     id: string;
-    engagementTypeId: string;
     clientId: string;
+    engagementTypeId: string;
     partnerId: string;
-    plannedDays: number;
-    plannedHours: number;
-    assignedEmployeeIds: string[];
+    totalPlannedHours: number;
+    budgetedResources: { employeeId: string; hours: number }[];
     estimatedCost: number;
     quotedAmount: number;
     costPlus50: number; // For reference
@@ -138,6 +136,7 @@ export interface Quote {
     createdAt: string; // ISO string
     createdBy: string; // Employee ID
 }
+
 
 export interface Bonus {
     id: string;

@@ -18,6 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn, capitalizeWords } from "@/lib/utils";
 import { EditClientSheet } from "@/components/dashboard/edit-client-sheet";
+import { BudgetHoursDialog } from "@/components/administration/budget-hours-dialog";
+
 
 interface CalculationResult {
   estimatedCost: number;
@@ -42,8 +44,8 @@ export default function QuotePlannerPage() {
     const [selectedClientId, setSelectedClientId] = React.useState<string>("");
     const [selectedEngagementTypeId, setSelectedEngagementTypeId] = React.useState<string>("");
     const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>([]);
+    const [budgetedResources, setBudgetedResources] = React.useState<{ employeeId: string; hours: number }[]>([]);
     const [selectedPartnerId, setSelectedPartnerId] = React.useState<string>("");
-    const [plannedHours, setPlannedHours] = React.useState<number>(0);
     const [calculation, setCalculation] = React.useState<CalculationResult | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
     const [quotedAmount, setQuotedAmount] = React.useState<number>(0);
@@ -53,6 +55,7 @@ export default function QuotePlannerPage() {
     const [clientSearchQuery, setClientSearchQuery] = React.useState("");
     const [isClientSheetOpen, setIsClientSheetOpen] = React.useState(false);
     const [newClientData, setNewClientData] = React.useState<Partial<Client> | null>(null);
+    const [isBudgetHoursDialogOpen, setIsBudgetHoursDialogOpen] = React.useState(false);
 
 
     React.useEffect(() => {
@@ -74,17 +77,6 @@ export default function QuotePlannerPage() {
         setLoading(false);
         return () => unsubs.forEach(unsub => unsub());
     }, []);
-
-    React.useEffect(() => {
-        if (selectedEngagementTypeId) {
-            const engagementType = allEngagementTypes.find(et => et.id === selectedEngagementTypeId);
-            if (engagementType?.standardHours) {
-                setPlannedHours(engagementType.standardHours);
-            } else {
-                setPlannedHours(0);
-            }
-        }
-    }, [selectedEngagementTypeId, allEngagementTypes]);
     
     React.useEffect(() => {
         if (selectedClientId) {
@@ -129,23 +121,23 @@ export default function QuotePlannerPage() {
     };
 
     const handleCalculateQuote = () => {
-        if (selectedEmployeeIds.length === 0 || !plannedHours || plannedHours <= 0) {
-            toast({ title: "Missing Information", description: "Please select employees and enter valid planned hours.", variant: "destructive" });
+        if (budgetedResources.length === 0) {
+            toast({ title: "Missing Information", description: "Please set budgeted hours for at least one employee.", variant: "destructive" });
             return;
         }
 
         let totalCost = 0;
         let totalChargeOut = 0;
 
-        selectedEmployeeIds.forEach(id => {
-            const employee = allEmployees.find(e => e.id === id);
+        budgetedResources.forEach(resource => {
+            const employee = allEmployees.find(e => e.id === resource.employeeId);
             if (!employee) return;
             const department = allDepartments.find(d => d.name === employee.role[0]);
             const weeklyHours = department?.standardWeeklyHours || 40;
             const costPerHour = (employee.monthlySalary || 0) * 12 / 52 / weeklyHours;
             
-            totalCost += costPerHour * (plannedHours / selectedEmployeeIds.length); // Distribute hours evenly
-            totalChargeOut += (employee.chargeOutRate || 0) * (plannedHours / selectedEmployeeIds.length);
+            totalCost += costPerHour * resource.hours;
+            totalChargeOut += (employee.chargeOutRate || 0) * resource.hours;
         });
 
         const newCalculation = {
@@ -165,14 +157,15 @@ export default function QuotePlannerPage() {
         setIsSaving(true);
         try {
             const quoteRef = doc(collection(db, "quotes"));
+            const totalPlannedHours = budgetedResources.reduce((sum, r) => sum + r.hours, 0);
+
             const newQuote: Quote = {
                 id: quoteRef.id,
                 clientId: selectedClientId,
                 engagementTypeId: selectedEngagementTypeId,
                 partnerId: selectedPartnerId,
-                plannedDays: plannedHours / 8, // Assuming 8-hour day
-                plannedHours: plannedHours,
-                assignedEmployeeIds: selectedEmployeeIds,
+                budgetedResources: budgetedResources,
+                totalPlannedHours: totalPlannedHours,
                 estimatedCost: calculation.estimatedCost,
                 quotedAmount: quotedAmount,
                 costPlus50: calculation.costPlus50,
@@ -194,8 +187,8 @@ export default function QuotePlannerPage() {
             setSelectedClientId("");
             setSelectedEngagementTypeId("");
             setSelectedEmployeeIds([]);
+            setBudgetedResources([]);
             setSelectedPartnerId("");
-            setPlannedHours(0);
             setCalculation(null);
             setQuotedAmount(0);
 
@@ -217,6 +210,8 @@ export default function QuotePlannerPage() {
     if (loading) {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
+
+    const teamToBudget = allEmployees.filter(e => selectedEmployeeIds.includes(e.id));
 
     return (
         <>
@@ -270,7 +265,7 @@ export default function QuotePlannerPage() {
                                                 {filteredClients.map((client) => (
                                                     <CommandItem
                                                     key={client.id}
-                                                    value={client.name}
+                                                    value={client.name || ''}
                                                     onSelect={() => handleClientSelect(client.id)}
                                                     >
                                                     <Check
@@ -337,8 +332,10 @@ export default function QuotePlannerPage() {
                                 </Popover>
                             </div>
                             <div className="space-y-2">
-                                <Label>Planned Hours</Label>
-                                <Input type="number" value={plannedHours || ""} onChange={(e) => setPlannedHours(Number(e.target.value))} placeholder="e.g., 40"/>
+                                <Label>Budgeted Hours</Label>
+                                <Button variant="outline" className="w-full justify-start" onClick={() => setIsBudgetHoursDialogOpen(true)} disabled={selectedEmployeeIds.length === 0}>
+                                    Set Budgeted Hours ({budgetedResources.reduce((s, r) => s + r.hours, 0)} total)
+                                </Button>
                             </div>
                             <Button onClick={handleCalculateQuote}><Calculator className="mr-2"/>Calculate Quote</Button>
                         </div>
@@ -391,6 +388,13 @@ export default function QuotePlannerPage() {
                 onSave={handleSaveNewClient}
                 onDelete={() => {}} // Not used for creation
                 allClients={allClients}
+            />
+            <BudgetHoursDialog
+                isOpen={isBudgetHoursDialogOpen}
+                onClose={() => setIsBudgetHoursDialogOpen(false)}
+                team={teamToBudget}
+                initialBudgets={budgetedResources}
+                onSave={setBudgetedResources}
             />
         </>
     );
