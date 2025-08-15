@@ -208,10 +208,10 @@ export default function QuotePlannerPage() {
     
     const filteredClients = React.useMemo(() => {
         if (!clientSearchQuery) return allClients;
-        return allClients.filter(c => c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
+        return allClients.filter(c => c.name && c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
     }, [allClients, clientSearchQuery]);
 
-    const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name.toLowerCase() === clientSearchQuery.toLowerCase());
+    const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name && c.name.toLowerCase() === clientSearchQuery.toLowerCase());
 
 
     if (loading) {
