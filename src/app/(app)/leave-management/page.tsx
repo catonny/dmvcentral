@@ -89,23 +89,28 @@ export default function LeaveManagementPage() {
                 approvedBy: currentUserEmployee.id,
             });
 
+            const request = leaveRequests.find(r => r.id === requestId);
+            if (!request) return;
+
+            const employeeOnLeaveRef = doc(db, "employees", request.employeeId);
+            const employeeOnLeaveSnap = await getDoc(employeeOnLeaveRef);
+            if (!employeeOnLeaveSnap.exists()) return;
+
+            const employeeOnLeave = employeeOnLeaveSnap.data() as Employee;
+            const isPartnerLeave = employeeOnLeave.role.includes("Partner");
+
             if (status === "Approved") {
-                const request = leaveRequests.find(r => r.id === requestId);
-                if (request) {
-                    const employeeRef = doc(db, "employees", request.employeeId);
-                    const employeeSnap = await getDoc(employeeRef);
-                    if (employeeSnap.exists()) {
-                        const employeeData = employeeSnap.data() as Employee;
-                        const leaveDays = differenceInBusinessDays(parseISO(request.endDate), parseISO(request.startDate)) + 1;
-                        const newLeavesTaken = (employeeData.leavesTaken || 0) + leaveDays;
-                        await updateDoc(employeeRef, { leavesTaken: newLeavesTaken });
-                    }
+                const leaveDays = differenceInBusinessDays(parseISO(request.endDate), parseISO(request.startDate)) + 1;
+                const newLeavesTaken = (employeeOnLeave.leavesTaken || 0) + leaveDays;
+                await updateDoc(employeeOnLeaveRef, { leavesTaken: newLeavesTaken });
+                
+                // Only run the AI conflict analysis for non-partners
+                if (!isPartnerLeave) {
+                    console.log(`Triggering AI agent for leave request ID: ${requestId}`);
+                    toast({ title: "Processing...", description: "AI is analyzing calendar conflicts." });
+                    await handleLeaveRequest({ leaveRequestId: requestId });
+                    toast({ title: "AI Agent Complete", description: "Conflict analysis finished. Check server console for plan." });
                 }
-                // Here you would trigger the AI agent flow
-                console.log(`Triggering AI agent for leave request ID: ${requestId}`);
-                toast({ title: "Processing...", description: "AI is analyzing calendar conflicts." });
-                await handleLeaveRequest({ leaveRequestId: requestId });
-                toast({ title: "AI Agent Complete", description: "Conflict analysis finished. Check server console for plan." });
             }
 
             toast({ title: "Success", description: `Leave request has been ${status.toLowerCase()}.` });
