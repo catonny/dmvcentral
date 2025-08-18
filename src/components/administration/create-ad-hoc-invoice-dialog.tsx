@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -30,6 +31,8 @@ import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { cn } from "@/lib/utils";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface CreateAdHocInvoiceDialogProps {
   isOpen: boolean;
@@ -42,6 +45,12 @@ interface CreateAdHocInvoiceDialogProps {
   salesItems: SalesItem[];
   taxRates: TaxRate[];
   hsnSacCodes: HsnSacCode[];
+}
+
+const getFinancialYear = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 }
 
 export function CreateAdHocInvoiceDialog({
@@ -114,8 +123,18 @@ export function CreateAdHocInvoiceDialog({
     try {
         const { total, subTotal, taxableAmount, totalTax, totalLineItemDiscount } = calculateTotals();
         
+        const issueDate = new Date();
+        const financialYear = getFinancialYear(issueDate);
+        
+        const invoicesQuery = query(collection(db, "invoices"), where("financialYear", "==", financialYear));
+        const querySnapshot = await getDocs(invoicesQuery);
+        const invoiceCount = querySnapshot.size;
+        const nextInvoiceNumber = (invoiceCount + 1).toString().padStart(5, '0');
+        const invoiceNumber = `DMV/${financialYear}/${nextInvoiceNumber}`;
+        
         const invoiceData: Omit<Invoice, 'id'> = {
-            invoiceNumber: `INV-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+            invoiceNumber,
+            financialYear,
             clientId: selectedClientId,
             clientName: clients.find(c => c.id === selectedClientId)?.name || "Unknown",
             engagementId: '', // This will be set in the parent component

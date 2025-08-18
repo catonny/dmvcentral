@@ -176,6 +176,7 @@ export interface Invoice {
     firmId: string;
     issueDate: string; // ISO 8601
     dueDate: string; // ISO 8601
+    financialYear: string; // e.g., "2024-25"
     lineItems: InvoiceLineItem[];
     subTotal: number;
     totalDiscount: number;

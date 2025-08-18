@@ -30,6 +30,8 @@ import { SearchableSelectWithCreate } from "../masters/searchable-select-with-cr
 import { EditSalesItemDialog } from "../masters/edit-sales-item-dialog";
 import { format, parseISO } from "date-fns";
 import { Switch } from "../ui/switch";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface LineItem {
     id: string;
@@ -56,6 +58,13 @@ interface GenerateInvoiceDialogProps {
   taxRates: TaxRate[];
   hsnSacCodes: HsnSacCode[];
   employees: Map<string, Employee>;
+}
+
+const getFinancialYear = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    // Financial year starts in April (month 3)
+    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 }
 
 export function GenerateInvoiceDialog({
@@ -132,14 +141,25 @@ export function GenerateInvoiceDialog({
     try {
         const { total, subTotal, taxableAmount, totalTax, totalLineItemDiscount } = calculateTotals();
         
+        const issueDate = new Date();
+        const financialYear = getFinancialYear(issueDate);
+        
+        // Get the count of invoices for the current financial year
+        const invoicesQuery = query(collection(db, "invoices"), where("financialYear", "==", financialYear));
+        const querySnapshot = await getDocs(invoicesQuery);
+        const invoiceCount = querySnapshot.size;
+        const nextInvoiceNumber = (invoiceCount + 1).toString().padStart(5, '0');
+        const invoiceNumber = `DMV/${financialYear}/${nextInvoiceNumber}`;
+        
         const invoiceData: Omit<Invoice, 'id'> = {
-            invoiceNumber: `INV-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+            invoiceNumber,
+            financialYear,
             clientId: entry.client.id,
             clientName: entry.client.name,
             engagementId: entry.engagement.id,
             firmId: selectedFirmId,
-            issueDate: new Date().toISOString(),
-            dueDate: new Date().toISOString(),
+            issueDate: issueDate.toISOString(),
+            dueDate: issueDate.toISOString(),
             lineItems: lineItems.map(li => ({ ...li, total: (li.quantity * li.rate) - li.discount, taxAmount: 0 })), // taxAmount needs real calc
             subTotal: subTotal,
             totalDiscount: totalLineItemDiscount + additionalDiscount,
@@ -153,7 +173,7 @@ export function GenerateInvoiceDialog({
         await onSave(entry.engagement.id, invoiceData);
         toast({
             title: "Invoice Generated!",
-            description: `The invoice has been created successfully.`
+            description: `The invoice ${invoiceNumber} has been created successfully.`
         });
         onClose();
     } catch (error) {
