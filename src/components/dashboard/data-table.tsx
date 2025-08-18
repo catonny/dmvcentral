@@ -249,7 +249,7 @@ export function DataTable<TData extends Client, TValue>({
                     }}
                 >
                     <Mail className="mr-2 h-4 w-4" />
-                    Bulk Email ({selectedRowCount})
+                    Send Bulk Email ({selectedRowCount})
                 </Button>
             )}
         </div>

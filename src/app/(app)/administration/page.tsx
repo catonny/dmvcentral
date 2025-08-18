@@ -111,7 +111,7 @@ export default function AdministrationPage() {
                     onClick={() => router.push('/administration/recurring')}
                 />
                  <ActionCard 
-                    title="Email Center"
+                    title="AI Email Center"
                     description="Generate and send templated, AI-powered emails to clients."
                     icon={Mail}
                     onClick={() => router.push('/administration/email-center')}
