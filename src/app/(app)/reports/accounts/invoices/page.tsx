@@ -10,16 +10,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CalendarIcon, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Download, Edit, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DateRange } from "react-day-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Invoice, Firm, Client } from "@/lib/data";
+import type { Invoice, Firm, Client, SalesItem, TaxRate, HsnSacCode } from "@/lib/data";
 import Papa from "papaparse";
+import { EditInvoiceDialog } from "@/components/reports/accounts/edit-invoice-dialog";
 
 export default function InvoicesReportPage() {
   const router = useRouter();
@@ -27,6 +28,10 @@ export default function InvoicesReportPage() {
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [firms, setFirms] = React.useState<Firm[]>([]);
   const [clients, setClients] = React.useState<Map<string, Client>>(new Map());
+  const [salesItems, setSalesItems] = React.useState<SalesItem[]>([]);
+  const [taxRates, setTaxRates] = React.useState<TaxRate[]>([]);
+  const [hsnSacCodes, setHsnSacCodes] = React.useState<HsnSacCode[]>([]);
+
   const [loading, setLoading] = React.useState(true);
   const [filteredInvoices, setFilteredInvoices] = React.useState<Invoice[]>([]);
 
@@ -36,29 +41,28 @@ export default function InvoicesReportPage() {
     to: new Date(),
   });
 
+  // Edit Dialog State
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null);
+
   React.useEffect(() => {
     setLoading(true);
-    const unsubInvoices = onSnapshot(collection(db, "invoices"), (snapshot) => {
-        setInvoices(snapshot.docs.map(doc => doc.data() as Invoice));
-        setLoading(false);
-    }, (error) => {
-        toast({ title: "Error", description: "Failed to fetch invoices.", variant: "destructive" });
-        setLoading(false);
-    });
-
-    const unsubFirms = onSnapshot(collection(db, "firms"), (snapshot) => {
-        setFirms(snapshot.docs.map(doc => doc.data() as Firm));
-    });
+    const unsubs = [
+        onSnapshot(collection(db, "invoices"), (snapshot) => {
+            setInvoices(snapshot.docs.map(doc => doc.data() as Invoice));
+            setLoading(false);
+        }, (error) => {
+            toast({ title: "Error", description: "Failed to fetch invoices.", variant: "destructive" });
+            setLoading(false);
+        }),
+        onSnapshot(collection(db, "firms"), (snapshot) => setFirms(snapshot.docs.map(doc => doc.data() as Firm))),
+        onSnapshot(collection(db, "clients"), (snapshot) => setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])))),
+        onSnapshot(collection(db, "salesItems"), (snapshot) => setSalesItems(snapshot.docs.map(doc => doc.data() as SalesItem))),
+        onSnapshot(collection(db, "taxRates"), (snapshot) => setTaxRates(snapshot.docs.map(doc => doc.data() as TaxRate))),
+        onSnapshot(collection(db, "hsnSacCodes"), (snapshot) => setHsnSacCodes(snapshot.docs.map(doc => doc.data() as HsnSacCode))),
+    ];
     
-    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
-        setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])));
-    });
-
-    return () => {
-        unsubInvoices();
-        unsubFirms();
-        unsubClients();
-    };
+    return () => unsubs.forEach(unsub => unsub());
   }, [toast]);
   
   React.useEffect(() => {
@@ -102,10 +106,28 @@ export default function InvoicesReportPage() {
     link.click();
     document.body.removeChild(link);
     toast({ title: "Exported!", description: "The invoice report has been downloaded as a CSV file." });
-  }
+  };
+  
+  const handleOpenEditDialog = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleSaveEditedInvoice = async (invoiceId: string, updatedData: Partial<Invoice>) => {
+    const invoiceRef = doc(db, "invoices", invoiceId);
+    try {
+        await updateDoc(invoiceRef, updatedData);
+        toast({ title: "Success", description: "Invoice updated successfully." });
+        setIsEditDialogOpen(false);
+    } catch (error) {
+        console.error("Error updating invoice:", error);
+        toast({ title: "Error", description: "Failed to update invoice.", variant: "destructive" });
+    }
+  };
 
 
   return (
+    <>
     <div className="space-y-6">
         <Button variant="outline" size="sm" onClick={() => router.push('/reports/accounts')} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -184,6 +206,7 @@ export default function InvoicesReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[50px]"></TableHead>
                                 <TableHead>Invoice #</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Client</TableHead>
@@ -193,10 +216,15 @@ export default function InvoicesReportPage() {
                         </TableHeader>
                          <TableBody>
                              {loading ? (
-                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                                 <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
                              ) : filteredInvoices.length > 0 ? (
                                  filteredInvoices.map(invoice => (
                                      <TableRow key={invoice.id}>
+                                         <TableCell>
+                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(invoice)} disabled={invoice.status === 'Paid' || invoice.status === 'Cancelled'}>
+                                                 <Edit className="h-4 w-4"/>
+                                             </Button>
+                                         </TableCell>
                                          <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                                          <TableCell>{format(parseISO(invoice.issueDate), 'dd MMM, yyyy')}</TableCell>
                                          <TableCell>{clients.get(invoice.clientId)?.name || 'Unknown'}</TableCell>
@@ -206,7 +234,7 @@ export default function InvoicesReportPage() {
                                  ))
                              ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                         No invoices found for the selected filters.
                                     </TableCell>
                                 </TableRow>
@@ -217,5 +245,17 @@ export default function InvoicesReportPage() {
             </CardContent>
         </Card>
     </div>
+    <EditInvoiceDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        invoice={selectedInvoice}
+        onSave={handleSaveEditedInvoice}
+        firms={firms}
+        clients={Array.from(clients.values())}
+        salesItems={salesItems}
+        taxRates={taxRates}
+        hsnSacCodes={hsnSacCodes}
+    />
+    </>
   );
 }
