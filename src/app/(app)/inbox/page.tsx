@@ -207,11 +207,13 @@ export default function InboxPage() {
                 // Fetch Notifications
                 const notifsQuery = query(
                     collection(db, "notifications"),
-                    where("userId", "==", employeeProfile.id),
-                    orderBy("createdAt", "desc")
+                    where("userId", "==", employeeProfile.id)
                 );
                 const unsubNotifs = onSnapshot(notifsQuery, (snapshot) => {
-                    setNotifications(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Notification)));
+                    const fetchedNotifications = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Notification));
+                    // Sort manually on the client-side
+                    fetchedNotifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                    setNotifications(fetchedNotifications);
                 }, (error) => toast({ title: "Error", description: "Could not fetch notifications.", variant: "destructive" }));
 
 
