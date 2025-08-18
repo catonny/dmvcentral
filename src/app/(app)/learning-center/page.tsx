@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Workshop, LearningLog, Employee } from "@/lib/data";
+import type { Workshop, LearningLog, Employee, Permission, FeatureName } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -15,16 +15,56 @@ import { LearningLogList } from "@/components/learning/learning-log-list";
 
 
 export default function LearningCenterPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
+    const [hasAccess, setHasAccess] = React.useState(false);
     const [workshops, setWorkshops] = React.useState<Workshop[]>([]);
     const [learningLogs, setLearningLogs] = React.useState<LearningLog[]>([]);
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     const [currentUser, setCurrentUser] = React.useState<Employee | null>(null);
     const [loading, setLoading] = React.useState(true);
     
-    React.useEffect(() => {
+     React.useEffect(() => {
+        if (authLoading) return;
         if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const checkUserRole = async () => {
+            const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+            const permissionsQuery = query(collection(db, "permissions"), where("feature", "==", "learning-center"));
+            
+            const [employeeSnapshot, permissionsSnapshot] = await Promise.all([
+                getDocs(employeeQuery),
+                getDocs(permissionsQuery)
+            ]);
+
+            if (!employeeSnapshot.empty) {
+                const employeeData = employeeSnapshot.docs[0].data() as Employee;
+                setCurrentUser(employeeData);
+
+                if (permissionsSnapshot.empty) {
+                     // Default to admin/partner access if no permissions are set
+                    if (employeeData.role.includes("Admin") || employeeData.role.includes("Partner")) {
+                        setHasAccess(true);
+                    }
+                } else {
+                    const permission = permissionsSnapshot.docs[0].data() as Permission;
+                    if (employeeData.role.some(role => permission.departments.includes(role))) {
+                        setHasAccess(true);
+                    }
+                }
+            }
+        };
+
+        checkUserRole();
+
+    }, [user, authLoading]);
+
+
+    React.useEffect(() => {
+        if (!hasAccess) {
             setLoading(false);
             return;
         }
@@ -32,45 +72,56 @@ export default function LearningCenterPage() {
         const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
             const employeesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
             setAllEmployees(employeesData);
-            const currentUserProfile = employeesData.find(e => e.email === user.email);
-            setCurrentUser(currentUserProfile || null);
-
-            // Fetch logs only after we have the current user's ID
-            if (currentUserProfile) {
-                const logsQuery = query(collection(db, "learningLogs"), where("userId", "==", currentUserProfile.id));
-                const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
-                    setLearningLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LearningLog)));
-                    setLoading(false);
-                }, (err) => {
-                    toast({ title: "Error", description: "Could not fetch your learning logs.", variant: "destructive" });
-                    setLoading(false);
-                });
-                return unsubLogs; // This will be cleaned up by the outer return function
-            } else {
-                 setLoading(false);
-            }
         }, (err) => {
             toast({ title: "Error", description: "Could not fetch employees.", variant: "destructive" });
-            setLoading(false);
         });
         
         const unsubWorkshops = onSnapshot(collection(db, "workshops"), (snapshot) => {
             setWorkshops(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workshop)));
         }, (err) => toast({ title: "Error", description: "Could not fetch workshops.", variant: "destructive" }));
         
-        
-        return () => {
-            unsubEmployees();
-            unsubWorkshops();
-            // The logs unsub is handled inside the employee fetcher
+        // Fetch logs only for the current user, as it's their personal log
+        if (currentUser) {
+            const logsQuery = query(collection(db, "learningLogs"), where("userId", "==", currentUser.id));
+            const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
+                setLearningLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LearningLog)));
+                setLoading(false);
+            }, (err) => {
+                toast({ title: "Error", description: "Could not fetch your learning logs.", variant: "destructive" });
+                setLoading(false);
+            });
+            return () => {
+                unsubEmployees();
+                unsubWorkshops();
+                unsubLogs();
+            }
+        } else {
+            setLoading(false);
+             return () => {
+                unsubEmployees();
+                unsubWorkshops();
+            }
         }
-    }, [user, toast]);
+    }, [user, toast, hasAccess, currentUser]);
     
-    if (loading) {
+    if (loading || authLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
+        );
+    }
+
+    if (!hasAccess) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>Your department does not have access to the Learning Center. Please contact an administrator.</p>
+                </CardContent>
+            </Card>
         );
     }
     

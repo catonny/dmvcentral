@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Logo } from "@/components/logo";
@@ -169,7 +170,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
         { id: 'leave-management', href: '/leave-management', icon: UserCheck, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management') },
-        { id: 'learning-center', href: '/learning-center', icon: ClipboardList, tooltip: 'Learning Center', label: 'Learning Center', condition: true },
+        { id: 'learning-center', href: '/learning-center', icon: ClipboardList, tooltip: 'Learning Center', label: 'Learning Center', condition: checkPermission('learning-center') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'administration', href: '/administration', icon: Receipt, tooltip: 'Administration', label: 'Administration', condition: checkPermission('administration') },
         { id: 'clients', href: '/clients', icon: Users, tooltip: 'Clients', label: 'Clients', condition: true },
