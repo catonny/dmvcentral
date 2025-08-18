@@ -9,3 +9,4 @@ import "@/ai/flows/engagement-scheduler-flow";
 import "@/ai/flows/generate-invoice-flow";
 import "@/ai/flows/handle-performance-review-flow";
 import "@/ai/flows/reallocate-engagements-flow";
+import "@/ai/flows/send-bulk-email-flow";

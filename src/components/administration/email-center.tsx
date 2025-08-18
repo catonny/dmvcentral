@@ -142,9 +142,9 @@ export function EmailCenter() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI-Powered Email Center</CardTitle>
+        <CardTitle>AI Email Center</CardTitle>
         <CardDescription>
-          Generate and send templated emails to your clients with a few clicks.
+          Generate and send templated, AI-powered emails to a single client.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import type { Employee } from "@/lib/data";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot, MailSearch, FileSignature } from "lucide-react";
+import { Loader2, ArrowRight, Receipt, Repeat, Mail, Bot, MailSearch, FileSignature, MailPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -112,9 +112,15 @@ export default function AdministrationPage() {
                 />
                  <ActionCard 
                     title="AI Email Center"
-                    description="Generate and send templated, AI-powered emails to clients."
+                    description="Generate and send templated, AI-powered emails to a single client."
                     icon={Mail}
                     onClick={() => router.push('/administration/email-center')}
+                />
+                 <ActionCard 
+                    title="Bulk Email Center"
+                    description="Send targeted, personalized emails to multiple clients at once."
+                    icon={MailPlus}
+                    onClick={() => router.push('/administration/bulk-email')}
                 />
                  <ActionCard 
                     title="Bulk Engagement Scheduler"
