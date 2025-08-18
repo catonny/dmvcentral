@@ -82,12 +82,14 @@ export default function ClientWorkspacePage() {
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "in", activeStatuses),
-        orderBy("dueDate", "asc")
+        where("status", "in", activeStatuses)
     );
 
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-      setEngagements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement)));
+      const fetchedEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+      // Sort on the client-side
+      const sortedEngagements = fetchedEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      setEngagements(sortedEngagements);
     }, (error) => handleError(error, 'engagements'));
 
     return () => {
