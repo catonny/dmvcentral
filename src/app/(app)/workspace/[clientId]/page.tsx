@@ -3,7 +3,7 @@
 "use client";
 
 import * as React from "react";
-import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
+import { getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
 import { db, logActivity, notify } from "@/lib/firebase";
 import { notFound, useParams } from "next/navigation";
@@ -82,14 +82,13 @@ export default function ClientWorkspacePage() {
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "in", activeStatuses)
+        where("status", "in", activeStatuses),
+        orderBy("dueDate", "asc")
     );
 
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
       const fetchedEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-      // Sort on the client-side
-      const sortedEngagements = fetchedEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-      setEngagements(sortedEngagements);
+      setEngagements(fetchedEngagements);
     }, (error) => handleError(error, 'engagements'));
 
     return () => {
