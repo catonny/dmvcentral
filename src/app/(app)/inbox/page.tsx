@@ -160,7 +160,7 @@ function NotificationsInbox({ notifications, onMarkAsRead }: { notifications: No
     );
 }
 
-export default function InboxPage() {
+export default function InboxPage({ updateUnreadCounts }: { updateUnreadCounts: (counts: { emails: number, notifications: number, chats: number }) => void }) {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [communications, setCommunications] = React.useState<Communication[]>([]);
@@ -171,10 +171,14 @@ export default function InboxPage() {
     const [chatThreads, setChatThreads] = React.useState<ChatThread[]>([]);
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
     
-    const unreadEmails = communications.length; // Placeholder for real unread logic
-    const unreadNotifications = notifications.filter(n => !n.isRead).length;
-    const [unreadChats, setUnreadChats] = React.useState(0);
-
+    React.useEffect(() => {
+        if (updateUnreadCounts) {
+            const unreadEmails = communications.length; // Placeholder
+            const unreadNotifications = notifications.filter(n => !n.isRead).length;
+            const unreadChats = 0; // Placeholder
+            updateUnreadCounts({ emails: unreadEmails, notifications: unreadNotifications, chats: unreadChats });
+        }
+    }, [communications, notifications, chatThreads, updateUnreadCounts]);
 
     React.useEffect(() => {
         if (!user) return;
@@ -211,7 +215,6 @@ export default function InboxPage() {
                 );
                 const unsubNotifs = onSnapshot(notifsQuery, (snapshot) => {
                     const fetchedNotifications = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Notification));
-                    // Sort manually on the client-side
                     fetchedNotifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                     setNotifications(fetchedNotifications);
                 }, (error) => toast({ title: "Error", description: "Could not fetch notifications.", variant: "destructive" }));
@@ -265,6 +268,9 @@ export default function InboxPage() {
             </div>
         );
     }
+    const unreadEmails = communications.length; 
+    const unreadNotifications = notifications.filter(n => !n.isRead).length;
+    const unreadChats = 0; // Placeholder for real unread chat logic
 
     return (
         <div className="h-full flex flex-col">
@@ -278,15 +284,15 @@ export default function InboxPage() {
                 <TabsList className="grid w-full grid-cols-3 max-w-lg">
                     <TabsTrigger value="emails">
                         <Mail className="mr-2" /> Emails
-                        {unreadEmails > 0 && <Badge className="ml-2">{unreadEmails}</Badge>}
+                        {unreadEmails > 0 && <Badge variant="secondary" className="ml-2 bg-blue-500/80 text-white">{unreadEmails}</Badge>}
                     </TabsTrigger>
                     <TabsTrigger value="notifications">
                         <Bell className="mr-2" /> Notifications
-                        {unreadNotifications > 0 && <Badge className="ml-2">{unreadNotifications}</Badge>}
+                        {unreadNotifications > 0 && <Badge variant="destructive" className="ml-2">{unreadNotifications}</Badge>}
                     </TabsTrigger>
                      <TabsTrigger value="chats">
                         <MessageSquare className="mr-2" /> Chats
-                        {unreadChats > 0 && <Badge className="ml-2">{unreadChats}</Badge>}
+                        {unreadChats > 0 && <Badge variant="secondary" className="ml-2 bg-green-500/80 text-white">{unreadChats}</Badge>}
                     </TabsTrigger>
                 </TabsList>
 

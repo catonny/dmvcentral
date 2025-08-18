@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ClientOnly } from "@/components/client-only";
 import { Button } from "@/components/ui/button";
 import { UniversalSearch } from "@/components/universal-search";
+import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   id: string;
@@ -28,14 +29,20 @@ interface NavItem {
   tooltip: string;
   label: string;
   condition: boolean;
+  unreadCount?: number;
 }
 
-const NavLink = ({ href, children, icon: Icon, tooltip }: { href: string; children: React.ReactNode, icon: React.ElementType, tooltip: string }) => (
+const NavLink = ({ href, children, icon: Icon, tooltip, unreadCount }: { href: string; children: React.ReactNode, icon: React.ElementType, tooltip: string, unreadCount?: number }) => (
     <SidebarMenuItem>
       <Link href={href} passHref>
           <SidebarMenuButton tooltip={tooltip}>
               <Icon />
               <span>{children}</span>
+              {unreadCount && unreadCount > 0 && (
+                <Badge variant="destructive" className="absolute right-2 top-1 scale-75">
+                    {unreadCount}
+                </Badge>
+              )}
           </SidebarMenuButton>
       </Link>
     </SidebarMenuItem>
@@ -53,7 +60,7 @@ const SortableNavLink = ({ item }: { item: NavItem }) => {
             <div {...attributes} {...listeners} className="absolute inset-y-0 right-1 z-10 flex items-center pr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
                 <GripVertical className="h-5 w-5 text-muted-foreground" />
             </div>
-            <NavLink href={item.href} icon={item.icon} tooltip={item.tooltip}>
+            <NavLink href={item.href} icon={item.icon} tooltip={item.tooltip} unreadCount={item.unreadCount}>
                 {item.label}
             </NavLink>
         </div>
@@ -82,6 +89,11 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
 
   // Super admin status depends on role selected at login
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [unreadCounts, setUnreadCounts] = React.useState({ emails: 0, notifications: 0, chats: 0 });
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
+  
+  const totalInboxCount = unreadCounts.emails + unreadCounts.notifications + unreadCounts.chats;
+
 
   useEffect(() => {
     if (user?.email === 'ca.tonnyvarghese@gmail.com') {
@@ -130,7 +142,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
           });
       } else if (targetEmail) {
           const employeeQuery = query(collection(db, "employees"), where("email", "==", targetEmail));
-          getDocs(employeeQuery).then(employeeSnapshot => {
+          const unsub = onSnapshot(employeeQuery, employeeSnapshot => {
             if (!employeeSnapshot.empty) {
               const userEmployeeProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
               setCurrentUserEmployeeProfile(userEmployeeProfile);
@@ -138,6 +150,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                  setCurrentUserEmployeeProfile(null);
             }
           });
+          return () => unsub();
       }
       
       setProfileLoading(false);
@@ -154,6 +167,31 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   }, [user, loading, impersonatedUserId, isSuperAdmin, allEmployees]);
 
   useEffect(() => {
+    if (currentUserEmployeeProfile) {
+        let leaveQuery;
+        if (currentUserEmployeeProfile.role.includes("Admin") || currentUserEmployeeProfile.role.includes("Partner")) {
+            leaveQuery = query(collection(db, "leaveRequests"), where("status", "==", "Pending"));
+        } else if (currentUserEmployeeProfile.role.includes("Manager")) {
+            const managedEmployeeIds = allEmployees.filter(e => e.managerId === currentUserEmployeeProfile.id).map(e => e.id);
+            if (managedEmployeeIds.length > 0) {
+                 leaveQuery = query(
+                    collection(db, "leaveRequests"), 
+                    where("status", "==", "Pending"),
+                    where("employeeId", "in", managedEmployeeIds)
+                );
+            }
+        }
+        if (leaveQuery) {
+            const unsub = onSnapshot(leaveQuery, (snapshot) => {
+                setPendingLeaveCount(snapshot.size);
+            });
+            return () => unsub();
+        }
+    }
+  }, [currentUserEmployeeProfile, allEmployees]);
+
+
+  useEffect(() => {
     if (profileLoading) return;
     
     const checkPermission = (feature: FeatureName) => {
@@ -168,7 +206,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
-        { id: 'leave-management', href: '/leave-management', icon: UserCheck, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management') },
+        { id: 'leave-management', href: '/leave-management', icon: UserCheck, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management'), unreadCount: pendingLeaveCount },
         { id: 'learning-center', href: '/learning-center', icon: ClipboardList, tooltip: 'Learning Center', label: 'Learning Center', condition: checkPermission('learning-center') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'administration', href: '/administration', icon: Receipt, tooltip: 'Administration', label: 'Administration', condition: checkPermission('administration') },
@@ -197,7 +235,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     } else {
          setNavItems(visibleItems);
     }
-  }, [currentUserEmployeeProfile, profileLoading, permissions, isSuperAdmin]);
+  }, [currentUserEmployeeProfile, profileLoading, permissions, isSuperAdmin, pendingLeaveCount, totalInboxCount]);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -245,6 +283,14 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
     ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
     : user?.displayName?.split(' ')[0] || 'there';
   
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+        // @ts-ignore
+        return React.cloneElement(child, { updateUnreadCounts: setUnreadCounts });
+    }
+    return child;
+  });
+
   return (
       <SidebarProvider isPinned={isPinned}>
           <Sidebar>
@@ -279,8 +325,15 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                     <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                         <Link href="/workspace"><Briefcase />Workspace</Link>
                     </Button>
-                    <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
-                        <Link href="/inbox"><Mail />Inbox</Link>
+                    <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10 relative">
+                        <Link href="/inbox">
+                            <Mail />Inbox
+                            {totalInboxCount > 0 && (
+                                <Badge variant="destructive" className="absolute -top-1 -right-1 scale-75">
+                                    {totalInboxCount}
+                                </Badge>
+                            )}
+                        </Link>
                     </Button>
                     <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                         <Link href="/calendar"><Calendar />Calendar</Link>
@@ -324,7 +377,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                 </p>
             </div>
             <main className="flex flex-1 flex-col gap-4 p-4 pt-0 lg:gap-6 lg:p-6 lg:pt-0">
-                {children}
+                {childrenWithProps}
             </main>
              <UniversalSearch 
                 open={isSearchOpen}
@@ -349,5 +402,3 @@ export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
     </AuthProvider>
   )
 }
-
-    
