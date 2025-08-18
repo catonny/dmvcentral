@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy, Banknote } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy, Banknote, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -187,6 +187,13 @@ export default function ReportsPage() {
                 icon={Trophy}
                 onClick={() => router.push('/reports/bonus')}
                 isDisabled={!checkPermission("firm-analytics")}
+            />
+             <ReportCard
+                title="Learning Center"
+                description="Manage professional development and track learning hours."
+                icon={ClipboardList}
+                onClick={() => router.push('/learning-center')}
+                isDisabled={!checkPermission("learning-center")}
             />
         </div>
       </section>
