@@ -15,11 +15,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, EmployeeRole, Department } from "@/lib/data";
+import type { Employee, EmployeeRole, Department, Engagement, Todo } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { Checkbox } from "../ui/checkbox";
 import { capitalizeWords } from "@/lib/utils";
 import { Switch } from "../ui/switch";
+import { collection, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface EditEmployeeSheetProps {
     employee: Employee | null;
@@ -63,9 +65,68 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
             name: capitalizeWords(formData.name),
         };
 
+        // Check if status is changing to inactive
+        if (employee && employee.isActive !== false && dataToSave.isActive === false) {
+             handleInactivation(employee);
+        }
+
         await onSave(dataToSave);
         onClose();
     }
+    
+    const handleInactivation = async (inactiveEmployee: Employee) => {
+        try {
+            const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+            const engagementsQuery = query(
+                collection(db, "engagements"),
+                where("assignedTo", "array-contains", inactiveEmployee.id),
+                where("status", "in", activeStatuses)
+            );
+
+            const snapshot = await getDocs(engagementsQuery);
+            if (snapshot.empty) {
+                return; // No active engagements to reassign
+            }
+
+            const batch = writeBatch(db);
+            const managerId = inactiveEmployee.managerId || 'S001'; // Default to Tonny if no manager
+
+            snapshot.forEach(docSnap => {
+                const engagement = docSnap.data() as Engagement;
+                const newTodoRef = doc(collection(db, "todos"));
+                const newTodo: Todo = {
+                    id: newTodoRef.id,
+                    type: 'GENERAL_TASK',
+                    text: `Reassign engagement: "${engagement.remarks}" from inactive employee ${inactiveEmployee.name}.`,
+                    createdBy: "system",
+                    assignedTo: [managerId],
+                    isCompleted: false,
+                    createdAt: new Date().toISOString(),
+                    relatedEntity: {
+                        type: 'engagement',
+                        id: engagement.id,
+                    }
+                };
+                batch.set(newTodoRef, newTodo);
+            });
+
+            await batch.commit();
+            toast({
+                title: "Action Required",
+                description: `Created ${snapshot.size} to-do(s) for ${allEmployees.find(e => e.id === managerId)?.name} to reassign active engagements.`,
+                duration: 5000,
+            });
+
+        } catch (error) {
+            console.error("Error creating reassignment todos:", error);
+            toast({
+                title: "Warning",
+                description: "Could not create automatic to-dos for reassignment. Please manually review the employee's engagements.",
+                variant: "destructive",
+            });
+        }
+    };
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type } = e.target;
