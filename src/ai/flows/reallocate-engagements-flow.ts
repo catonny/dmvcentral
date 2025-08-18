@@ -6,7 +6,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { collection, query, where, getDocs, startOfMonth, endOfMonth } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { db } from '@/lib/firebase';
 import type { Employee, Engagement, EngagementType } from '@/lib/data';
 
