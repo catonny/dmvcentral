@@ -4,7 +4,7 @@
 
 import * as React from "react";
 import { getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
-import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
+import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus } from "@/lib/data";
 import { db, logActivity, notify } from "@/lib/firebase";
 import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
@@ -20,6 +20,15 @@ import { EditableAssignees } from "@/components/workspace/editable-assignees";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EngagementNotes } from "@/components/workspace/engagement-notes";
+import { CheckSquare, MessageSquare, Send, Book, FileText, StickyNote, Edit, Check, Timer } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
+import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
 
 
 export default function ClientWorkspacePage() {
@@ -31,11 +40,14 @@ export default function ClientWorkspacePage() {
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isPastEngagementsOpen, setIsPastEngagementsOpen] = React.useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [selectedEngagement, setSelectedEngagement] = React.useState<Engagement | null>(null);
   const { toast } = useToast();
-
+  
   React.useEffect(() => {
     if (!clientId) return;
 
@@ -53,7 +65,6 @@ export default function ClientWorkspacePage() {
             });
     }
 
-    // Listen to client document
     const clientUnsub = onSnapshot(doc(db, "clients", clientId), (doc) => {
       if (doc.exists()) {
         setClient({ id: doc.id, ...doc.data() } as Client);
@@ -77,23 +88,31 @@ export default function ClientWorkspacePage() {
     };
     fetchStaticData();
 
-    // The query that requires an index
     const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
     const engagementsQuery = query(
         collection(db, "engagements"), 
         where("clientId", "==", clientId),
-        where("status", "in", activeStatuses),
-        orderBy("dueDate", "asc")
+        where("status", "in", activeStatuses)
     );
 
     const engagementsUnsub = onSnapshot(engagementsQuery, (snapshot) => {
-      const fetchedEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+      const fetchedEngagements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement))
+        .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       setEngagements(fetchedEngagements);
     }, (error) => handleError(error, 'engagements'));
+    
+    const tasksQuery = query(collection(db, "tasks"), where("clientId", "==", clientId));
+    const tasksUnsub = onSnapshot(tasksQuery, (snapshot) => {
+        const tasksData = snapshot.docs.map(doc => doc.data() as Task).sort((a,b) => a.order - b.order);
+        setTasks(tasksData);
+    }, (error) => {
+         console.error("Error fetching tasks:", error);
+    });
 
     return () => {
       clientUnsub();
       engagementsUnsub();
+      tasksUnsub();
     };
   }, [clientId, toast, user]);
   
@@ -126,7 +145,29 @@ export default function ClientWorkspacePage() {
      const handleAssigneesChange = (engagementId: string, newAssignees: string[]) => {
         updateEngagementField(engagementId, 'assignedTo', newAssignees, "Assignees updated.");
     };
+  
+    const handleOpenEditSheet = (engagement: Engagement) => {
+        setSelectedEngagement(engagement);
+        setIsSheetOpen(true);
+    };
 
+    const handleCloseEditSheet = () => {
+        setIsSheetOpen(false);
+        setSelectedEngagement(null);
+    };
+
+    const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
+        if (!selectedEngagement?.id || !currentUserEmployee) return;
+        try {
+            const engagementRef = doc(db, "engagements", selectedEngagement.id);
+            await updateDoc(engagementRef, engagementData);
+            toast({ title: "Success", description: "Engagement updated successfully." });
+            handleCloseEditSheet();
+        } catch (error) {
+            console.error("Error saving engagement:", error);
+            toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
+        }
+    };
 
   if (loading) {
     return <div>Loading workspace...</div>;
@@ -138,6 +179,12 @@ export default function ClientWorkspacePage() {
   }
 
   const getEngagementType = (typeId: string) => engagementTypes.find(et => et.id === typeId);
+  
+  const typedSelectedEngagement = selectedEngagement ? {
+    ...selectedEngagement,
+    clientName: client.name,
+    engagementTypeName: getEngagementType(selectedEngagement.type)?.name || selectedEngagement.type,
+  } : null;
 
   return (
     <>
@@ -145,11 +192,11 @@ export default function ClientWorkspacePage() {
         <Button asChild variant="outline" size="sm">
             <Link href="/workspace">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Clients
+                Back to Workspace
             </Link>
         </Button>
       </div>
-      <Card className="mb-6">
+       <Card className="mb-6">
         <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle className="font-headline text-2xl">{client.name}'s Workspace</CardTitle>
@@ -205,6 +252,7 @@ export default function ClientWorkspacePage() {
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned To</TableHead>
+                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,12 +286,17 @@ export default function ClientWorkspacePage() {
                                 onAssigneesChange={handleAssigneesChange}
                            />
                         </TableCell>
+                         <TableCell className="text-right">
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenEditSheet(eng)}>
+                                <Edit className="h-4 w-4"/>
+                            </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24">
+                    <TableCell colSpan={6} className="text-center h-24">
                       No active engagements found for this client.
                     </TableCell>
                   </TableRow>
@@ -270,6 +323,13 @@ export default function ClientWorkspacePage() {
         clientName={client.name}
         employees={employees}
         engagementTypes={engagementTypes}
+      />
+      <EditEngagementSheet
+        isOpen={isSheetOpen}
+        onClose={handleCloseEditSheet}
+        onSave={handleSaveEngagement}
+        engagement={typedSelectedEngagement}
+        allEmployees={employees}
       />
     </>
   );

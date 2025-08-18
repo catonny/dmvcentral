@@ -77,7 +77,7 @@ export function EmailCenter() {
 
   const filteredClients = React.useMemo(() => {
     if (!clientSearchQuery) return clients;
-    return clients.filter(c => c.Name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
+    return clients.filter(c => c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
   }, [clients, clientSearchQuery]);
 
   const handleGenerateEmail = async () => {
@@ -124,7 +124,7 @@ export function EmailCenter() {
             subject: generatedSubject,
             body: generatedBody
         });
-        toast({ title: "Email Sent!", description: `The email has been successfully sent to ${client.Name}.`});
+        toast({ title: "Email Sent!", description: `The email has been successfully sent to ${client.name}.`});
         // Reset form
         setSelectedClientId("");
         setSelectedTemplate("");
@@ -160,7 +160,7 @@ export function EmailCenter() {
                         aria-expanded={isClientPopoverOpen}
                         className="w-full justify-between"
                     >
-                        {selectedClientId ? clients.find(c => c.id === selectedClientId)?.Name : "Select client..."}
+                        {selectedClientId ? clients.find(c => c.id === selectedClientId)?.name : "Select client..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                     </PopoverTrigger>
@@ -177,7 +177,7 @@ export function EmailCenter() {
                             {filteredClients.map((client) => (
                                 <CommandItem
                                 key={client.id}
-                                value={client.Name}
+                                value={client.name}
                                 onSelect={() => {
                                     setSelectedClientId(client.id);
                                     setIsClientPopoverOpen(false);
@@ -186,7 +186,7 @@ export function EmailCenter() {
                                 <Check
                                     className={cn("mr-2 h-4 w-4", selectedClientId === client.id ? "opacity-100" : "opacity-0")}
                                 />
-                                {client.Name}
+                                {client.name}
                                 </CommandItem>
                             ))}
                             </CommandGroup>
@@ -238,5 +238,3 @@ export function EmailCenter() {
     </Card>
   );
 }
-
-    
