@@ -45,10 +45,23 @@ interface EditEngagementSheetProps {
     allEmployees: Employee[];
 }
 
+const generateFinancialYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -5; i <= 1; i++) {
+        const startYear = currentYear + i;
+        const endYear = (startYear + 1).toString().slice(-2);
+        years.push(`${startYear}-${endYear}`);
+    }
+    return years.reverse();
+}
+
 export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEmployees }: EditEngagementSheetProps) {
     const [formData, setFormData] = React.useState<Partial<Engagement>>({});
     const [dueDateString, setDueDateString] = React.useState("");
     const { toast } = useToast();
+    const financialYears = generateFinancialYears();
+
 
     React.useEffect(() => {
         if (isOpen && engagement) {
@@ -131,7 +144,16 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="financialYear" className="text-right">Financial Year</Label>
-                        <Input id="financialYear" value={formData.financialYear || ''} onChange={handleChange} placeholder="e.g., 2024-25" className="col-span-3" />
+                        <Select onValueChange={handleSelectChange('financialYear')} value={formData.financialYear}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {financialYears.map((year) => (
+                                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="remarks" className="text-right">Remarks</Label>

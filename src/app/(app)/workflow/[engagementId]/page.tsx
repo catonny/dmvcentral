@@ -24,6 +24,7 @@ import { EngagementNotes } from "@/components/workspace/engagement-notes";
 import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
 import { EditableStatus } from "@/components/workspace/editable-status";
 import { EditableAssignees } from "@/components/workspace/editable-assignees";
+import { EditableDueDate } from "@/components/workspace/editable-due-date";
 
 
 export default function EngagementWorkflowPage() {
