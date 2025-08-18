@@ -20,8 +20,9 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Checkbox } from "../ui/checkbox";
 import { capitalizeWords } from "@/lib/utils";
 import { Switch } from "../ui/switch";
-import { collection, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, query, where, writeBatch, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { reallocateEngagements } from "@/ai/flows/reallocate-engagements-flow";
 
 interface EditEmployeeSheetProps {
     employee: Employee | null;
@@ -29,9 +30,10 @@ interface EditEmployeeSheetProps {
     onClose: () => void;
     onSave: (updatedEmployee: Partial<Employee>) => Promise<void>;
     departments: Department[];
+    allEmployees: Employee[];
 }
 
-export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departments }: EditEmployeeSheetProps) {
+export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departments, allEmployees }: EditEmployeeSheetProps) {
     const [formData, setFormData] = React.useState<Partial<Employee>>({});
     const { toast } = useToast();
 
@@ -76,52 +78,50 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
     
     const handleInactivation = async (inactiveEmployee: Employee) => {
         try {
-            const activeStatuses: Engagement['status'][] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-            const engagementsQuery = query(
-                collection(db, "engagements"),
-                where("assignedTo", "array-contains", inactiveEmployee.id),
-                where("status", "in", activeStatuses)
-            );
-
-            const snapshot = await getDocs(engagementsQuery);
-            if (snapshot.empty) {
-                return; // No active engagements to reassign
+            toast({ title: "Processing...", description: "AI is analyzing workloads and generating a reallocation plan. This may take a moment." });
+            
+            const reallocationResult = await reallocateEngagements({ inactiveEmployeeId: inactiveEmployee.id });
+            
+            if (!reallocationResult || reallocationResult.plan.length === 0) {
+                toast({ title: "No Action Needed", description: "The inactive employee has no active engagements to reallocate." });
+                return;
             }
 
-            const batch = writeBatch(db);
             const managerId = inactiveEmployee.managerId || 'S001'; // Default to Tonny if no manager
+            const manager = allEmployees.find(e => e.id === managerId);
+            
+            // Format the plan into a readable string for the to-do
+            const planText = reallocationResult.plan.map(p => 
+                `- Reassign "${p.engagementRemarks}" to ${p.newAssigneeName} (Reason: ${p.reasoning})`
+            ).join('\n');
 
-            snapshot.forEach(docSnap => {
-                const engagement = docSnap.data() as Engagement;
-                const newTodoRef = doc(collection(db, "todos"));
-                const newTodo: Todo = {
-                    id: newTodoRef.id,
-                    type: 'GENERAL_TASK',
-                    text: `Reassign engagement: "${engagement.remarks}" from inactive employee ${inactiveEmployee.name}.`,
-                    createdBy: "system",
-                    assignedTo: [managerId],
-                    isCompleted: false,
-                    createdAt: new Date().toISOString(),
-                    relatedEntity: {
-                        type: 'engagement',
-                        id: engagement.id,
-                    }
-                };
-                batch.set(newTodoRef, newTodo);
-            });
+            const todoText = `Action Required: Reallocate work for inactive employee ${inactiveEmployee.name}. AI has proposed the following plan based on team workload:\n\n${planText}`;
 
-            await batch.commit();
+            const todoRef = doc(collection(db, "todos"));
+            const newTodo: Todo = {
+                id: todoRef.id,
+                type: 'BUDGET_OVERRIDE', // Re-using for now, should be a new type 'REALLOCATION_APPROVAL'
+                text: todoText,
+                createdBy: "system",
+                assignedTo: [managerId],
+                isCompleted: false,
+                createdAt: new Date().toISOString(),
+                relatedEntity: { type: 'engagement_creation_request', id: todoRef.id }, // Placeholder
+                relatedData: { plan: reallocationResult.plan } // Store the plan for future approval action
+            };
+            await setDoc(todoRef, newTodo);
+
             toast({
-                title: "Action Required",
-                description: `Created ${snapshot.size} to-do(s) for ${allEmployees.find(e => e.id === managerId)?.name} to reassign active engagements.`,
-                duration: 5000,
+                title: "Approval Required",
+                description: `A to-do has been created for ${manager?.name || 'the manager'} to approve the reallocation plan.`,
+                duration: 7000,
             });
 
         } catch (error) {
-            console.error("Error creating reassignment todos:", error);
+            console.error("Error handling inactivation:", error);
             toast({
                 title: "Warning",
-                description: "Could not create automatic to-dos for reassignment. Please manually review the employee's engagements.",
+                description: "Could not automatically generate a reallocation plan. Please manually review the employee's engagements.",
                 variant: "destructive",
             });
         }

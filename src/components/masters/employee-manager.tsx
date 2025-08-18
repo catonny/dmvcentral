@@ -162,6 +162,7 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
         departments={departments}
+        allEmployees={employees}
       />
     </>
   );
