@@ -74,14 +74,29 @@ interface AddTaskDialogProps {
   currentUserEmployee: Employee | null;
 }
 
-const getCurrentFinancialYear = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
-    const currentYear = today.getFullYear();
-    // If before April, it's the previous financial year
-    const financialYearStart = currentMonth >= 3 ? currentYear : currentYear - 1;
-    return `${financialYearStart}-${(financialYearStart + 1).toString().slice(-2)}`;
+const getFinancialYear = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 };
+
+const generateFinancialYears = (selectedFY?: string) => {
+    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1];
+    const years = new Set<string>();
+
+    if (selectedFY) {
+        years.add(selectedFY);
+    }
+    
+    // Add years from 5 years ago to 1 year in the future
+    for (let i = -5; i <= 1; i++) {
+        const startYear = (currentFYEndYear - 2000) + i - 1;
+        const endYear = startYear + 1;
+        years.add(`20${startYear}-` + endYear.toString());
+    }
+
+    return Array.from(years).sort((a,b) => b.localeCompare(a));
+}
 
 export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
   const { toast } = useToast();
@@ -103,7 +118,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         assignedTo: [],
         reportedTo: "",
         saveAsTemplate: false,
-        financialYear: getCurrentFinancialYear(),
+        financialYear: getFinancialYear(new Date()),
     }
   });
   
@@ -116,6 +131,8 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const [engagementSearchQuery, setEngagementSearchQuery] = React.useState("");
   const saveAsTemplate = watch("saveAsTemplate");
   const [dueDateString, setDueDateString] = React.useState("");
+  const selectedDueDate = watch("dueDate");
+  const financialYears = generateFinancialYears(watch("financialYear"));
 
   const activeEmployees = React.useMemo(() => allEmployees.filter(e => e.isActive !== false), [allEmployees]);
 
@@ -247,6 +264,12 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         setValue("reportedTo", "", { shouldValidate: true });
     }
   }, [selectedClient, setValue]);
+
+  React.useEffect(() => {
+      if (selectedDueDate) {
+          setValue("financialYear", getFinancialYear(selectedDueDate), { shouldValidate: true });
+      }
+  }, [selectedDueDate, setValue]);
 
 
   const filteredClients = React.useMemo(() => {
@@ -486,7 +509,12 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                                     <Calendar
                                         mode="single"
                                         selected={field.value}
-                                        onSelect={field.onChange}
+                                        onSelect={(date) => {
+                                            field.onChange(date);
+                                            if (date) {
+                                                setValue("financialYear", getFinancialYear(date));
+                                            }
+                                        }}
                                         initialFocus
                                     />
                                 </PopoverContent>
@@ -497,7 +525,18 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                 </div>
                 <div className="grid gap-2">
                     <Label>Financial Year</Label>
-                    <Input {...register("financialYear")} placeholder="e.g., 2024-25" />
+                    <Controller
+                        name="financialYear"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Select year..."/></SelectTrigger>
+                                <SelectContent>
+                                    {financialYears.map(fy => <SelectItem key={fy} value={fy}>{fy}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
                     {errors.financialYear && <p className="text-sm text-red-500">{errors.financialYear.message}</p>}
                 </div>
            </div>

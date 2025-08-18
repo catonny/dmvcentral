@@ -36,7 +36,6 @@ import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-
 interface EditEngagementSheetProps {
     engagement: ReportsEngagement | null;
     isOpen: boolean;
@@ -45,23 +44,36 @@ interface EditEngagementSheetProps {
     allEmployees: Employee[];
 }
 
-const generateFinancialYears = () => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let i = -5; i <= 1; i++) {
-        const startYear = currentYear + i;
-        const endYear = (startYear + 1).toString().slice(-2);
-        years.push(`${startYear}-${endYear}`);
+const getFinancialYear = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
+};
+
+const generateFinancialYears = (selectedFY?: string) => {
+    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1];
+    const years = new Set<string>();
+
+    if (selectedFY) {
+        years.add(selectedFY);
     }
-    return years.reverse();
+    
+    // Add years from 5 years ago to 1 year in the future
+    for (let i = -5; i <= 1; i++) {
+        const startYear = (currentFYEndYear - 2000) + i - 1;
+        const endYear = startYear + 1;
+        years.add(`20${startYear}-` + endYear.toString());
+    }
+
+    return Array.from(years).sort((a,b) => b.localeCompare(a));
 }
+
 
 export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEmployees }: EditEngagementSheetProps) {
     const [formData, setFormData] = React.useState<Partial<Engagement>>({});
     const [dueDateString, setDueDateString] = React.useState("");
     const { toast } = useToast();
-    const financialYears = generateFinancialYears();
-
+    
     React.useEffect(() => {
         if (isOpen && engagement) {
             setFormData(engagement);
@@ -94,7 +106,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
 
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
-            setFormData({ ...formData, 'dueDate': date.toISOString() });
+            setFormData({ ...formData, dueDate: date.toISOString(), financialYear: getFinancialYear(date) });
             setDueDateString(format(date, 'dd/MM/yyyy'));
         }
     }
@@ -108,7 +120,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
         if (value.length === 10) {
             const parsedDate = parse(value, 'dd/MM/yyyy', new Date());
             if (isValid(parsedDate)) {
-                 setFormData({ ...formData, 'dueDate': parsedDate.toISOString() });
+                 setFormData({ ...formData, dueDate: parsedDate.toISOString(), financialYear: getFinancialYear(parsedDate) });
             }
         }
     };
@@ -120,7 +132,8 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
             : [...currentAssignees, employeeId];
         setFormData({ ...formData, assignedTo: newAssignees });
     };
-
+    
+    const financialYears = generateFinancialYears(formData.financialYear);
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
