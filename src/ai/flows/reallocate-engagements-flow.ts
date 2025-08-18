@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, startOfMonth, endOfMonth } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Employee, Engagement, EngagementType } from '@/lib/data';
 
@@ -47,35 +47,47 @@ const getActiveEngagements = ai.defineTool(
     }
 );
 
-// Tool to get workloads of all active employees
+// Tool to get workloads of all active employees within a specific time window
 const getEmployeeWorkloads = ai.defineTool(
     {
         name: 'getEmployeeWorkloads',
-        description: "Calculates the current workload for all active employees based on standard hours of their assigned engagements.",
-        inputSchema: z.object({ excludeEmployeeId: z.string() }),
+        description: "Calculates the current workload for all active employees based on standard hours of their assigned engagements within a specific date range. The calculation includes both active and completed work in that period.",
+        inputSchema: z.object({ 
+            excludeEmployeeId: z.string(),
+            reallocationEndDate: z.string().describe("The due date of the latest engagement being reallocated. This sets the end of the workload calculation window."),
+        }),
         outputSchema: z.array(z.object({
             employeeId: z.string(),
             employeeName: z.string(),
             workloadHours: z.number(),
         })),
     },
-    async ({ excludeEmployeeId }) => {
+    async ({ excludeEmployeeId, reallocationEndDate }) => {
+        const periodStart = startOfMonth(new Date());
+        const periodEnd = endOfMonth(new Date(reallocationEndDate));
+
         const [employeesSnap, engagementsSnap, engagementTypesSnap] = await Promise.all([
             getDocs(query(collection(db, "employees"), where("isActive", "!=", false))),
-            getDocs(query(collection(db, "engagements"), where("status", "in", ["Pending", "In Process", "Awaiting Documents", "Partner Review", "On Hold"]))),
+            getDocs(query(
+                collection(db, "engagements"),
+                where("dueDate", ">=", periodStart.toISOString()),
+                where("dueDate", "<=", periodEnd.toISOString()),
+            )),
             getDocs(collection(db, "engagementTypes")),
         ]);
 
         const engagementTypesMap = new Map(engagementTypesSnap.docs.map(d => [d.id, d.data() as EngagementType]));
         const activeEmployees = employeesSnap.docs.map(d => d.data() as Employee).filter(e => e.id !== excludeEmployeeId);
-        const allEngagements = engagementsSnap.docs.map(d => d.data() as Engagement);
+        
+        // Filter engagements to include only active or completed ones within the window
+        const relevantEngagements = engagementsSnap.docs.map(d => d.data() as Engagement).filter(e => e.status !== "Cancelled");
 
         return activeEmployees.map(emp => {
-            const workloadHours = allEngagements
+            const workloadHours = relevantEngagements
                 .filter(eng => eng.assignedTo.includes(emp.id))
                 .reduce((total, eng) => {
                     const engType = engagementTypesMap.get(eng.type);
-                    return total + (engType?.standardHours || 10); // Default to 10 hours if not specified
+                    return total + (eng.budgetedHours || engType?.standardHours || 10); // Use budgeted, then standard, then default
                 }, 0);
             
             return { employeeId: emp.id, employeeName: emp.name, workloadHours };
@@ -100,7 +112,7 @@ const reallocateEngagementsPrompt = ai.definePrompt({
 
     **CONTEXT:**
     - You have a list of all active engagements that belonged to {{{inactiveEmployeeName}}}.
-    - You have a list of all other active employees and their current total workload in standard hours.
+    - You have a list of all other active employees and their current total workload in standard hours for the relevant period. The workload already includes completed and pending work.
     
     **INSTRUCTIONS:**
     1.  Review the list of engagements that need to be reassigned.
@@ -111,7 +123,7 @@ const reallocateEngagementsPrompt = ai.definePrompt({
 
     **Engagements to Reallocate:**
     {{#each engagementsToReallocate}}
-    - Engagement ID: {{id}}, Remarks: "{{remarks}}"
+    - Engagement ID: {{id}}, Remarks: "{{remarks}}", Due: {{dueDate}}
     {{/each}}
     
     **Current Employee Workloads (in hours):**
@@ -130,15 +142,22 @@ const reallocateEngagementsFlow = ai.defineFlow(
   },
   async ({ inactiveEmployeeId }) => {
     
-    const [engagementsToReallocate, employeeWorkloads, inactiveEmployeeDoc] = await Promise.all([
-        getActiveEngagements({ employeeId: inactiveEmployeeId }),
-        getEmployeeWorkloads({ excludeEmployeeId: inactiveEmployeeId }),
-        getDocs(query(collection(db, "employees"), where("id", "==", inactiveEmployeeId)))
-    ]);
+    const engagementsToReallocate = await getActiveEngagements({ employeeId: inactiveEmployeeId });
 
     if (engagementsToReallocate.length === 0) {
         return { plan: [] }; // No active engagements to reallocate.
     }
+    
+    // Find the latest due date among the engagements to reallocate to set the time window
+    const latestDueDate = engagementsToReallocate.reduce((latest, eng) => {
+        const engDate = new Date(eng.dueDate);
+        return engDate > latest ? engDate : latest;
+    }, new Date(0)).toISOString();
+
+    const [employeeWorkloads, inactiveEmployeeDoc] = await Promise.all([
+        getEmployeeWorkloads({ excludeEmployeeId: inactiveEmployeeId, reallocationEndDate: latestDueDate }),
+        getDocs(query(collection(db, "employees"), where("id", "==", inactiveEmployeeId)))
+    ]);
     
     const inactiveEmployeeName = inactiveEmployeeDoc.docs[0]?.data().name || 'Unknown Employee';
 
