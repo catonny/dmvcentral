@@ -188,13 +188,6 @@ export default function ReportsPage() {
                 onClick={() => router.push('/reports/bonus')}
                 isDisabled={!checkPermission("firm-analytics")}
             />
-             <ReportCard
-                title="Learning Center"
-                description="Manage professional development and track learning hours."
-                icon={ClipboardList}
-                onClick={() => router.push('/learning-center')}
-                isDisabled={!checkPermission("learning-center")}
-            />
         </div>
       </section>
     </div>

@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { ScrollArea } from "./scroll-area"
 
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_COLLAPSED_WIDTH = "4rem"
@@ -142,9 +143,9 @@ const SidebarContent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   return (
-    <div
+    <ScrollArea
       ref={ref}
-      className={cn("flex-grow overflow-y-auto", className)}
+      className={cn("flex-grow", className)}
       {...props}
     />
   )
