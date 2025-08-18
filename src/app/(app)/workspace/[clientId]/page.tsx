@@ -5,7 +5,7 @@
 import * as React from "react";
 import { doc, getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, EngagementStatus } from "@/lib/data";
-import { db } from "@/lib/firebase";
+import { db, logActivity, notify } from "@/lib/firebase";
 import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,9 @@ import { EditableDueDate } from "@/components/workspace/editable-due-date";
 import { EditableStatus } from "@/components/workspace/editable-status";
 import { EditableAssignees } from "@/components/workspace/editable-assignees";
 import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 export default function ClientWorkspacePage() {
   const params = useParams();
