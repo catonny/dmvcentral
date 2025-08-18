@@ -265,7 +265,8 @@ export function GenerateInvoiceDialog({
 
   const availableSalesItems = showAllSalesItems
     ? salesItems
-    : salesItems.filter(si => si.associatedEngagementTypeId === entry.engagement.type);
+    : salesItems.filter(si => !si.associatedEngagementTypeId || si.associatedEngagementTypeId === entry.engagement.type);
+
 
   return (
     <>
