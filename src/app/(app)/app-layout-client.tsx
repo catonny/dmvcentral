@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Logo } from "@/components/logo";
@@ -350,3 +349,5 @@ export function AppLayoutClient({ children }: { children: React.ReactNode;}) {
     </AuthProvider>
   )
 }
+
+    
