@@ -206,6 +206,7 @@ export const seedDatabase = async () => {
         { feature: 'inbox', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles', 'Administration'] },
         { feature: 'firm-analytics', departments: ['Admin', 'Partner'] },
         { feature: 'leave-management', departments: ['Admin', 'Partner', 'Manager'] },
+        { feature: 'learning-center', departments: ['Admin', 'Partner', 'Manager', 'Employee', 'Articles'] },
         { feature: 'masters', departments: ['Admin'] },
         { feature: 'bulk-import', departments: ['Admin'] },
         { feature: 'employee-management', departments: ['Admin'] },
