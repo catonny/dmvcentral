@@ -19,6 +19,7 @@ import type { Employee, EmployeeRole, Department } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { Checkbox } from "../ui/checkbox";
 import { capitalizeWords } from "@/lib/utils";
+import { Switch } from "../ui/switch";
 
 interface EditEmployeeSheetProps {
     employee: Employee | null;
@@ -36,7 +37,8 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
         if (isOpen) {
             // Ensure role is always an array for consistency
             const initialRoles = employee?.role ? (Array.isArray(employee.role) ? employee.role : [employee.role]) : [];
-            setFormData(employee ? { ...employee, role: initialRoles } : {
+            const initialIsActive = employee?.isActive === false ? false : true;
+            setFormData(employee ? { ...employee, role: initialRoles, isActive: initialIsActive } : {
                 name: '',
                 email: '',
                 role: ['Employee'],
@@ -44,6 +46,7 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                 monthlySalary: 0,
                 chargeOutRate: 0,
                 avatar: `https://placehold.co/40x40.png`,
+                isActive: true,
             });
         }
     }, [employee, isOpen]);
@@ -135,6 +138,17 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="avatar" className="text-right">Avatar URL</Label>
                         <Input id="avatar" value={formData.avatar || ''} onChange={handleChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="isActive" className="text-right">Status</Label>
+                        <div className="col-span-3 flex items-center gap-2">
+                             <Switch
+                                id="isActive"
+                                checked={formData.isActive}
+                                onCheckedChange={(checked) => setFormData({...formData, isActive: checked})}
+                            />
+                            <span className="text-sm text-muted-foreground">{formData.isActive ? "Active" : "Inactive"}</span>
+                        </div>
                     </div>
                 </div>
                 </ScrollArea>

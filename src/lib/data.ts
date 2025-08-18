@@ -46,6 +46,7 @@ export interface Employee {
   leavesTaken?: number;
   monthlySalary?: number;
   chargeOutRate?: number;
+  isActive?: boolean;
 }
 
 export interface Client {

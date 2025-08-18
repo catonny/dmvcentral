@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -14,6 +15,7 @@ import { MoreHorizontal, PlusCircle, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { EditEmployeeSheet } from "@/components/employee/edit-employee-sheet";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "../ui/badge";
 
 export function EmployeeManager({ onBack }: { onBack: () => void }) {
   const [employees, setEmployees] = React.useState<Employee[]>([]);
@@ -115,6 +117,7 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
                               <TableHead>Designation</TableHead>
                               <TableHead>Department</TableHead>
                               <TableHead>Email</TableHead>
+                              <TableHead>Status</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                       </TableHeader>
@@ -125,6 +128,11 @@ export function EmployeeManager({ onBack }: { onBack: () => void }) {
                                   <TableCell>{member.designation || 'N/A'}</TableCell>
                                   <TableCell>{Array.isArray(member.role) ? member.role.join(', ') : member.role}</TableCell>
                                   <TableCell>{member.email}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={member.isActive === false ? "destructive" : "default"}>
+                                        {member.isActive === false ? "Inactive" : "Active"}
+                                    </Badge>
+                                  </TableCell>
                                   <TableCell className="text-right">
                                       <DropdownMenu>
                                           <DropdownMenuTrigger asChild>

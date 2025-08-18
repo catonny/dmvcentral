@@ -117,6 +117,8 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const saveAsTemplate = watch("saveAsTemplate");
   const [dueDateString, setDueDateString] = React.useState("");
 
+  const activeEmployees = React.useMemo(() => allEmployees.filter(e => e.isActive !== false), [allEmployees]);
+
 
   const managersAndPartners = React.useMemo(() => {
     const managerAndPartnerDepts = departments
@@ -125,10 +127,10 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     
     if (managerAndPartnerDepts.length === 0) return [];
     
-    return allEmployees.filter(s => 
+    return activeEmployees.filter(s => 
         Array.isArray(s.role) && s.role.some(r => managerAndPartnerDepts.includes(r))
     );
-  }, [allEmployees, departments]);
+  }, [activeEmployees, departments]);
 
 
   const handleFormSubmit = async (data: EngagementFormData) => {
@@ -516,7 +518,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                             <CommandList>
                                <CommandEmpty>No results found.</CommandEmpty>
                                <CommandGroup>
-                                {allEmployees.map(employee => (
+                                {activeEmployees.map(employee => (
                                     <CommandItem
                                     key={employee.id}
                                     onSelect={() => {
