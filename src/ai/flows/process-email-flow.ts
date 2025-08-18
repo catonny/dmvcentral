@@ -97,7 +97,7 @@ const emailProcessorPrompt = ai.definePrompt({
     Instructions:
     1.  Use the getClientAndTeamByEmail tool to find the client associated with the sender's email address.
     2.  If a client is found, extract their ID, name, and the list of team members (visibleTo).
-    3.  If no client is found, the 'visibleTo' list should contain only the ID of the main partner ('S001') as a fallback for manual assignment.
+    3.  If no client is found, the 'visibleTo' list should contain only the ID of the main partner ('S001') as a fallback for manual assignment. **Crucially, if no client is found, you MUST OMIT the 'clientId' and 'clientName' fields from the JSON output.**
     4.  Read the email body and subject carefully.
     5.  Summarize the email's content concisely.
     6.  Categorize the email based on its content into one of the following: "Query", "Document Submission", "Follow-up", "Appreciation", "Urgent", "General".
