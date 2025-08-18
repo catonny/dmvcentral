@@ -50,7 +50,7 @@ export default function BulkEmailPage() {
     React.useEffect(() => {
         const unsubTypes = onSnapshot(collection(db, "engagementTypes"), (snap) => setAllEngagementTypes(snap.docs.map(d => d.data() as EngagementType)));
         const unsubEngagements = onSnapshot(collection(db, "engagements"), (snap) => setAllEngagements(snap.docs.map(d => d.data() as Engagement)));
-        const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setAllClients(snap.docs.map(d => d.data() as Client)));
+        const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setAllClients(snap.docs.map(d => ({id: d.id, ...d.data()} as Client))));
         
         return () => { unsubTypes(); unsubEngagements(); unsubClients(); };
     }, []);
@@ -110,6 +110,9 @@ export default function BulkEmailPage() {
                 clients: clientData,
                 subjectTemplate: subject,
                 bodyTemplate: body,
+                engagementTypeId: filters.engagementTypeId,
+                status: filters.status,
+                financialYear: filters.financialYear
             });
 
             toast({
@@ -178,6 +181,7 @@ export default function BulkEmailPage() {
                                             <SelectItem value="Any">Any</SelectItem>
                                             <SelectItem value="Monthly">Monthly</SelectItem>
                                             <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                            <SelectItem value="Yearly">Yearly</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -272,4 +276,3 @@ export default function BulkEmailPage() {
         </div>
     );
 }
-
