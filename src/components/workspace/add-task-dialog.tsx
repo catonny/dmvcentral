@@ -81,7 +81,8 @@ const getFinancialYear = (date: Date): string => {
 };
 
 const generateFinancialYears = (selectedFY?: string) => {
-    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1];
+    const currentYear = new Date().getFullYear();
+    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1] + 2000;
     const years = new Set<string>();
 
     if (selectedFY) {
@@ -90,13 +91,13 @@ const generateFinancialYears = (selectedFY?: string) => {
     
     // Add years from 5 years ago to 1 year in the future
     for (let i = -5; i <= 1; i++) {
-        const startYear = (currentFYEndYear - 2000) + i - 1;
-        const endYear = startYear + 1;
-        years.add(`20${startYear}-` + endYear.toString());
+        const year = currentFYEndYear + i;
+        years.add(`${year-1}-${year.toString().slice(-2)}`);
     }
 
     return Array.from(years).sort((a,b) => b.localeCompare(a));
 }
+
 
 export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
   const { toast } = useToast();
@@ -274,17 +275,17 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
 
   const filteredClients = React.useMemo(() => {
     if (!clientSearchQuery) return clients;
-    return clients.filter(c => c.Name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
+    return clients.filter(c => c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()));
   }, [clients, clientSearchQuery]);
   
-  const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.Name.toLowerCase() === clientSearchQuery.toLowerCase());
+  const showCreateClientOption = clientSearchQuery && !filteredClients.some(c => c.name.toLowerCase() === clientSearchQuery.toLowerCase());
 
 
   const filteredEngagementTypes = React.useMemo(() => {
       let types = engagementTypes;
-      if (selectedClient?.Category) {
+      if (selectedClient?.category) {
           types = engagementTypes.filter(et => 
-              !et.applicableCategories || et.applicableCategories.length === 0 || et.applicableCategories.includes(selectedClient.Category!)
+              !et.applicableCategories || et.applicableCategories.length === 0 || et.applicableCategories.includes(selectedClient.category!)
           );
       }
       if (engagementSearchQuery) {
@@ -300,7 +301,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   };
   
   const handleCreateNewClient = () => {
-    setNewClientData({ Name: capitalizeWords(clientSearchQuery) });
+    setNewClientData({ name: clientSearchQuery });
     setIsClientPopoverOpen(false);
     setIsClientSheetOpen(true);
   };
@@ -308,7 +309,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const handleSaveNewClient = async (clientData: Partial<Client>) => {
     try {
         const newDocRef = doc(collection(db, "clients"));
-        const newClient = { ...clientData, name: capitalizeWords(clientData.name as string), id: newDocRef.id, lastUpdated: new Date().toISOString() };
+        const newClient = { ...clientData, id: newDocRef.id, lastUpdated: new Date().toISOString() };
         await setDoc(newDocRef, newClient);
 
         toast({ title: "Success", description: "New client added successfully." });
@@ -372,7 +373,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                         className="w-full justify-between"
                       >
                         {field.value
-                          ? clients.find((client) => client.id === field.value)?.Name
+                          ? clients.find((client) => client.id === field.value)?.name
                           : "Select or create client..."}
                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -398,7 +399,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                             {filteredClients.map((client) => (
                                 <CommandItem
                                 key={client.id}
-                                value={client.Name}
+                                value={client.name}
                                 onSelect={() => handleClientSelect(client.id)}
                                 >
                                 <Check
@@ -407,7 +408,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
                                     field.value === client.id ? "opacity-100" : "opacity-0"
                                     )}
                                 />
-                                {client.Name}
+                                {client.name}
                                 </CommandItem>
                             ))}
                             {showCreateClientOption && (

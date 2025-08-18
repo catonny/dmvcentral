@@ -107,7 +107,7 @@ export default function QuotePlannerPage() {
     };
 
     const handleCreateNewClient = () => {
-        setNewClientData({ name: capitalizeWords(clientSearchQuery) });
+        setNewClientData({ name: clientSearchQuery });
         setIsClientPopoverOpen(false);
         setIsClientSheetOpen(true);
     };
