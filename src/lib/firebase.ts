@@ -47,6 +47,8 @@ interface LogActivityOptions {
 export const logActivity = async ({ engagement, clientId, type, user, details }: LogActivityOptions) => {
     try {
         const logRef = doc(collection(db, 'activityLog'));
+        const engagementName = engagement?.remarks || details.engagementName;
+
         const logData: any = {
             id: logRef.id,
             clientId: engagement?.clientId || clientId || "general",
@@ -55,10 +57,13 @@ export const logActivity = async ({ engagement, clientId, type, user, details }:
             userId: user.id,
             userName: user.name,
             details: {
-                engagementName: engagement?.remarks || details.engagementName,
                 ...details,
             },
         };
+        
+        if (engagementName) {
+            logData.details.engagementName = engagementName;
+        }
 
         if (engagement?.id) {
             logData.engagementId = engagement.id;
