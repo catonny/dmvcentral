@@ -650,6 +650,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         isOpen={isClientSheetOpen}
         onClose={() => setIsClientSheetOpen(false)}
         onSave={handleSaveNewClient}
+        onDelete={() => {}} // Not used for deletion
         allClients={clients}
       />
     </>

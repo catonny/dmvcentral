@@ -116,6 +116,9 @@ export default function QuotePlannerPage() {
         try {
             const newDocRef = doc(collection(db, "clients"));
             const newClient = { ...clientData, id: newDocRef.id, lastUpdated: new Date().toISOString() };
+            if (newClient.name) {
+                newClient.name = capitalizeWords(newClient.name);
+            }
             await setDoc(newDocRef, newClient);
             toast({ title: "Success", description: "New client added successfully." });
             setSelectedClientId(newDocRef.id);
