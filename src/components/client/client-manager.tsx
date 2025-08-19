@@ -68,26 +68,6 @@ export function ClientManager({ initialData }: ClientManagerProps) {
     return () => unsubClients();
   }, []);
 
-
-  const handleUpdateClientField = async (clientId: string, field: keyof Client, value: any) => {
-      if (!clientId || !field) return;
-      const clientRef = doc(db, "clients", clientId);
-      try {
-          await updateDoc(clientRef, { [field]: value });
-          toast({
-              title: "Update Successful",
-              description: `Client's ${String(field)} has been updated.`,
-          });
-      } catch (error) {
-          console.error("Error updating client field:", error);
-          toast({
-              title: "Update Failed",
-              description: `Could not update client's ${String(field)}.`,
-              variant: "destructive",
-          });
-      }
-  };
-  
   const handleOpenEditSheet = (client: Partial<Client> | null) => {
       setSelectedClient(client);
       setIsSheetOpen(true);
@@ -97,25 +77,35 @@ export function ClientManager({ initialData }: ClientManagerProps) {
       setIsSheetOpen(false);
       setSelectedClient(null);
   };
+  
+  const cleanData = (data: Partial<Client>) => {
+    const cleanedData: Partial<Client> = {};
+    for (const key in data) {
+        if (data[key as keyof Client] !== undefined) {
+            cleanedData[key as keyof Client] = data[key as keyof Client];
+        }
+    }
+    return cleanedData;
+  }
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
-    const dataToSave: Partial<Client> = { ...clientData };
+    let dataToSave = cleanData(clientData);
     if (dataToSave.name) {
         dataToSave.name = capitalizeWords(dataToSave.name);
     }
     
     try {
-        if (clientData.id) { // Editing existing client
-            const oldPartnerId = allClients.find(c => c.id === clientData.id)?.partnerId;
+        if (dataToSave.id) { // Editing existing client
+            const oldPartnerId = allClients.find(c => c.id === dataToSave.id)?.partnerId;
             const newPartnerId = dataToSave.partnerId;
 
             if (newPartnerId && oldPartnerId !== newPartnerId) {
                 // Partner has changed, show confirmation dialog
-                setPartnerChangeData({ oldPartnerId: oldPartnerId || '', newPartnerId, clientId: clientData.id });
+                setPartnerChangeData({ oldPartnerId: oldPartnerId || '', newPartnerId, clientId: dataToSave.id });
                 setIsConfirmPartnerChangeOpen(true);
             }
             
-            const clientRef = doc(db, "clients", clientData.id);
+            const clientRef = doc(db, "clients", dataToSave.id);
             await updateDoc(clientRef, {...dataToSave, lastUpdated: new Date().toISOString() });
             toast({ title: "Success", description: "Client updated successfully." });
             
@@ -262,7 +252,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedClient(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClient}>Continue</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
