@@ -3,7 +3,7 @@
 "use client";
 
 import * as React from "react";
-import { collection, query, onSnapshot, doc, updateDoc, addDoc, deleteDoc, writeBatch, getDocs, where } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, updateDoc, addDoc, deleteDoc, writeBatch, getDocs, where, setDoc } from "firebase/firestore";
 import type { Client, Employee, Department, Engagement } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { BulkEmailDialog } from "./bulk-email-dialog";
+import { capitalizeWords } from "@/lib/utils";
 
 interface ClientManagerProps {
     initialData: {
@@ -43,7 +44,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
 
   const [partnerChangeData, setPartnerChangeData] = React.useState<{ oldPartnerId: string, newPartnerId: string, clientId: string } | null>(null);
 
-  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = React.useState<Partial<Client> | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -87,7 +88,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
       }
   };
   
-  const handleOpenEditSheet = (client: Client | null) => {
+  const handleOpenEditSheet = (client: Partial<Client> | null) => {
       setSelectedClient(client);
       setIsSheetOpen(true);
   };
@@ -98,10 +99,15 @@ export function ClientManager({ initialData }: ClientManagerProps) {
   };
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
+    const dataToSave = { ...clientData };
+    if (dataToSave.name) {
+        dataToSave.name = capitalizeWords(dataToSave.name);
+    }
+    
     try {
-        if (selectedClient?.id) { // Editing existing client
+        if (selectedClient && 'id' in selectedClient && selectedClient.id) { // Editing existing client
             const oldPartnerId = selectedClient.partnerId;
-            const newPartnerId = clientData.partnerId;
+            const newPartnerId = dataToSave.partnerId;
 
             if (newPartnerId && oldPartnerId !== newPartnerId) {
                 // Partner has changed, show confirmation dialog
@@ -110,11 +116,18 @@ export function ClientManager({ initialData }: ClientManagerProps) {
             }
             
             const clientRef = doc(db, "clients", selectedClient.id);
-            await updateDoc(clientRef, {...clientData, lastUpdated: new Date().toISOString() });
+            await updateDoc(clientRef, {...dataToSave, lastUpdated: new Date().toISOString() });
             toast({ title: "Success", description: "Client updated successfully." });
             
         } else { // Adding new client
-            await addDoc(collection(db, "clients"), {...clientData, lastUpdated: new Date().toISOString()});
+            const newDocRef = doc(collection(db, "clients"));
+            const newClient = { 
+                ...dataToSave, 
+                id: newDocRef.id,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+            await setDoc(newDocRef, newClient);
             toast({ title: "Success", description: "New client added successfully." });
         }
         handleCloseEditSheet();
@@ -130,10 +143,11 @@ export function ClientManager({ initialData }: ClientManagerProps) {
   };
 
   const handleDeleteClient = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient || !('id' in selectedClient)) return;
+    
     try {
         const batch = writeBatch(db);
-        const clientRef = doc(db, "clients", selectedClient.id);
+        const clientRef = doc(db, "clients", selectedClient.id!);
         batch.delete(clientRef);
         
         const engagementsQuery = query(collection(db, 'engagements'), where('clientId', '==', selectedClient.id));
@@ -230,7 +244,7 @@ export function ClientManager({ initialData }: ClientManagerProps) {
         isOpen={isSheetOpen}
         onClose={handleCloseEditSheet}
         onSave={handleSaveClient}
-        onDelete={handleConfirmDeleteClient}
+        onDelete={() => handleConfirmDeleteClient(selectedClient as Client)}
       />
        <BulkEmailDialog
         isOpen={isBulkEmailDialogOpen}
