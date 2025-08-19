@@ -92,7 +92,7 @@ export default function EngagementsReportPage() {
                 const engagementType = engagementTypeMap.get(eng.type);
                 return {
                     ...eng,
-                    clientName: client?.Name || 'N/A',
+                    clientName: client?.name || 'N/A',
                     engagementTypeName: engagementType?.name || 'N/A',
                     partnerId: client?.partnerId,
                 };
@@ -116,7 +116,7 @@ export default function EngagementsReportPage() {
         try {
             const engagementRef = doc(db, "engagements", selectedEngagement.id);
             // Remove the helper properties before updating
-            const { clientName, engagementTypeName, ...dataToUpdate } = engagementData;
+            const { clientName, engagementTypeName, partnerId, ...dataToUpdate } = engagementData;
             await updateDoc(engagementRef, dataToUpdate);
             toast({ title: "Success", description: "Engagement updated successfully." });
             handleCloseEditSheet();
@@ -180,6 +180,7 @@ export default function EngagementsReportPage() {
                 onSave={handleSaveEngagement}
                 engagement={selectedEngagement}
                 allEmployees={allEmployees}
+                allClients={clients}
             />
         </div>
     )

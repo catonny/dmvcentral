@@ -36,6 +36,7 @@ export default function PartnerViewPage() {
     const [tableData, setTableData] = React.useState<PartnerViewEngagement[]>([]);
     const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+    const [allClients, setAllClients] = React.useState<Client[]>([]);
     const [employeeMap, setEmployeeMap] = React.useState<Map<string, {name: string, avatar?: string}>>(new Map());
     
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -81,7 +82,10 @@ export default function PartnerViewPage() {
                 setEmployeeMap(new Map(employeeData.map(e => [e.id, { name: e.name, avatar: e.avatar }])));
                 setAllEmployees(employeeData);
 
-                clientMap = new Map(clientSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
+                const clientData = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+                clientMap = new Map(clientData.map(c => [c.id, c]));
+                setAllClients(clientData);
+
                 const engagementTypesData = engagementTypeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType));
                 engagementTypeMap = new Map(engagementTypesData.map(et => [et.id, et]));
                 
@@ -95,7 +99,7 @@ export default function PartnerViewPage() {
 
                     return {
                         ...eng,
-                        clientName: client?.Name || 'N/A',
+                        clientName: client?.name || 'N/A',
                         engagementTypeName: engagementType?.name || 'N/A',
                     };
                 });
@@ -217,7 +221,7 @@ export default function PartnerViewPage() {
                 {widgets.map(widget => (
                     <div key={widget.id} data-grid={layout.find(l => l.i === widget.id) || widget.defaultLayout}>
                         <Card className="h-full w-full overflow-hidden flex flex-col">
-                             <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-colors widget-drag-handle">
+                             <div className="absolute top-2 right-2 z-10 cursor-grab p-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity widget-drag-handle">
                                 <GripVertical className="h-5 w-5" />
                             </div>
                              <div className="p-4 flex-grow">
@@ -236,6 +240,7 @@ export default function PartnerViewPage() {
                 onSave={handleSaveEngagement}
                 engagement={selectedEngagement}
                 allEmployees={allEmployees}
+                allClients={allClients}
             />
         </>
     )

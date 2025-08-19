@@ -22,10 +22,10 @@ import {
     SelectValue,
   } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, Engagement } from "@/lib/data";
+import type { Employee, Engagement, Client } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
@@ -41,6 +41,7 @@ interface EditEngagementSheetProps {
     onClose: () => void;
     onSave: (updatedEngagement: Partial<ReportsEngagement>) => Promise<void>;
     allEmployees: Employee[];
+    allClients: Client[]; // Add this prop
 }
 
 const getFinancialYear = (date: Date): string => {
@@ -68,7 +69,7 @@ const generateFinancialYears = (selectedFY?: string) => {
 }
 
 
-export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEmployees }: EditEngagementSheetProps) {
+export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEmployees, allClients }: EditEngagementSheetProps) {
     const [formData, setFormData] = React.useState<Partial<ReportsEngagement>>({});
     const [dueDateString, setDueDateString] = React.useState("");
     const { toast } = useToast();
@@ -147,8 +148,21 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                 <ScrollArea className="h-[calc(100vh-12rem)] pr-6">
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="clientName" className="text-right">Client</Label>
-                        <Input id="clientName" value={engagement?.clientName || ''} disabled className="col-span-3" />
+                        <Label htmlFor="clientId" className="text-right">Client</Label>
+                         <div className="col-span-3">
+                            <Select onValueChange={(value) => setFormData({...formData, clientId: value})} value={formData.clientId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a client..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allClients.map((client) => (
+                                        <SelectItem key={client.id} value={client.id}>
+                                            {client.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="engagementTypeName" className="text-right">Type</Label>
