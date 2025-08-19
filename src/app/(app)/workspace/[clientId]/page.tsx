@@ -37,6 +37,7 @@ export default function ClientWorkspacePage() {
   const [client, setClient] = React.useState<Client | null>(null);
   const [engagements, setEngagements] = React.useState<Engagement[]>([]);
   const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [engagementTypes, setEngagementTypes] = React.useState<EngagementType[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
@@ -75,12 +76,14 @@ export default function ClientWorkspacePage() {
 
     const fetchStaticData = async () => {
         try {
-            const [employeeSnapshot, engagementTypesSnapshot] = await Promise.all([
+            const [employeeSnapshot, engagementTypesSnapshot, allClientsSnapshot] = await Promise.all([
                 getDocs(query(collection(db, "employees"))),
-                getDocs(query(collection(db, "engagementTypes")))
+                getDocs(query(collection(db, "engagementTypes"))),
+                getDocs(query(collection(db, "clients"))),
             ]);
             setEmployees(employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
             setEngagementTypes(engagementTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EngagementType)));
+            setAllClients(allClientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
         } catch (error) {
             handleError(error as Error, 'master');
         }
@@ -157,9 +160,11 @@ export default function ClientWorkspacePage() {
 
     const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
         if (!selectedEngagement?.id || !currentUserEmployee) return;
+        // This removes helper properties that are not in the database schema
+        const { clientName, engagementTypeName, ...dataToSave } = engagementData as any;
         try {
             const engagementRef = doc(db, "engagements", selectedEngagement.id);
-            await updateDoc(engagementRef, engagementData);
+            await updateDoc(engagementRef, dataToSave);
             toast({ title: "Success", description: "Engagement updated successfully." });
             handleCloseEditSheet();
         } catch (error) {
@@ -198,7 +203,7 @@ export default function ClientWorkspacePage() {
        <Card className="mb-6">
         <CardHeader className="flex flex-row items-start justify-between">
             <div>
-              <CardTitle className="font-headline text-2xl">{client.name}'s Workspace</CardTitle>
+              <CardTitle className="font-headline text-2xl">{client.name}'s Workspace}</CardTitle>
               <CardDescription>
                 Viewing all engagements for {client.name} (PAN: {client.pan || 'N/A'}).
               </CardDescription>
@@ -329,9 +334,11 @@ export default function ClientWorkspacePage() {
         onSave={handleSaveEngagement}
         engagement={typedSelectedEngagement}
         allEmployees={employees}
+        allClients={allClients}
       />
     </>
   );
 }
 
+    
     
