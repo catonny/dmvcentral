@@ -159,18 +159,18 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     React.useEffect(() => {
         if (isOpen) {
              const defaultValues = {
+                name: '',
+                mailId: '',
+                mobileNumber: '',
+                category: '',
+                partnerId: '',
+                country: 'India',
+                linkedClientIds: [],
                 ...client,
-                name: client?.name || '',
-                mailId: client?.mailId || '',
-                mobileNumber: client?.mobileNumber || '',
-                category: client?.category || '',
-                partnerId: client?.partnerId || (partners.length > 0 ? partners[0].id : ''),
-                country: client?.country || 'India',
-                linkedClientIds: client?.linkedClientIds || [],
             };
             reset(defaultValues as ClientFormData);
         }
-    }, [client, isOpen, partners, reset]);
+    }, [client, isOpen, reset]);
 
     const handleFormSubmit = async (data: ClientFormData) => {
         const dataToSave = {
