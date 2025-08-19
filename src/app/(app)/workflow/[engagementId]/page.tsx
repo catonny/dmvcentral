@@ -176,8 +176,11 @@ export default function EngagementWorkflowPage() {
     }
   };
 
-  const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
+  const handleSaveEngagement = async (data: Partial<Engagement>) => {
     if (!engagement?.id || !currentUserEmployee) return;
+    
+    const { clientName, engagementTypeName, ...engagementData } = data as any;
+
     try {
         const engagementRef = doc(db, "engagements", engagement.id);
         
@@ -202,7 +205,8 @@ export default function EngagementWorkflowPage() {
         setIsSheetOpen(false);
     } catch (error) {
         console.error("Error saving engagement:", error);
-        toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({ title: "Error", description: `Failed to save engagement data: ${errorMessage}`, variant: "destructive" });
     }
   };
 
