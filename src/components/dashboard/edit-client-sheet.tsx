@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Client, Employee, Country, ClientCategory, Department } from "@/lib/data";
 import { indianStatesAndUTs } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
-import { collection, getDocs, query } from "firebase/firestore";
+import { collection, getDocs, query, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown, XIcon, Copy, Trash2 } from "lucide-react";
@@ -92,6 +92,15 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         formState: { errors },
       } = useForm<ClientFormData>({
         resolver: zodResolver(clientSchema),
+        defaultValues: {
+             name: '',
+             mailId: '',
+             mobileNumber: '',
+             category: '',
+             partnerId: '',
+             country: 'India',
+             linkedClientIds: [],
+        }
       });
 
 
@@ -448,5 +457,3 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         </Sheet>
     )
 }
-
-    
