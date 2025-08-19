@@ -39,7 +39,7 @@ function EngagementGrid({ engagements, tasks, clients }: { engagements: Engageme
                     <Link href={`/workflow/${engagement.id}`} key={engagement.id}>
                         <Card className="h-full flex flex-col hover:border-primary/80 hover:shadow-lg transition-all">
                             <CardHeader>
-                                <CardTitle className="text-lg">{client?.Name || 'Loading client...'}</CardTitle>
+                                <CardTitle className="text-lg">{client?.name || 'Loading client...'}</CardTitle>
                                 <CardDescription>{engagement.remarks}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow">
@@ -83,53 +83,59 @@ export default function WorkflowPage() {
             return;
         }
 
-        const fetchInitialData = async () => {
-             try {
-                setLoading(true);
-                const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
-                const employeeSnapshot = await getDocs(employeeQuery);
+        setLoading(true);
+        let unsubs: (() => void)[] = [];
 
-                if (employeeSnapshot.empty) {
-                    setLoading(false);
-                    return;
-                }
-                const currentUserProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
-                setCurrentUser(currentUserProfile);
-                
-                const clientsPromise = getDocs(collection(db, "clients")).then(snapshot => 
-                    setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])))
-                );
+        const employeeQuery = query(collection(db, "employees"), where("email", "==", user.email));
+        const unsubUser = onSnapshot(employeeQuery, (employeeSnapshot) => {
+            if (employeeSnapshot.empty) {
+                setLoading(false);
+                setCurrentUser(null);
+                return;
+            }
+            
+            const currentUserProfile = { id: employeeSnapshot.docs[0].id, ...employeeSnapshot.docs[0].data() } as Employee;
+            setCurrentUser(currentUserProfile);
+            
+            // Unsubscribe from previous engagement listeners if user changes
+            unsubs.forEach(unsub => unsub());
+            unsubs = [];
 
-                const engagementTypesPromise = getDocs(collection(db, "engagementTypes")).then(snapshot => 
-                    setEngagementTypes(snapshot.docs.map(doc => doc.data() as EngagementType))
-                );
+            // Setup listeners for new user
+            const clientsUnsub = onSnapshot(collection(db, "clients"), (snapshot) => 
+                setClients(new Map(snapshot.docs.map(doc => [doc.id, doc.data() as Client])))
+            );
+            unsubs.push(clientsUnsub);
 
-                const allTasksPromise = getDocs(collection(db, "tasks")).then(snapshot =>
-                    setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)))
-                );
-                
-                const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
-                const myEngagementsQuery = query(
-                   collection(db, "engagements"), 
-                   where("assignedTo", "array-contains", currentUserProfile.id), 
-                   where("status", "in", activeStatuses)
-                );
-                const myEngagementsPromise = getDocs(myEngagementsQuery).then(engagementsSnapshot => {
-                    const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
-                    setMyEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
-                });
-                
-                await Promise.all([clientsPromise, engagementTypesPromise, allTasksPromise, myEngagementsPromise]);
+            const engagementTypesUnsub = onSnapshot(collection(db, "engagementTypes"), (snapshot) => 
+                setEngagementTypes(snapshot.docs.map(doc => doc.data() as EngagementType))
+            );
+            unsubs.push(engagementTypesUnsub);
 
-             } catch(error) {
-                 console.error("Error fetching workflow data:", error)
-             } finally {
-                 setLoading(false);
-             }
-        }
-        
-        fetchInitialData();
+            const allTasksUnsub = onSnapshot(collection(db, "tasks"), (snapshot) =>
+                setTasks(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Task)))
+            );
+            unsubs.push(allTasksUnsub);
 
+            const activeStatuses: EngagementStatus[] = ["Pending", "Awaiting Documents", "In Process", "Partner Review", "On Hold"];
+            const myEngagementsQuery = query(
+               collection(db, "engagements"), 
+               where("assignedTo", "array-contains", currentUserProfile.id), 
+               where("status", "in", activeStatuses)
+            );
+            const myEngagementsUnsub = onSnapshot(myEngagementsQuery, (engagementsSnapshot) => {
+                const userEngagements = engagementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Engagement));
+                setMyEngagements(userEngagements.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+                setLoading(false);
+            });
+            unsubs.push(myEngagementsUnsub);
+        });
+
+        unsubs.push(unsubUser);
+
+        return () => {
+            unsubs.forEach(unsub => unsub());
+        };
     }, [user]);
 
     // Fetch team engagements only when the section is expanded
