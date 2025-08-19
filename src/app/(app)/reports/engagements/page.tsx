@@ -111,16 +111,19 @@ export default function EngagementsReportPage() {
         setSelectedEngagement(null);
     };
     
-    const handleSaveEngagement = async (engagementData: Partial<Engagement>) => {
+    const handleSaveEngagement = async (engagementData: Partial<ReportsEngagement>) => {
         if (!selectedEngagement?.id) return;
         try {
             const engagementRef = doc(db, "engagements", selectedEngagement.id);
-            await updateDoc(engagementRef, engagementData);
+            // Remove the helper properties before updating
+            const { clientName, engagementTypeName, ...dataToUpdate } = engagementData;
+            await updateDoc(engagementRef, dataToUpdate);
             toast({ title: "Success", description: "Engagement updated successfully." });
             handleCloseEditSheet();
         } catch (error) {
             console.error("Error saving engagement:", error);
-            toast({ title: "Error", description: "Failed to save engagement data.", variant: "destructive" });
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ title: "Error", description: `Failed to save engagement data: ${errorMessage}`, variant: "destructive" });
         }
     };
     

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from 'react';
@@ -40,7 +39,7 @@ interface EditEngagementSheetProps {
     engagement: ReportsEngagement | null;
     isOpen: boolean;
     onClose: () => void;
-    onSave: (updatedEngagement: Partial<Engagement>) => Promise<void>;
+    onSave: (updatedEngagement: Partial<ReportsEngagement>) => Promise<void>;
     allEmployees: Employee[];
 }
 
@@ -70,7 +69,7 @@ const generateFinancialYears = (selectedFY?: string) => {
 
 
 export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEmployees }: EditEngagementSheetProps) {
-    const [formData, setFormData] = React.useState<Partial<Engagement>>({});
+    const [formData, setFormData] = React.useState<Partial<ReportsEngagement>>({});
     const [dueDateString, setDueDateString] = React.useState("");
     const { toast } = useToast();
     
@@ -134,6 +133,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
     };
     
     const financialYears = generateFinancialYears(formData.financialYear);
+
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
