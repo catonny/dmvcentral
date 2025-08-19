@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ImageCropDialog } from "@/components/profile/image-crop-dialog";
 
 function LeaveRequestForm({ employeeProfile, onLeaveRequest }: { employeeProfile: Employee, onLeaveRequest: (data: Omit<LeaveRequest, 'id' | 'createdAt' | 'employeeName'>) => Promise<void>}) {
     const [date, setDate] = React.useState<DateRange | undefined>();
@@ -166,6 +167,11 @@ export default function ProfilePage() {
     const [saving, setSaving] = React.useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+    // State for image cropping
+    const [imgSrc, setImgSrc] = React.useState<string | null>(null);
+    const [isCropDialogOpen, setIsCropDialogOpen] = React.useState(false);
+
+
     React.useEffect(() => {
         if (!user) return;
         setLoading(true);
@@ -236,42 +242,19 @@ export default function ProfilePage() {
         }
     }
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const reader = new FileReader();
+            reader.addEventListener('load', () => setImgSrc(reader.result as string));
+            reader.readAsDataURL(e.target.files[0]);
+            setIsCropDialogOpen(true);
+            e.target.value = ''; // Reset file input
+        }
+    };
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 128;
-                const MAX_HEIGHT = 128;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // Compress as JPEG
-                setEmployeeProfile(prev => prev ? { ...prev, avatar: dataUrl } : null);
-            };
-            img.src = event.target?.result as string;
-        };
-        reader.readAsDataURL(file);
+    const handleCroppedImageSave = (croppedDataUrl: string) => {
+        setEmployeeProfile(prev => prev ? { ...prev, avatar: croppedDataUrl } : null);
+        setIsCropDialogOpen(false);
     };
 
 
@@ -297,87 +280,97 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">My Profile</h2>
-                    <p className="text-muted-foreground">
-                        View and edit your personal information and manage leave.
-                    </p>
-                </div>
-                 <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Changes
-                </Button>
-            </div>
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="flex flex-col items-center gap-4">
-                             <div className="relative group">
-                                <Avatar className="h-32 w-32">
-                                    <AvatarImage src={employeeProfile.avatar} alt={employeeProfile.name} />
-                                    <AvatarFallback>{employeeProfile.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <Button 
-                                    variant="outline"
-                                    size="icon"
-                                    className="absolute bottom-2 right-2 rounded-full h-8 w-8 bg-background/80 group-hover:bg-background"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Input 
-                                    type="file" 
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept="image/png, image/jpeg"
-                                    onChange={handleImageUpload}
-                                />
-                            </div>
-                            <p className="text-sm text-muted-foreground text-center">Click the pencil to upload a new profile picture.</p>
-                        </div>
-                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                                <Label htmlFor="name">Full Name</Label>
-                                <Input id="name" value={employeeProfile.name} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="email">Email</Label>
-                                <Input id="email" value={employeeProfile.email} disabled />
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="designation">Designation</Label>
-                                <Input id="designation" value={employeeProfile.designation || ""} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="linkedin">LinkedIn Profile</Label>
-                                <Input id="linkedin" value={employeeProfile.linkedin || ""} onChange={handleInputChange} placeholder="https://linkedin.com/in/..."/>
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                                <Input id="emergencyContact" value={employeeProfile.emergencyContact || ""} onChange={handleInputChange} placeholder="+91..."/>
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="bloodGroup">Blood Group</Label>
-                                <Input id="bloodGroup" value={employeeProfile.bloodGroup || ""} onChange={handleInputChange} placeholder="e.g., O+, AB-"/>
-                            </div>
-                             <div className="space-y-1 sm:col-span-2">
-                                <Label>Roles</Label>
-                                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
-                                    {employeeProfile.role.join(", ")}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Roles are managed by an administrator.</p>
-                            </div>
-                        </div>
+        <>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight font-headline">My Profile</h2>
+                        <p className="text-muted-foreground">
+                            View and edit your personal information and manage leave.
+                        </p>
                     </div>
-                </CardContent>
-            </Card>
+                    <Button onClick={handleSave} disabled={saving}>
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Save Changes
+                    </Button>
+                </div>
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="relative group">
+                                    <Avatar className="h-32 w-32">
+                                        <AvatarImage src={employeeProfile.avatar} alt={employeeProfile.name} />
+                                        <AvatarFallback>{employeeProfile.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <Button 
+                                        variant="outline"
+                                        size="icon"
+                                        className="absolute bottom-2 right-2 rounded-full h-8 w-8 bg-background/80 group-hover:bg-background"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Input 
+                                        type="file" 
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/png, image/jpeg"
+                                        onChange={onFileChange}
+                                    />
+                                </div>
+                                <p className="text-sm text-muted-foreground text-center">Click the pencil to upload a new profile picture.</p>
+                            </div>
+                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-1">
+                                    <Label htmlFor="name">Full Name</Label>
+                                    <Input id="name" value={employeeProfile.name} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" value={employeeProfile.email} disabled />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="designation">Designation</Label>
+                                    <Input id="designation" value={employeeProfile.designation || ""} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="linkedin">LinkedIn Profile</Label>
+                                    <Input id="linkedin" value={employeeProfile.linkedin || ""} onChange={handleInputChange} placeholder="https://linkedin.com/in/..."/>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                                    <Input id="emergencyContact" value={employeeProfile.emergencyContact || ""} onChange={handleInputChange} placeholder="+91..."/>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="bloodGroup">Blood Group</Label>
+                                    <Input id="bloodGroup" value={employeeProfile.bloodGroup || ""} onChange={handleInputChange} placeholder="e.g., O+, AB-"/>
+                                </div>
+                                <div className="space-y-1 sm:col-span-2">
+                                    <Label>Roles</Label>
+                                    <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
+                                        {employeeProfile.role.join(", ")}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Roles are managed by an administrator.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <LeaveRequestForm employeeProfile={employeeProfile} onLeaveRequest={handleLeaveRequest} />
-                <LeaveHistory leaveRequests={leaveRequests} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <LeaveRequestForm employeeProfile={employeeProfile} onLeaveRequest={handleLeaveRequest} />
+                    <LeaveHistory leaveRequests={leaveRequests} />
+                </div>
             </div>
-        </div>
+             {imgSrc && (
+                <ImageCropDialog
+                    imgSrc={imgSrc}
+                    isOpen={isCropDialogOpen}
+                    onClose={() => setIsCropDialogOpen(false)}
+                    onSave={handleCroppedImageSave}
+                />
+            )}
+        </>
     );
 }
