@@ -45,18 +45,10 @@ export function UniversalSearch({
     const visibleData = React.useMemo(() => {
         if (!currentUser) return { clients: [], engagements: [], employees: [] };
         
-        const isPartner = currentUser.role.includes("Partner");
-        const isAdmin = currentUser.role.includes("Admin");
+        const isPartnerOrAdmin = currentUser.role.includes("Partner") || currentUser.role.includes("Admin");
 
-        if (isAdmin) {
+        if (isPartnerOrAdmin) {
              return { clients, engagements, employees };
-        }
-
-        if (isPartner) {
-            const partnerClients = clients.filter(c => c.partnerId === currentUser.id);
-            const partnerClientIds = new Set(partnerClients.map(c => c.id));
-            const partnerEngagements = engagements.filter(e => partnerClientIds.has(e.clientId));
-            return { clients: partnerClients, engagements: partnerEngagements, employees };
         }
 
         // Regular employee view
@@ -85,11 +77,11 @@ export function UniversalSearch({
                         {visibleData.clients.map((client) => (
                             <CommandItem
                                 key={`client-${client.id}`}
-                                value={`Client: ${client.Name}`}
+                                value={`Client: ${client.name}`}
                                 onSelect={() => runCommand(() => router.push(`/workspace/${client.id}`))}
                             >
                                 <UserIcon className="mr-2 h-4 w-4" />
-                                <span>{client.Name}</span>
+                                <span>{client.name}</span>
                             </CommandItem>
                         ))}
                     </CommandGroup>
@@ -131,5 +123,3 @@ export function UniversalSearch({
         </CommandDialog>
     )
 }
-
-    
