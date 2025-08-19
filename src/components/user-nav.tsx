@@ -14,15 +14,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import type { Employee } from "@/lib/data";
 import Link from "next/link";
+import React, { useEffect, useState } from "react";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 
 export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | null }) {
   const { user } = useAuth();
   const router = useRouter();
+  const [currentUserProfile, setCurrentUserProfile] = useState<Employee | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Listen for real-time updates to the user's profile
+    const q = query(collection(db, "employees"), where("email", "==", user.email));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+            setCurrentUserProfile(snapshot.docs[0].data() as Employee);
+        }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleSignOut = async () => {
     sessionStorage.removeItem('userRole');
@@ -34,9 +51,12 @@ export function UserNav({ impersonatedUser }: { impersonatedUser: Employee | nul
     return null;
   }
   
-  const displayName = impersonatedUser ? impersonatedUser.name : user.displayName;
-  const displayEmail = impersonatedUser ? impersonatedUser.email : user.email;
-  const displayAvatar = impersonatedUser ? impersonatedUser.avatar : user.photoURL;
+  // Use the live profile from Firestore for the logged-in user if not impersonating
+  const activeProfile = impersonatedUser || currentUserProfile;
+
+  const displayName = activeProfile ? activeProfile.name : user.displayName;
+  const displayEmail = activeProfile ? activeProfile.email : user.email;
+  const displayAvatar = activeProfile ? activeProfile.avatar : user.photoURL;
 
   return (
     <DropdownMenu>
