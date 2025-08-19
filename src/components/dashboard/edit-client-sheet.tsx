@@ -1,18 +1,22 @@
 
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import * as React from 'react';
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  SheetClose,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -23,21 +27,16 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Client, Employee, Country, ClientCategory, Department } from "@/lib/data";
 import { indianStatesAndUTs } from "@/lib/data";
-import * as React from 'react';
 import { ScrollArea } from "../ui/scroll-area";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown, XIcon, Copy, Trash2 } from "lucide-react";
-import { format, parse, isValid } from "date-fns";
+import { format } from "date-fns";
 import { cn, capitalizeWords } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Badge } from "../ui/badge";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-
 
 const residentialStatuses: Client['residentialStatus'][] = ["Resident", "Non-Resident", "Resident but not Ordinarily Resident"];
 
@@ -93,27 +92,6 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         formState: { errors },
       } = useForm<ClientFormData>({
         resolver: zodResolver(clientSchema),
-        defaultValues: {
-            name: '',
-            mailId: '',
-            mobileNumber: '',
-            phoneNumber: '',
-            pan: '',
-            gstin: '',
-            category: '',
-            partnerId: '',
-            dateOfBirth: undefined,
-            linkedClientIds: [],
-            contactPerson: '',
-            contactPersonDesignation: '',
-            residentialStatus: undefined,
-            billingAddressLine1: '',
-            billingAddressLine2: '',
-            billingAddressLine3: '',
-            pincode: '',
-            country: 'India',
-            state: '',
-        }
       });
 
 
@@ -158,7 +136,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
 
     React.useEffect(() => {
         if (isOpen) {
-             const defaultValues = {
+            const defaultValues = {
                 name: '',
                 mailId: '',
                 mobileNumber: '',
@@ -171,9 +149,10 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
             reset(defaultValues as ClientFormData);
         }
     }, [client, isOpen, reset]);
+    
 
     const handleFormSubmit = async (data: ClientFormData) => {
-        const dataToSave = {
+        const dataToSave: Partial<Client> = {
             ...data,
             name: capitalizeWords(data.name)
         };
@@ -469,3 +448,5 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
         </Sheet>
     )
 }
+
+    

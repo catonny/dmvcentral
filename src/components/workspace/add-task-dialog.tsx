@@ -77,7 +77,7 @@ interface AddTaskDialogProps {
 const getFinancialYear = (date: Date): string => {
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
-    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
+    return month >= 3 ? `20${(year).toString().slice(-2)}-${(year + 1).toString().slice(-2)}` : `20${(year - 1).toString().slice(-2)}-${year.toString().slice(-2)}`;
 };
 
 const generateFinancialYears = (selectedFY?: string) => {
@@ -92,7 +92,7 @@ const generateFinancialYears = (selectedFY?: string) => {
     // Add years from 5 years ago to 1 year in the future
     for (let i = -5; i <= 1; i++) {
         const year = currentFYEndYear + i;
-        years.add(`${year-1}-${year.toString().slice(-2)}`);
+        years.add(`20${(year-1).toString().slice(-2)}-${year.toString().slice(-2)}`);
     }
 
     return Array.from(years).sort((a,b) => b.localeCompare(a));
@@ -650,9 +650,11 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
         isOpen={isClientSheetOpen}
         onClose={() => setIsClientSheetOpen(false)}
         onSave={handleSaveNewClient}
-        onDelete={() => {}} // Not used for deletion
+        onDelete={() => {}} // Not used for creation
         allClients={clients}
       />
     </>
   );
 }
+
+    
