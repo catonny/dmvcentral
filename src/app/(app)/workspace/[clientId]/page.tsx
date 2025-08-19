@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -28,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import { LogTimeDialog } from "@/components/workspace/log-time-dialog";
+import { ClientNotes } from "@/components/workspace/client-notes";
 
 
 export default function ClientWorkspacePage() {
@@ -203,7 +205,7 @@ export default function ClientWorkspacePage() {
        <Card className="mb-6">
         <CardHeader className="flex flex-row items-start justify-between">
             <div>
-              <CardTitle className="font-headline text-2xl">{client.name}'s Workspace}</CardTitle>
+              <CardTitle className="font-headline text-2xl">{client.name}'s Workspace</CardTitle>
               <CardDescription>
                 Viewing all engagements for {client.name} (PAN: {client.pan || 'N/A'}).
               </CardDescription>
@@ -233,84 +235,96 @@ export default function ClientWorkspacePage() {
         </CardHeader>
       </Card>
       
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Active Engagements</CardTitle>
-            <CardDescription>
-              Ongoing tasks and assignments for this client, sorted by the nearest due date.
-            </CardDescription>
-          </div>
-           <Button variant="outline" onClick={() => setIsPastEngagementsOpen(true)}>
-              <History className="mr-2 h-4 w-4" />
-              View Past Engagements
-            </Button>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Remarks</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                   <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {engagements.length > 0 ? (
-                  engagements.map((eng) => {
-                    const engagementType = getEngagementType(eng.type);
-                    return (
-                      <TableRow key={eng.id}>
-                        <TableCell className="font-medium">
-                            <Button variant="link" asChild className="p-0 h-auto font-medium">
-                                <Link href={`/workflow/${eng.id}`}>
-                                    {eng.remarks}
-                                </Link>
-                            </Button>
-                        </TableCell>
-                        <TableCell>{engagementType?.name || 'N/A'}</TableCell>
-                        <TableCell>
-                            <EditableDueDate engagement={eng} onDueDateChange={handleDueDateChange} />
-                        </TableCell>
-                        <TableCell>
-                           <EditableStatus
-                                engagement={eng}
-                                client={client}
-                                onStatusChange={handleStatusChange}
-                            />
-                        </TableCell>
-                        <TableCell>
-                           <EditableAssignees
-                                engagement={eng}
-                                allEmployees={employees}
-                                onAssigneesChange={handleAssigneesChange}
-                           />
-                        </TableCell>
-                         <TableCell className="text-right">
-                             <Button variant="ghost" size="icon" onClick={() => handleOpenEditSheet(eng)}>
-                                <Edit className="h-4 w-4"/>
-                            </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Active Engagements</CardTitle>
+                <CardDescription>
+                  Ongoing tasks and assignments for this client.
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => setIsPastEngagementsOpen(true)}>
+                  <History className="mr-2 h-4 w-4" />
+                  View Past
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="w-full whitespace-nowrap">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Remarks</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {engagements.length > 0 ? (
+                      engagements.map((eng) => {
+                        const engagementType = getEngagementType(eng.type);
+                        return (
+                          <TableRow key={eng.id}>
+                            <TableCell className="font-medium">
+                                <Button variant="link" asChild className="p-0 h-auto font-medium">
+                                    <Link href={`/workflow/${eng.id}`}>
+                                        {eng.remarks}
+                                    </Link>
+                                </Button>
+                            </TableCell>
+                            <TableCell>{engagementType?.name || 'N/A'}</TableCell>
+                            <TableCell>
+                                <EditableDueDate engagement={eng} onDueDateChange={handleDueDateChange} />
+                            </TableCell>
+                            <TableCell>
+                              <EditableStatus
+                                    engagement={eng}
+                                    client={client}
+                                    onStatusChange={handleStatusChange}
+                                />
+                            </TableCell>
+                            <TableCell>
+                              <EditableAssignees
+                                    engagement={eng}
+                                    allEmployees={employees}
+                                    onAssigneesChange={handleAssigneesChange}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenEditSheet(eng)}>
+                                    <Edit className="h-4 w-4"/>
+                                </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center h-24">
+                          No active engagements found for this client.
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
-                      No active engagements found for this client.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                    )}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+            <ClientNotes 
+                clientId={clientId}
+                clientName={client.name}
+                allEmployees={employees}
+                currentUserEmployee={currentUserEmployee}
+            />
+        </div>
+      </div>
       <PastEngagementsDialog
         isOpen={isPastEngagementsOpen}
         onClose={() => setIsPastEngagementsOpen(false)}
@@ -339,6 +353,3 @@ export default function ClientWorkspacePage() {
     </>
   );
 }
-
-    
-    

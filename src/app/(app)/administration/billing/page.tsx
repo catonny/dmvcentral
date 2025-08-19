@@ -39,7 +39,7 @@ export default function BillingDashboardPage() {
     const [hsnSacCodes, setHsnSacCodes] = React.useState<HsnSacCode[]>([]);
     const [allClients, setAllClients] = React.useState<Client[]>([]);
     const [allEngagementTypes, setAllEngagementTypes] = React.useState<EngagementType[]>([]);
-    const [allEmployees, setAllEmployeesList] = React.useState<Employee[]>([]);
+    const [allEmployeesList, setAllEmployeesList] = React.useState<Employee[]>([]);
 
     
     const [pageSize, setPageSize] = React.useState(10);
@@ -357,7 +357,7 @@ export default function BillingDashboardPage() {
                 hsnSacCodes={hsnSacCodes}
                 clients={allClients}
                 engagementTypes={allEngagementTypes}
-                employees={allEmployees}
+                employees={allEmployeesList}
             />
         </>
     );
