@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -70,17 +71,15 @@ interface EditClientSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (updatedClient: Partial<Client>) => Promise<void>;
-    onDelete: (client: Client) => void;
-    allClients?: Client[];
 }
 
-export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, allClients = [] }: EditClientSheetProps) {
+export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientSheetProps) {
     const [partners, setPartners] = React.useState<Employee[]>([]);
     const [countries, setCountries] = React.useState<Country[]>([]);
     const [clientCategories, setClientCategories] = React.useState<ClientCategory[]>([]);
     const [isLinkClientPopoverOpen, setIsLinkClientPopoverOpen] = React.useState(false);
     const { toast } = useToast();
-    const [internalAllClients, setInternalAllClients] = React.useState<Client[]>(allClients);
+    const [internalAllClients, setInternalAllClients] = React.useState<Client[]>([]);
 
      const {
         register,
@@ -112,7 +111,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                     getDocs(collection(db, "countries")),
                     getDocs(collection(db, "clientCategories")),
                     getDocs(collection(db, "departments")),
-                    allClients.length === 0 ? getDocs(collection(db, "clients")) : Promise.resolve(null),
+                    getDocs(collection(db, "clients")),
                 ]);
                 
                 const allEmployees = employeeSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
@@ -141,7 +140,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
             }
         };
         fetchMasterData();
-    }, [toast, allClients]);
+    }, [toast]);
 
     React.useEffect(() => {
         if (isOpen) {
@@ -161,8 +160,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     
 
     const handleFormSubmit = async (data: ClientFormData) => {
-        const dataToSave: Partial<Client> = { ...data };
-        await onSave(dataToSave);
+        await onSave(data);
         onClose();
     };
     
@@ -430,24 +428,10 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
                 </div>
                 </ScrollArea>
                 <SheetFooter className="pt-4 border-t flex justify-between">
-                    <div>
-                        {client && 'id' in client && (
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={() => onDelete(client as Client)}
-                            >
-                                <Trash2 className="mr-2" />
-                                Delete Client
-                            </Button>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <SheetClose asChild>
-                            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        </SheetClose>
-                        <Button type="submit">Save changes</Button>
-                    </div>
+                    <SheetClose asChild>
+                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                    </SheetClose>
+                    <Button type="submit">Save changes</Button>
                 </SheetFooter>
                 </form>
             </SheetContent>

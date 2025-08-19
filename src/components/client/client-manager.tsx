@@ -99,23 +99,23 @@ export function ClientManager({ initialData }: ClientManagerProps) {
   };
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
-    const dataToSave = { ...clientData };
+    const dataToSave: Partial<Client> = { ...clientData };
     if (dataToSave.name) {
         dataToSave.name = capitalizeWords(dataToSave.name);
     }
     
     try {
-        if (selectedClient && 'id' in selectedClient && selectedClient.id) { // Editing existing client
-            const oldPartnerId = selectedClient.partnerId;
+        if (clientData.id) { // Editing existing client
+            const oldPartnerId = allClients.find(c => c.id === clientData.id)?.partnerId;
             const newPartnerId = dataToSave.partnerId;
 
             if (newPartnerId && oldPartnerId !== newPartnerId) {
                 // Partner has changed, show confirmation dialog
-                setPartnerChangeData({ oldPartnerId, newPartnerId, clientId: selectedClient.id });
+                setPartnerChangeData({ oldPartnerId: oldPartnerId || '', newPartnerId, clientId: clientData.id });
                 setIsConfirmPartnerChangeOpen(true);
             }
             
-            const clientRef = doc(db, "clients", selectedClient.id);
+            const clientRef = doc(db, "clients", clientData.id);
             await updateDoc(clientRef, {...dataToSave, lastUpdated: new Date().toISOString() });
             toast({ title: "Success", description: "Client updated successfully." });
             
@@ -244,7 +244,6 @@ export function ClientManager({ initialData }: ClientManagerProps) {
         isOpen={isSheetOpen}
         onClose={handleCloseEditSheet}
         onSave={handleSaveClient}
-        onDelete={() => handleConfirmDeleteClient(selectedClient as Client)}
       />
        <BulkEmailDialog
         isOpen={isBulkEmailDialogOpen}
