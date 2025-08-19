@@ -77,26 +77,25 @@ interface AddTaskDialogProps {
 const getFinancialYear = (date: Date): string => {
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
-    return month >= 3 ? `20${(year).toString().slice(-2)}-${(year + 1).toString().slice(-2)}` : `20${(year - 1).toString().slice(-2)}-${year.toString().slice(-2)}`;
+    return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 };
 
-const generateFinancialYears = (selectedFY?: string) => {
+const generateFinancialYears = () => {
+    const years = [];
     const currentYear = new Date().getFullYear();
-    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1] + 2000;
-    const years = new Set<string>();
+    const currentMonth = new Date().getMonth();
 
-    if (selectedFY) {
-        years.add(selectedFY);
-    }
-    
-    // Add years from 5 years ago to 1 year in the future
-    for (let i = -5; i <= 1; i++) {
-        const year = currentFYEndYear + i;
-        years.add(`20${(year-1).toString().slice(-2)}-${year.toString().slice(-2)}`);
+    // Determine the end year of the upcoming financial year
+    const upcomingFyEndYear = currentMonth >= 3 ? currentYear + 2 : currentYear + 1;
+
+    for (let year = 2010; year < upcomingFyEndYear; year++) {
+        const start = year.toString();
+        const end = (year + 1).toString().slice(-2);
+        years.push(`${start}-${end}`);
     }
 
-    return Array.from(years).sort((a,b) => b.localeCompare(a));
-}
+    return years.sort((a, b) => b.localeCompare(a)); // Sort descending
+};
 
 
 export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementTypes, allEmployees, departments, currentUserEmployee }: AddTaskDialogProps) {
@@ -133,7 +132,7 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
   const saveAsTemplate = watch("saveAsTemplate");
   const [dueDateString, setDueDateString] = React.useState("");
   const selectedDueDate = watch("dueDate");
-  const financialYears = generateFinancialYears(watch("financialYear"));
+  const financialYears = generateFinancialYears();
 
   const activeEmployees = React.useMemo(() => allEmployees.filter(e => e.isActive !== false), [allEmployees]);
 
@@ -656,5 +655,3 @@ export function AddTaskDialog({ isOpen, onClose, onSave, clients, engagementType
     </>
   );
 }
-
-    

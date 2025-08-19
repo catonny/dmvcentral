@@ -35,37 +35,37 @@ import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-interface EditEngagementSheetProps {
-    engagement: ReportsEngagement | null;
-    isOpen: boolean;
-    onClose: () => void;
-    onSave: (updatedEngagement: Partial<ReportsEngagement>) => Promise<void>;
-    allEmployees: Employee[];
-    allClients: Client[]; // Add this prop
-}
-
 const getFinancialYear = (date: Date): string => {
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
     return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 };
 
-const generateFinancialYears = (selectedFY?: string) => {
-    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1];
-    const years = new Set<string>();
+const generateFinancialYears = () => {
+    const years = [];
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
 
-    if (selectedFY) {
-        years.add(selectedFY);
-    }
-    
-    // Add years from 5 years ago to 1 year in the future
-    for (let i = -5; i <= 1; i++) {
-        const startYear = (currentFYEndYear - 2000) + i - 1;
-        const endYear = startYear + 1;
-        years.add(`20${startYear}-` + endYear.toString());
+    // Determine the end year of the upcoming financial year
+    const upcomingFyEndYear = currentMonth >= 3 ? currentYear + 2 : currentYear + 1;
+
+    for (let year = 2010; year < upcomingFyEndYear; year++) {
+        const start = year.toString();
+        const end = (year + 1).toString().slice(-2);
+        years.push(`${start}-${end}`);
     }
 
-    return Array.from(years).sort((a,b) => b.localeCompare(a));
+    return years.sort((a, b) => b.localeCompare(a)); // Sort descending
+};
+
+
+interface EditEngagementSheetProps {
+    engagement: ReportsEngagement | null;
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (updatedEngagement: Partial<Engagement>) => Promise<void>;
+    allEmployees: Employee[];
+    allClients: Client[]; 
 }
 
 
@@ -133,7 +133,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
         setFormData({ ...formData, assignedTo: newAssignees });
     };
     
-    const financialYears = generateFinancialYears(formData.financialYear);
+    const financialYears = generateFinancialYears();
 
 
     return (
@@ -147,7 +147,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-12rem)] pr-6">
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="clientId" className="text-right">Client</Label>
                          <div className="col-span-3">
                             <Select onValueChange={(value) => setFormData({...formData, clientId: value})} value={formData.clientId}>

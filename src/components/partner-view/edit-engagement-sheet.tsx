@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, Engagement, Client } from "@/lib/data";
 import { ScrollArea } from "../ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
@@ -41,23 +41,22 @@ const getFinancialYear = (date: Date): string => {
     return month >= 3 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
 };
 
-const generateFinancialYears = (selectedFY?: string) => {
-    const currentFYEndYear = getFinancialYear(new Date()).split('-').map(Number)[1];
-    const years = new Set<string>();
+const generateFinancialYears = () => {
+    const years = [];
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
 
-    if (selectedFY) {
-        years.add(selectedFY);
-    }
-    
-    // Add years from 5 years ago to 1 year in the future
-    for (let i = -5; i <= 1; i++) {
-        const startYear = (currentFYEndYear - 2000) + i - 1;
-        const endYear = startYear + 1;
-        years.add(`20${startYear}-` + endYear.toString());
+    // Determine the end year of the upcoming financial year
+    const upcomingFyEndYear = currentMonth >= 3 ? currentYear + 2 : currentYear + 1;
+
+    for (let year = 2010; year < upcomingFyEndYear; year++) {
+        const start = year.toString();
+        const end = (year + 1).toString().slice(-2);
+        years.push(`${start}-${end}`);
     }
 
-    return Array.from(years).sort((a,b) => b.localeCompare(a));
-}
+    return years.sort((a, b) => b.localeCompare(a)); // Sort descending
+};
 
 interface EditEngagementSheetProps {
     engagement: PartnerViewEngagement | null;
@@ -133,7 +132,7 @@ export function EditEngagementSheet({ engagement, isOpen, onSave, onClose, allEm
         setFormData({ ...formData, assignedTo: newAssignees });
     };
     
-    const financialYears = generateFinancialYears(formData.financialYear);
+    const financialYears = generateFinancialYears();
 
 
     return (
