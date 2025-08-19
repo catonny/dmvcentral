@@ -161,10 +161,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     
 
     const handleFormSubmit = async (data: ClientFormData) => {
-        const dataToSave: Partial<Client> = {
-            ...data,
-            name: capitalizeWords(data.name)
-        };
+        const dataToSave: Partial<Client> = { ...data };
         await onSave(dataToSave);
         onClose();
     };
