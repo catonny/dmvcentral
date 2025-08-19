@@ -36,6 +36,7 @@ export default function EngagementWorkflowPage() {
   const [engagementType, setEngagementType] = React.useState<EngagementType | null>(null);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -104,6 +105,10 @@ export default function EngagementWorkflowPage() {
     const unsubEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
         setAllEmployees(snapshot.docs.map(doc => doc.data() as Employee));
     });
+    
+    const unsubAllClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+        setAllClients(snapshot.docs.map(doc => doc.data() as Client));
+    });
 
     const engagementUnsub = onSnapshot(doc(db, "engagements", engagementId), async (docSnap) => {
       if (docSnap.exists()) {
@@ -148,6 +153,7 @@ export default function EngagementWorkflowPage() {
       unsubEmployees();
       engagementUnsub();
       tasksUnsub();
+      unsubAllClients();
     };
   }, [engagementId]);
 
@@ -384,6 +390,7 @@ export default function EngagementWorkflowPage() {
         onSave={handleSaveEngagement}
         engagement={typedSelectedEngagement}
         allEmployees={allEmployees}
+        allClients={allClients}
     />
     <LogTimeDialog
         isOpen={isLogTimeOpen}
