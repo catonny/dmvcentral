@@ -59,8 +59,8 @@ export function ImageCropDialog({ imgSrc, isOpen, onClose, onSave }: ImageCropDi
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
 
-    const finalWidth = 128; // Final output size
-    const finalHeight = 128;
+    const finalWidth = 256; // Final output size, increased for better quality
+    const finalHeight = 256;
 
     canvas.width = finalWidth;
     canvas.height = finalHeight;
@@ -87,7 +87,7 @@ export function ImageCropDialog({ imgSrc, isOpen, onClose, onSave }: ImageCropDi
       finalHeight,
     );
 
-    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+    const base64Image = canvas.toDataURL('image/jpeg', 0.95); // Increased quality
     onSave(base64Image);
   }
 
