@@ -12,7 +12,7 @@ import { GripVertical, Loader2, Grip } from "lucide-react";
 import { PartnerViewDataTable } from "@/components/partner-view/data-table";
 import { getPartnerViewColumns } from "@/components/partner-view/columns";
 import { EngagementSummaryTable } from "@/components/partner-view/engagement-summary";
-import { EditEngagementSheet } from "@/components/partner-view/edit-engagement-sheet";
+import { EditEngagementSheet } from "@/components/reports/edit-engagement-sheet";
 import GridLayout from "react-grid-layout";
 
 

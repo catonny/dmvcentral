@@ -206,7 +206,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
         { id: 'dashboard', href: '/dashboard', icon: LayoutDashboard, tooltip: 'Dashboard', label: 'Dashboard', condition: true },
         { id: 'workflow', href: '/workflow', icon: Workflow, tooltip: 'Workflow', label: 'Workflow', condition: true },
         { id: 'timesheet', href: '/timesheet', icon: Timer, tooltip: 'Timesheet', label: 'Timesheet', condition: checkPermission('timesheet') },
-        { id: 'leave-management', href: '/leave-management', icon: UserCheck, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management'), unreadCount: pendingLeaveCount },
+        { id: 'leave-management', href: '/leave-management', icon: UserCog, tooltip: 'Leave Management', label: 'Leave Management', condition: checkPermission('leave-management'), unreadCount: pendingLeaveCount },
         { id: 'learning-center', href: '/learning-center', icon: ClipboardList, tooltip: 'Learning Center', label: 'Learning Center', condition: checkPermission('learning-center') },
         { id: 'reports', href: '/reports', icon: Eye, tooltip: 'Reports', label: 'Reports', condition: checkPermission('reports') },
         { id: 'administration', href: '/administration', icon: Receipt, tooltip: 'Administration', label: 'Administration', condition: checkPermission('administration') },
@@ -278,10 +278,6 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
   if (!user) {
     return null; 
   }
-  
-  const currentDisplayName = impersonatedUserId 
-    ? allEmployees.find(e => e.id === impersonatedUserId)?.name?.split(' ')[0] || 'User'
-    : user?.displayName?.split(' ')[0] || 'there';
   
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
@@ -375,15 +371,7 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                   <UserNav impersonatedUser={impersonatedUserId ? allEmployees.find(e => e.id === impersonatedUserId) : null} />
                 </div>
             </header>
-            <div className="px-6 py-4">
-                <h2 className="text-2xl font-bold tracking-tight text-white">
-                    Hi, {currentDisplayName}!
-                </h2>
-                <p className="text-muted-foreground text-sm">
-                {impersonatedUserId ? `You are currently viewing the app as ${currentDisplayName}.` : "What would you like to solve next?"}
-                </p>
-            </div>
-            <main className="flex flex-1 flex-col gap-4 p-4 pt-0 lg:gap-6 lg:p-6 lg:pt-0">
+            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
                 {childrenWithProps}
             </main>
              <UniversalSearch 

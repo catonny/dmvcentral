@@ -8,14 +8,18 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function DashboardPage() {
+    const { user } = useAuth();
     const [clients, setClients] = React.useState<Client[]>([]);
     const [employees, setEmployees] = React.useState<Employee[]>([]);
     const [engagements, setEngagements] = React.useState<Engagement[]>([]);
     const [tasks, setTasks] = React.useState<Task[]>([]);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
+    
+    const currentDisplayName = user?.displayName?.split(' ')[0] || 'there';
 
     React.useEffect(() => {
         const unsubClients = onSnapshot(collection(db, "clients"), (snap) => setClients(snap.docs.map(doc => doc.data() as Client)),
@@ -47,5 +51,17 @@ export default function DashboardPage() {
         return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
 
-    return <DashboardClient initialData={{ clients, employees, engagements, tasks }} />;
+    return (
+        <>
+             <div className="mb-4">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
+                    Hi, {currentDisplayName}!
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                    What would you like to solve next?
+                </p>
+            </div>
+            <DashboardClient initialData={{ clients, employees, engagements, tasks }} />
+        </>
+    );
 }
