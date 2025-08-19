@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { BulkEmailDialog } from "./bulk-email-dialog";
-import { capitalizeWords } from "@/lib/utils";
+import { capitalizeWords, cleanUndefined } from "@/lib/utils";
 
 interface ClientManagerProps {
     initialData: {
@@ -78,16 +78,6 @@ export function ClientManager({ initialData }: ClientManagerProps) {
       setSelectedClient(null);
   };
   
-  const cleanUndefined = (data: Partial<Client>) => {
-    const cleanedData: Partial<Client> = {};
-    for (const key in data) {
-      if (data[key as keyof Client] !== undefined) {
-        cleanedData[key as keyof Client] = data[key as keyof Client];
-      }
-    }
-    return cleanedData;
-  };
-
   const handleSaveClient = async (clientData: Partial<Client>) => {
     let dataToSave = cleanUndefined(clientData);
     if (dataToSave.name) {

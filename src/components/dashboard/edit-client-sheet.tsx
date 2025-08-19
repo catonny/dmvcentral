@@ -34,7 +34,7 @@ import { db } from "@/lib/firebase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown, XIcon, Copy, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { cn, capitalizeWords } from "@/lib/utils";
+import { cn, capitalizeWords, cleanUndefined } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Badge } from "../ui/badge";
@@ -149,7 +149,8 @@ export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, all
     
 
     const handleFormSubmit = async (data: ClientFormData) => {
-        await onSave(data);
+        const cleanedData = cleanUndefined(data);
+        await onSave(cleanedData);
     };
     
     const showContactPersonFields = watch("category") && watch("category") !== 'Individual';
