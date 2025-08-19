@@ -1,9 +1,8 @@
 
-
 "use client";
 
 import * as React from "react";
-import { getDoc, collection, getDocs, query, where, onSnapshot, orderBy, updateDoc } from "firebase/firestore";
+import { getDoc, collection, onSnapshot, query, where, writeBatch, updateDoc, addDoc, serverTimestamp, orderBy, getDocs, doc, setDoc } from "firebase/firestore";
 import type { Client, Engagement, Employee, EngagementType, Task, TaskStatus } from "@/lib/data";
 import { db, logActivity, notify } from "@/lib/firebase";
 import { notFound, useParams } from "next/navigation";
@@ -65,9 +64,9 @@ export default function ClientWorkspacePage() {
             });
     }
 
-    const clientUnsub = onSnapshot(doc(db, "clients", clientId), (doc) => {
-      if (doc.exists()) {
-        setClient({ id: doc.id, ...doc.data() } as Client);
+    const clientUnsub = onSnapshot(doc(db, "clients", clientId), (clientDoc) => {
+      if (clientDoc.exists()) {
+        setClient({ id: clientDoc.id, ...clientDoc.data() } as Client);
       } else {
         setClient(null);
       }
@@ -334,3 +333,5 @@ export default function ClientWorkspacePage() {
     </>
   );
 }
+
+    
