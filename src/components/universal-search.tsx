@@ -41,30 +41,10 @@ export function UniversalSearch({
         command()
     }, [onOpenChange])
 
-    // Filter data based on user role
+    // All data is now visible to everyone.
     const visibleData = React.useMemo(() => {
-        if (!currentUser) return { clients: [], engagements: [], employees: [] };
-        
-        const isPartnerOrAdmin = currentUser.role.includes("Partner") || currentUser.role.includes("Admin");
-
-        if (isPartnerOrAdmin) {
-             return { clients, engagements, employees };
-        }
-
-        // Regular employee view
-        const employeeEngagements = engagements.filter(e => e.assignedTo.includes(currentUser.id));
-        const employeeClientIds = new Set(employeeEngagements.map(e => e.clientId));
-        const employeeClients = clients.filter(c => employeeClientIds.has(c.id));
-        const relevantEmployeeIds = new Set(employeeEngagements.flatMap(e => e.assignedTo));
-        const relevantEmployees = employees.filter(e => relevantEmployeeIds.has(e.id));
-        
-        return { 
-            clients: employeeClients, 
-            engagements: employeeEngagements, 
-            employees: relevantEmployees
-        };
-
-    }, [currentUser, clients, engagements, employees]);
+        return { clients, engagements, employees };
+    }, [clients, engagements, employees]);
 
     return (
         <CommandDialog open={open} onOpenChange={onOpenChange}>
