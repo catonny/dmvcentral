@@ -73,7 +73,8 @@ export interface Client {
   contactPerson?: string;
   contactPersonDesignation?: string;
   residentialStatus?: 'Resident' | 'Non-Resident' | 'Resident but not Ordinarily Resident';
-  
+  isActive?: boolean;
+
   // System managed
   createdAt: string; // ISO 8601 string
   lastUpdated: string;

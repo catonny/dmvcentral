@@ -9,6 +9,7 @@ import { Client, Employee } from "@/lib/data"
 import { format, parseISO } from "date-fns"
 import { Checkbox } from "../ui/checkbox"
 import Link from "next/link"
+import { Badge } from "../ui/badge"
 
 
 export const getColumns = (
@@ -76,11 +77,14 @@ export const getColumns = (
         )
       },
       cell: ({ row }) => (
-        <Button variant="link" asChild className="p-0 h-auto font-medium">
-            <Link href={`/workspace/${row.original.id}`}>
-                {row.original.name}
-            </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button variant="link" asChild className="p-0 h-auto font-medium">
+                <Link href={`/workspace/${row.original.id}`}>
+                    {row.original.name}
+                </Link>
+            </Button>
+             {row.original.isActive === false && <Badge variant="destructive">Inactive</Badge>}
+        </div>
       ),
       enableResizing: true,
       size: 250,

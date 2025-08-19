@@ -38,6 +38,7 @@ import { cn, capitalizeWords } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Badge } from "../ui/badge";
+import { Switch } from '../ui/switch';
 
 const residentialStatuses: Client['residentialStatus'][] = ["Resident", "Non-Resident", "Resident but not Ordinarily Resident"];
 
@@ -62,6 +63,7 @@ const clientSchema = z.object({
   pincode: z.string().optional(),
   country: z.string().optional(),
   state: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -71,16 +73,17 @@ interface EditClientSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (updatedClient: Partial<Client>) => Promise<void>;
+    onDelete: (client: Client) => void;
+    allClients: Client[];
 }
 
-export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientSheetProps) {
+export function EditClientSheet({ client, isOpen, onSave, onClose, onDelete, allClients }: EditClientSheetProps) {
     const [partners, setPartners] = React.useState<Employee[]>([]);
     const [countries, setCountries] = React.useState<Country[]>([]);
     const [clientCategories, setClientCategories] = React.useState<ClientCategory[]>([]);
     const [isLinkClientPopoverOpen, setIsLinkClientPopoverOpen] = React.useState(false);
     const { toast } = useToast();
-    const [internalAllClients, setInternalAllClients] = React.useState<Client[]>([]);
-
+    
      const {
         register,
         handleSubmit,
@@ -91,27 +94,17 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
         formState: { errors },
       } = useForm<ClientFormData>({
         resolver: zodResolver(clientSchema),
-        defaultValues: {
-             name: '',
-             mailId: '',
-             mobileNumber: '',
-             category: '',
-             partnerId: '',
-             country: 'India',
-             linkedClientIds: [],
-        }
       });
 
 
     React.useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [employeeSnapshot, countriesSnapshot, categoriesSnapshot, deptsSnapshot, clientsSnapshot] = await Promise.all([
+                const [employeeSnapshot, countriesSnapshot, categoriesSnapshot, deptsSnapshot] = await Promise.all([
                     getDocs(collection(db, "employees")),
                     getDocs(collection(db, "countries")),
                     getDocs(collection(db, "clientCategories")),
                     getDocs(collection(db, "departments")),
-                    getDocs(collection(db, "clients")),
                 ]);
                 
                 const allEmployees = employeeSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
@@ -128,11 +121,6 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
 
                 const categoriesData = categoriesSnapshot.docs.map(doc => doc.data() as ClientCategory);
                 setClientCategories(categoriesData);
-
-                if (clientsSnapshot) {
-                    const clientsData = clientsSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Client));
-                    setInternalAllClients(clientsData);
-                }
 
             } catch (error) {
                 console.error("Error fetching master data:", error);
@@ -152,6 +140,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
                 partnerId: '',
                 country: 'India',
                 linkedClientIds: [],
+                isActive: true,
                 ...client,
             };
             reset(defaultValues as ClientFormData);
@@ -161,12 +150,12 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
 
     const handleFormSubmit = async (data: ClientFormData) => {
         await onSave(data);
-        onClose();
     };
     
     const showContactPersonFields = watch("category") && watch("category") !== 'Individual';
     const showResidentialStatus = watch("category") === 'Individual';
     const selectedCountry = watch("country");
+    const isActive = watch("isActive");
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -193,7 +182,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
                     </SheetDescription>
                 </SheetHeader>
                 <form onSubmit={handleSubmit(handleFormSubmit)}>
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-6">
+                <ScrollArea className="h-[calc(100vh-16rem)] pr-6">
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Name*</Label>
@@ -335,7 +324,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
                                             <CommandList>
                                                 <CommandEmpty>No clients found.</CommandEmpty>
                                                 <CommandGroup>
-                                                {internalAllClients
+                                                {allClients
                                                     .filter(c => client && 'id' in client ? c.id !== client.id : true)
                                                     .map((c) => (
                                                         <CommandItem
@@ -360,7 +349,7 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
                                     </Popover>
                                      <div className="pt-2 flex flex-wrap gap-2">
                                         {(field.value || []).map(id => {
-                                            const linkedClient = internalAllClients.find(c => c.id === id);
+                                            const linkedClient = allClients.find(c => c.id === id);
                                             if (!linkedClient) return null;
                                             return (
                                                 <Badge key={id} variant="secondary">
@@ -425,13 +414,36 @@ export function EditClientSheet({ client, isOpen, onSave, onClose }: EditClientS
                             )}
                         </div>
                     </div>
+                    <div className="grid grid-cols-4 items-center gap-4 border-t pt-4">
+                        <Label htmlFor="isActive" className="text-right">Status</Label>
+                         <Controller
+                            name="isActive"
+                            control={control}
+                            render={({ field }) => (
+                                <div className="col-span-3 flex items-center gap-2">
+                                     <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />
+                                     <span className="text-sm text-muted-foreground">{field.value ? "Active" : "Inactive"}</span>
+                                </div>
+                            )}
+                        />
+                    </div>
                 </div>
                 </ScrollArea>
-                <SheetFooter className="pt-4 border-t flex justify-between">
-                    <SheetClose asChild>
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                    </SheetClose>
-                    <Button type="submit">Save changes</Button>
+                <SheetFooter className="pt-4 mt-4 border-t flex justify-between">
+                    <div>
+                        {client && 'id' in client && (
+                            <Button type="button" variant="destructive" onClick={() => onDelete(client as Client)}>
+                                <Trash2 className="mr-2" />
+                                Delete Client
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <SheetClose asChild>
+                            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                        </SheetClose>
+                        <Button type="submit">Save changes</Button>
+                    </div>
                 </SheetFooter>
                 </form>
             </SheetContent>

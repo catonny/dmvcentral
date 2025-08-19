@@ -78,18 +78,18 @@ export function ClientManager({ initialData }: ClientManagerProps) {
       setSelectedClient(null);
   };
   
-  const cleanData = (data: Partial<Client>) => {
+  const cleanUndefined = (data: Partial<Client>) => {
     const cleanedData: Partial<Client> = {};
     for (const key in data) {
-        if (data[key as keyof Client] !== undefined) {
-            cleanedData[key as keyof Client] = data[key as keyof Client];
-        }
+      if (data[key as keyof Client] !== undefined) {
+        cleanedData[key as keyof Client] = data[key as keyof Client];
+      }
     }
     return cleanedData;
-  }
+  };
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
-    let dataToSave = cleanData(clientData);
+    let dataToSave = cleanUndefined(clientData);
     if (dataToSave.name) {
         dataToSave.name = capitalizeWords(dataToSave.name);
     }
@@ -234,6 +234,8 @@ export function ClientManager({ initialData }: ClientManagerProps) {
         isOpen={isSheetOpen}
         onClose={handleCloseEditSheet}
         onSave={handleSaveClient}
+        onDelete={handleConfirmDeleteClient}
+        allClients={allClients}
       />
        <BulkEmailDialog
         isOpen={isBulkEmailDialogOpen}

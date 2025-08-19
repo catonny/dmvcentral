@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useDebounce } from "@/hooks/use-debounce";
+import { Checkbox } from "../ui/checkbox";
 
 
 const reorderColumn = (
@@ -136,6 +137,8 @@ export function DataTable<TData extends Client, TValue>({
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(
     columns.map(c => c.id || (c as any).accessorKey)
   );
+  const [showInactive, setShowInactive] = React.useState(false);
+
 
   React.useEffect(() => {
     const storedVisibility = localStorage.getItem('clientTableColumnVisibility');
@@ -167,9 +170,13 @@ export function DataTable<TData extends Client, TValue>({
     localStorage.setItem('clientTableColumnOrder', JSON.stringify(debouncedColumnOrder));
   }, [debouncedColumnOrder]);
 
+  const filteredData = React.useMemo(() => {
+    return showInactive ? data : data.filter(client => client.isActive !== false);
+  }, [data, showInactive]);
+
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
@@ -241,6 +248,10 @@ export function DataTable<TData extends Client, TValue>({
                     })}
                 </DropdownMenuContent>
             </DropdownMenu>
+            <div className="flex items-center space-x-2">
+                <Checkbox id="show-inactive" checked={showInactive} onCheckedChange={(checked) => setShowInactive(!!checked)} />
+                <label htmlFor="show-inactive" className="text-sm font-medium">Show Inactive Clients</label>
+            </div>
             {selectedRowCount > 0 && (
                 <Button
                     variant="outline"
