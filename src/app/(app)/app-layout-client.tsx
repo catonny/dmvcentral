@@ -318,8 +318,9 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
               </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            <header className="flex items-center justify-end gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
-                <div className="flex items-center gap-2">
+            <header className="flex items-center justify-between gap-4 border-b border-white/20 bg-transparent px-4 py-3 lg:px-6">
+                <SidebarTrigger />
+                <div className="flex items-center gap-2 ml-auto">
                     <Button asChild variant="ghost" className="text-muted-foreground hover:text-white hover:bg-white/10">
                         <Link href="/workspace"><Briefcase />Workspace</Link>
                     </Button>
@@ -346,8 +347,8 @@ function LayoutRenderer({ children }: { children: React.ReactNode }) {
                     
                    <Button variant="outline" className="gap-2" onClick={() => setIsSearchOpen(true)}>
                         <Search className="h-4 w-4" />
-                        Search...
-                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                        <span className="hidden md:inline">Search...</span>
+                        <kbd className="pointer-events-none hidden md:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                            <span className="text-xs">⌘</span>K
                         </kbd>
                    </Button>

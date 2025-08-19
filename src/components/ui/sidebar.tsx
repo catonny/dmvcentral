@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ScrollArea } from "./scroll-area"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_COLLAPSED_WIDTH = "4rem"
@@ -24,6 +25,7 @@ type SidebarContextValue = {
   isPinned: boolean
   isMobile: boolean
   setOpen: (open: boolean) => void
+  open: boolean
 }
 
 const SidebarContext = React.createContext<SidebarContextValue | null>(null)
@@ -37,25 +39,31 @@ function useSidebar() {
 }
 
 const SidebarProvider = ({
-  isPinned,
+  isPinned: initialIsPinned,
   children,
 }: {
   isPinned: boolean
   children: React.ReactNode
 }) => {
+  const isMobile = useIsMobile()
+  const [isPinned, setIsPinned] = React.useState(initialIsPinned)
   const [open, setOpen] = React.useState(isPinned)
-  const isMobile = typeof window !== 'undefined' && /Mobi/i.test(window.navigator.userAgent)
-
 
   React.useEffect(() => {
-    setOpen(isPinned)
-  }, [isPinned])
+    if (isMobile) {
+      setIsPinned(false)
+      setOpen(false)
+    } else {
+      setIsPinned(initialIsPinned)
+      setOpen(initialIsPinned)
+    }
+  }, [isMobile, initialIsPinned])
 
   const isCollapsed = !isPinned && !open
 
   return (
     <SidebarContext.Provider
-      value={{ isCollapsed, isPinned, isMobile, setOpen }}
+      value={{ isCollapsed, isPinned: isPinned, isMobile, setOpen, open }}
     >
       <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
     </SidebarContext.Provider>
@@ -66,18 +74,19 @@ const Sidebar = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, children, ...props }, ref) => {
-  const { isCollapsed, isPinned, setOpen } = useSidebar()
+  const { isCollapsed, isPinned, setOpen, isMobile } = useSidebar()
 
   return (
     <div
       ref={ref}
       className={cn(
         "fixed inset-y-0 left-0 z-50 h-screen transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[--sidebar-collapsed-width]" : "w-[--sidebar-width]",
+        isMobile ? (isCollapsed ? "-translate-x-full" : "translate-x-0") : "",
+        isCollapsed && !isMobile ? "w-[--sidebar-collapsed-width]" : "w-[--sidebar-width]",
         className
       )}
-      onMouseEnter={() => !isPinned && setOpen(true)}
-      onMouseLeave={() => !isPinned && setOpen(false)}
+      onMouseEnter={() => !isPinned && !isMobile && setOpen(true)}
+      onMouseLeave={() => !isPinned && !isMobile && setOpen(false)}
       style={
         {
           "--sidebar-width": SIDEBAR_WIDTH,
@@ -98,13 +107,13 @@ const SidebarInset = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
-  const { isCollapsed } = useSidebar()
+  const { isCollapsed, isMobile } = useSidebar()
   return (
     <div
       ref={ref}
       className={cn(
         "transition-all duration-300 ease-in-out",
-        isCollapsed ? "pl-[--sidebar-collapsed-width]" : "pl-[--sidebar-width]",
+        !isMobile && (isCollapsed ? "pl-[--sidebar-collapsed-width]" : "pl-[--sidebar-width]"),
         className
       )}
       style={
@@ -217,15 +226,24 @@ const SidebarMenuButton = React.forwardRef<
     },
     ref
   ) => {
-    const { isCollapsed } = useSidebar()
+    const { isCollapsed, isMobile, setOpen } = useSidebar()
     const Comp = asChild ? Slot : "button"
 
     const buttonContent = React.Children.map(children, child => {
-        if (React.isValidElement(child) && child.type === 'span' && isCollapsed) {
+        if (React.isValidElement(child) && child.type === 'span' && isCollapsed && !isMobile) {
             return null;
         }
         return child;
     });
+    
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        if (isMobile) {
+            setOpen(false)
+        }
+        if (props.onClick) {
+            props.onClick(event)
+        }
+    }
 
     const button = (
       <Comp
@@ -233,12 +251,13 @@ const SidebarMenuButton = React.forwardRef<
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ isCollapsed }), className)}
         {...props}
+        onClick={handleClick}
       >
         {buttonContent}
       </Comp>
     )
 
-    if (!tooltip || !isCollapsed) {
+    if (!tooltip || (!isCollapsed && !isMobile)) {
       return button
     }
     
@@ -259,8 +278,20 @@ const SidebarTrigger = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >((props, ref) => {
-    // This is a placeholder now, pinning is handled in the layout
-    return null;
+    const { open, setOpen } = useSidebar();
+    return (
+        <Button
+            ref={ref}
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setOpen(!open)}
+            {...props}
+        >
+            <PanelLeft />
+            <span className="sr-only">Toggle Sidebar</span>
+        </Button>
+    )
 });
 SidebarTrigger.displayName = "SidebarTrigger";
 
