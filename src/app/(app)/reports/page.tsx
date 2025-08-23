@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy, Banknote, ClipboardList } from "lucide-react";
+import { ArrowRight, BarChart, FileText, Users, AlertTriangle, LineChart, SlidersHorizontal, UserX, Repeat, HandCoins, Timer, DollarSign, Trophy, Banknote, ClipboardList, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -123,10 +123,11 @@ export default function ReportsPage() {
                     onClick={() => router.push('/reports/engagements')}
                 />
                 <ReportCard 
-                    title="Exception Reports"
-                    description="Find clients and engagements that require immediate attention."
-                    icon={AlertTriangle}
-                    onClick={() => router.push('/reports/exceptions')}
+                    title="Budget vs Actuals"
+                    description="Analyze engagement profitability by comparing invoiced fees against the cost of hours logged."
+                    icon={Hourglass}
+                    onClick={() => router.push('/reports/exceptions/budget-overruns')}
+                    isDisabled={!checkPermission("firm-analytics")}
                 />
                  <ReportCard 
                     title="Custom Reports"
@@ -165,7 +166,7 @@ export default function ReportsPage() {
       </section>
 
       <section>
-        <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">HR Reports</h3>
+        <h3 className="text-2xl font-semibold tracking-tight font-headline mb-4">HR & Exception Reports</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ReportCard 
                 title="Timesheet Report"
@@ -187,6 +188,12 @@ export default function ReportsPage() {
                 icon={Trophy}
                 onClick={() => router.push('/reports/bonus')}
                 isDisabled={!checkPermission("firm-analytics")}
+            />
+            <ReportCard 
+                title="Exception Reports"
+                description="Find clients and engagements that require immediate attention."
+                icon={AlertTriangle}
+                onClick={() => router.push('/reports/exceptions')}
             />
         </div>
       </section>

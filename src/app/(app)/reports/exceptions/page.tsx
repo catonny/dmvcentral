@@ -80,12 +80,6 @@ export default function ExceptionReportsPage() {
                 icon={UserX}
                 onClick={() => router.push('/reports/exceptions/monthly-hours-deficit')}
             />
-             <ActionCard 
-                title="Budget Overruns"
-                description="Engagements where logged hours exceed the budgeted hours."
-                icon={Hourglass}
-                onClick={() => router.push('/reports/exceptions/budget-overruns')}
-            />
         </div>
     </div>
   );
