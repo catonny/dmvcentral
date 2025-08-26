@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Client, Engagement, EngagementType, Employee, Department } from "@/lib/data";
 import { BulkCreateEmployees } from "@/components/employee/bulk-create-employees";
+import { BulkCreateRecurringEngagements } from "@/components/employee/bulk-create-recurring";
 
 export default function BulkImportPage() {
     const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
@@ -68,6 +69,7 @@ export default function BulkImportPage() {
         <TabsList>
           <TabsTrigger value="bulk-client-update">Bulk Update Clients</TabsTrigger>
           <TabsTrigger value="bulk-engagements">Bulk Create Engagements</TabsTrigger>
+          <TabsTrigger value="bulk-recurring">Bulk Create Recurring</TabsTrigger>
           <TabsTrigger value="bulk-employees">Bulk Create Employees</TabsTrigger>
         </TabsList>
         <TabsContent value="bulk-client-update">
@@ -76,6 +78,13 @@ export default function BulkImportPage() {
         </TabsContent>
         <TabsContent value="bulk-engagements">
             <BulkCreateEngagements
+                allEmployees={allEmployees}
+                allClients={allClients}
+                allEngagementTypes={allEngagementTypes}
+            />
+        </TabsContent>
+        <TabsContent value="bulk-recurring">
+            <BulkCreateRecurringEngagements
                 allEmployees={allEmployees}
                 allClients={allClients}
                 allEngagementTypes={allEngagementTypes}
