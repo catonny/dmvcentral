@@ -196,9 +196,9 @@ export default function ClientWorkspacePage() {
     <>
       <div className="mb-4">
         <Button asChild variant="outline" size="sm">
-            <Link href="/workspace">
+            <Link href="/clients">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Workspace
+                Back to Clients
             </Link>
         </Button>
       </div>

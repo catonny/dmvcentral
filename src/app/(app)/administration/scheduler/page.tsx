@@ -21,6 +21,7 @@ import { scheduleEngagements } from "@/ai/flows/engagement-scheduler-flow";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 type Step = "define" | "assign" | "confirm";
 
@@ -35,6 +36,7 @@ interface AssignmentPlan {
 
 export default function EngagementSchedulerPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const [step, setStep] = React.useState<Step>("define");
     
     // Data stores
@@ -276,12 +278,18 @@ export default function EngagementSchedulerPage() {
 
 
     return (
-        <Card className="max-w-3xl mx-auto">
-            <CardHeader>
-                <CardTitle>AI Engagement Scheduler</CardTitle>
-                <CardDescription>Create and assign new engagements for multiple clients in a few steps.</CardDescription>
-            </CardHeader>
-            {renderStepContent()}
-        </Card>
+        <div>
+            <Button variant="outline" size="sm" onClick={() => router.push('/administration')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Administration
+            </Button>
+            <Card className="max-w-3xl mx-auto">
+                <CardHeader>
+                    <CardTitle>AI Engagement Scheduler</CardTitle>
+                    <CardDescription>Create and assign new engagements for multiple clients in a few steps.</CardDescription>
+                </CardHeader>
+                {renderStepContent()}
+            </Card>
+        </div>
     );
 }
