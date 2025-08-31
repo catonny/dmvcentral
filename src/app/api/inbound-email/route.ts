@@ -28,12 +28,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Missing required fields from Mailjet payload: From, Subject, Text-part' }, { status: 400 });
     }
 
-    // Do not await this. We want to send a success response back to the webhook provider immediately
-    // and let the AI process the email in the background.
-    processEmail({ from, subject, body }).catch(console.error);
+    // AI PROCESSING DISABLED
+    // We are commenting out the call to the AI flow to prevent API usage.
+    // processEmail({ from, subject, body }).catch(console.error);
+
+    console.log("Received an inbound email, but AI processing is currently disabled.");
+
 
     // Return a 200 OK response to acknowledge receipt of the webhook
-    return NextResponse.json({ message: 'Email received and is being processed.' }, { status: 200 });
+    return NextResponse.json({ message: 'Email received, AI processing is disabled.' }, { status: 200 });
 
   } catch (error) {
     console.error('Error in inbound-email webhook:', error);

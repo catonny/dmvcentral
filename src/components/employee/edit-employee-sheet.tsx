@@ -80,40 +80,41 @@ export function EditEmployeeSheet({ employee, isOpen, onClose, onSave, departmen
         try {
             toast({ title: "Processing...", description: "AI is analyzing workloads and generating a reallocation plan. This may take a moment." });
             
-            const reallocationResult = await reallocateEngagements({ inactiveEmployeeId: inactiveEmployee.id });
+            // const reallocationResult = await reallocateEngagements({ inactiveEmployeeId: inactiveEmployee.id });
             
-            if (!reallocationResult || reallocationResult.plan.length === 0) {
-                toast({ title: "No Action Needed", description: "The inactive employee has no active engagements to reallocate." });
-                return;
-            }
+            // if (!reallocationResult || reallocationResult.plan.length === 0) {
+            //     toast({ title: "No Action Needed", description: "The inactive employee has no active engagements to reallocate." });
+            //     return;
+            // }
 
-            const managerId = inactiveEmployee.managerId || 'S001'; // Default to Tonny if no manager
-            const manager = allEmployees.find(e => e.id === managerId);
+            // const managerId = inactiveEmployee.managerId || 'S001'; // Default to Tonny if no manager
+            // const manager = allEmployees.find(e => e.id === managerId);
             
-            // Format the plan into a readable string for the to-do
-            const planText = reallocationResult.plan.map(p => 
-                `- Reassign "${p.engagementRemarks}" to ${p.newAssigneeName} (Reason: ${p.reasoning})`
-            ).join('\n');
+            // // Format the plan into a readable string for the to-do
+            // const planText = reallocationResult.plan.map(p => 
+            //     `- Reassign "${p.engagementRemarks}" to ${p.newAssigneeName} (Reason: ${p.reasoning})`
+            // ).join('\n');
 
-            const todoText = `Action Required: Reallocate work for inactive employee ${inactiveEmployee.name}. AI has proposed the following plan based on team workload:\n\n${planText}`;
+            // const todoText = `Action Required: Reallocate work for inactive employee ${inactiveEmployee.name}. AI has proposed the following plan based on team workload:\n\n${planText}`;
 
-            const todoRef = doc(collection(db, "todos"));
-            const newTodo: Todo = {
-                id: todoRef.id,
-                type: 'BUDGET_OVERRIDE', // Re-using for now, should be a new type 'REALLOCATION_APPROVAL'
-                text: todoText,
-                createdBy: "system",
-                assignedTo: [managerId],
-                isCompleted: false,
-                createdAt: new Date().toISOString(),
-                relatedEntity: { type: 'engagement_creation_request', id: todoRef.id }, // Placeholder
-                relatedData: { plan: reallocationResult.plan } // Store the plan for future approval action
-            };
-            await setDoc(todoRef, newTodo);
+            // const todoRef = doc(collection(db, "todos"));
+            // const newTodo: Todo = {
+            //     id: todoRef.id,
+            //     type: 'BUDGET_OVERRIDE', // Re-using for now, should be a new type 'REALLOCATION_APPROVAL'
+            //     text: todoText,
+            //     createdBy: "system",
+            //     assignedTo: [managerId],
+            //     isCompleted: false,
+            //     createdAt: new Date().toISOString(),
+            //     relatedEntity: { type: 'engagement_creation_request', id: todoRef.id }, // Placeholder
+            //     relatedData: { plan: reallocationResult.plan } // Store the plan for future approval action
+            // };
+            // await setDoc(todoRef, newTodo);
 
             toast({
-                title: "Approval Required",
-                description: `A to-do has been created for ${manager?.name || 'the manager'} to approve the reallocation plan.`,
+                title: "AI Feature Disabled",
+                description: `AI Reallocation is temporarily disabled.`,
+                variant: "destructive",
                 duration: 7000,
             });
 

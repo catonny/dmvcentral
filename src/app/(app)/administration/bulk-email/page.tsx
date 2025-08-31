@@ -100,29 +100,29 @@ export default function BulkEmailPage() {
         }
         setIsSending(true);
         try {
-            const clientData = selectedRecipients.map(client => ({
-                id: client.id,
-                name: client.name,
-                email: client.mailId,
-            }));
+            // const clientData = selectedRecipients.map(client => ({
+            //     id: client.id,
+            //     name: client.name,
+            //     email: client.mailId,
+            // }));
 
-            await sendBulkPersonalizedEmail({
-                clients: clientData,
-                subjectTemplate: subject,
-                bodyTemplate: body,
-                engagementTypeId: filters.engagementTypeId,
-                status: filters.status,
-                financialYear: filters.financialYear
-            });
-
+            // await sendBulkPersonalizedEmail({
+            //     clients: clientData,
+            //     subjectTemplate: subject,
+            //     bodyTemplate: body,
+            //     engagementTypeId: filters.engagementTypeId,
+            //     status: filters.status,
+            //     financialYear: filters.financialYear
+            // });
             toast({
-                title: "Success!",
-                description: `Emails are being sent to ${selectedRecipients.length} clients.`
+                title: "AI Feature Disabled",
+                description: `Bulk email AI personalization is temporarily disabled.`,
+                variant: "destructive"
             });
-            setIsComposeDialogOpen(false);
-            setSubject("");
-            setBody("");
-            setSelectedRecipients([]);
+            // setIsComposeDialogOpen(false);
+            // setSubject("");
+            // setBody("");
+            // setSelectedRecipients([]);
 
         } catch (error) {
              console.error(error);
@@ -265,10 +265,10 @@ export default function BulkEmailPage() {
                     </div>
                      <DialogFooter>
                         <Button variant="outline" onClick={() => setIsComposeDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSendEmail} disabled={isSending}>
+                        <Button onClick={handleSendEmail} disabled={isSending || true}>
                             {isSending && <Loader2 className="mr-2 animate-spin" />}
                             <Send className="mr-2"/>
-                            Send Emails
+                            Send Emails (Disabled)
                         </Button>
                     </DialogFooter>
                 </DialogContent>

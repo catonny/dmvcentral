@@ -85,18 +85,20 @@ export default function EngagementSchedulerPage() {
         }
         setIsGeneratingPlan(true);
         try {
-            const result = await scheduleEngagements({
-                clientIds: fetchedClients.map(c => c.id),
-                assignmentPrompt: assignmentPrompt,
-            });
+            // const result = await scheduleEngagements({
+            //     clientIds: fetchedClients.map(c => c.id),
+            //     assignmentPrompt: assignmentPrompt,
+            // });
 
-            if (!result || !result.plan || result.plan.length === 0) {
-                 toast({ title: "AI Error", description: "The AI could not generate a valid assignment plan. Please try a different prompt.", variant: "destructive" });
-                 return;
-            }
+            // if (!result || !result.plan || result.plan.length === 0) {
+            //      toast({ title: "AI Error", description: "The AI could not generate a valid assignment plan. Please try a different prompt.", variant: "destructive" });
+            //      return;
+            // }
             
-            setAssignmentPlan(result.plan);
-            setStep("confirm");
+            // setAssignmentPlan(result.plan);
+            // setStep("confirm");
+             toast({ title: "AI Feature Disabled", description: "The AI Engagement Scheduler is temporarily disabled.", variant: "destructive" });
+
 
         } catch (error) {
             console.error(error);
@@ -228,9 +230,9 @@ export default function EngagementSchedulerPage() {
 
                          <div className="flex justify-between">
                             <Button variant="outline" onClick={() => setStep("define")}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                            <Button onClick={handleGeneratePlan} disabled={isGeneratingPlan}>
+                            <Button onClick={handleGeneratePlan} disabled={isGeneratingPlan || true}>
                                 {isGeneratingPlan ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4" />}
-                                Generate Assignment Plan
+                                Generate Assignment Plan (Disabled)
                             </Button>
                         </div>
                     </CardContent>

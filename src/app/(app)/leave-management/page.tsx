@@ -106,10 +106,10 @@ export default function LeaveManagementPage() {
                 
                 // Only run the AI conflict analysis for non-partners
                 if (!isPartnerLeave) {
-                    console.log(`Triggering AI agent for leave request ID: ${requestId}`);
-                    toast({ title: "Processing...", description: "AI is analyzing calendar conflicts." });
-                    await handleLeaveRequest({ leaveRequestId: requestId });
-                    toast({ title: "AI Agent Complete", description: "Conflict analysis finished. Check server console for plan." });
+                    console.log(`AI agent for leave request ID ${requestId} is currently disabled.`);
+                    toast({ title: "AI Agent Disabled", description: "Conflict analysis is temporarily turned off." });
+                    // await handleLeaveRequest({ leaveRequestId: requestId });
+                    // toast({ title: "AI Agent Complete", description: "Conflict analysis finished. Check server console for plan." });
                 }
             }
 

@@ -91,13 +91,14 @@ export function EmailCenter() {
     setGeneratedBody("");
 
     try {
-        const result = await generateEmail({
-            clientId: selectedClientId,
-            templateName: selectedTemplate,
-            userId: currentUser.id
-        });
-        setGeneratedSubject(result.subject);
-        setGeneratedBody(result.body);
+        // const result = await generateEmail({
+        //     clientId: selectedClientId,
+        //     templateName: selectedTemplate,
+        //     userId: currentUser.id
+        // });
+        // setGeneratedSubject(result.subject);
+        // setGeneratedBody(result.body);
+        toast({ title: "AI Feature Disabled", description: "The AI Email Generator is temporarily disabled.", variant: "destructive" });
     } catch (error) {
         console.error("Error generating email:", error);
         toast({ title: "Generation Failed", description: "The AI could not generate the email.", variant: "destructive"});
@@ -209,9 +210,9 @@ export function EmailCenter() {
                 </Select>
             </div>
             <div>
-                <Button onClick={handleGenerateEmail} disabled={isGenerating || !selectedClientId || !selectedTemplate}>
+                <Button onClick={handleGenerateEmail} disabled={isGenerating || !selectedClientId || !selectedTemplate || true}>
                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    3. Generate Email with AI
+                    3. Generate Email with AI (Disabled)
                 </Button>
             </div>
         </div>

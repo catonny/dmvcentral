@@ -36,11 +36,12 @@ export default function ManualEmailProcessorPage() {
         setResult(null);
 
         try {
-            const output = await processEmail({ from, subject, body });
-            setResult(output);
+            // const output = await processEmail({ from, subject, body });
+            // setResult(output);
             toast({
-                title: "Processing Complete",
-                description: "The AI has analyzed the email content.",
+                title: "AI Processing Disabled",
+                description: "The AI email processor is temporarily disabled.",
+                variant: "destructive"
             });
         } catch (error) {
             console.error("Error processing email:", error);
@@ -90,14 +91,14 @@ export default function ManualEmailProcessorPage() {
                             <Textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Paste the full email body here." rows={10}/>
                         </div>
                         <div className="flex gap-2">
-                            <Button onClick={handleProcessEmail} disabled={isLoading}>
+                            <Button onClick={handleProcessEmail} disabled={isLoading || true}>
                                 {isLoading ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Processing...
                                     </>
                                 ) : (
-                                    "Process Email"
+                                    "Process Email (Disabled)"
                                 )}
                             </Button>
                             <Button variant="outline" onClick={handleReset}>
@@ -114,7 +115,7 @@ export default function ManualEmailProcessorPage() {
                                 </pre>
                             ) : (
                                 <div className="flex items-center justify-center h-full text-muted-foreground">
-                                    <p>Results will appear here after processing.</p>
+                                    <p>AI processing is disabled.</p>
                                 </div>
                             )}
                         </div>

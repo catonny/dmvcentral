@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -107,14 +106,15 @@ export default function MonthlyHoursDeficitPage() {
         if (!currentUser) return;
         setProcessingId(employeeId);
         try {
-            await handlePerformanceReview({ 
-                employeeId: employeeId,
-                period: selectedMonth,
-                reviewerId: currentUser.id
-            });
+            // await handlePerformanceReview({ 
+            //     employeeId: employeeId,
+            //     period: selectedMonth,
+            //     reviewerId: currentUser.id
+            // });
             toast({
-                title: "AI Review Complete",
-                description: "A performance summary has been added to the relevant partner's To-Do list."
+                title: "AI Review Disabled",
+                description: "The AI performance review feature is temporarily disabled.",
+                variant: "destructive",
             });
         } catch(e) {
             console.error("AI Review failed:", e);
@@ -174,9 +174,9 @@ export default function MonthlyHoursDeficitPage() {
                                         <TableCell className="text-right font-mono">{emp.loggedHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right font-mono text-destructive">{emp.deficit.toFixed(1)}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" variant="outline" onClick={() => handleRunAIReview(emp.id)} disabled={processingId === emp.id}>
+                                            <Button size="sm" variant="outline" onClick={() => handleRunAIReview(emp.id)} disabled={processingId === emp.id || true}>
                                                 {processingId === emp.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4" />}
-                                                Review with AI
+                                                Review with AI (Disabled)
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -193,4 +193,3 @@ export default function MonthlyHoursDeficitPage() {
         </div>
     )
 }
-
